@@ -1,0 +1,44 @@
+{
+  "@@locale": "en",
+  "appTitle": "Utilivo",
+  "tools": "Tools",
+  "marketplace": "Tool Library",
+  "settings": "Settings",
+  "searchTools": "Search tools...",
+  "browseMarketplace": "Browse Tool Library",
+  "noInstalledTools": "No installed tools",
+  "noInstalledToolsMessage": "Browse the Tool Library to install your first tool.",
+  "noToolsMatchSearch": "No tools match your search",
+  "noToolsMatchSearchMessage": "Try a different search term.",
+  "launchTool": "Launch tool",
+  "deleteTool": "Delete tool",
+  "deleteToolConfirmTitle": "Delete tool?",
+  "deleteToolConfirmMessage": "Remove \"{toolName}\" from this device? You can install it again from the Marketplace.",
+  "@deleteToolConfirmMessage": {
+    "placeholders": {
+      "toolName": { "type": "String" }
+    }
+  },
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "pinTool": "Pin tool",
+  "unpinTool": "Unpin tool",
+  "install": "Install",
+  "installing": "Installing...",
+  "installed": "Installed",
+  "viewDetails": "View Details",
+  "discover": "Discover",
+  "discoverSubtitle": "Browse categories and discover tools from utilivo-api.",
+  "loadMore": "Load More",
+  "category": "Category",
+  "installedVersion": "Installed version",
+  "status": "Status",
+  "installedAt": "Installed at",
+  "updateAvailable": "Update available: {version}",
+  "@updateAvailable": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "upToDate": "Up to date"
+}

@@ -1,0 +1,954 @@
+import 'dart:async';
+import 'dart:developer' as developer;
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
+
+import '../../../core/networking/network_exception.dart';
+import '../../discover/data/catalog_api.dart';
+import '../../downloads/application/tool_bundle_download_service.dart';
+import '../../downloads/data/models/downloaded_tool_bundle.dart';
+import '../data/installed_tools_store.dart';
+import '../data/installs_organization_store.dart';
+import '../data/installs_api.dart';
+import '../data/models/install_models.dart';
+import '../data/models/installs_organization_models.dart';
+
+enum InstalledToolsState { initializing, ready, failed }
+
+class InstalledToolsController extends ChangeNotifier {
+  InstalledToolsController({
+    required InstallsApi installsApi,
+    required CatalogApi catalogApi,
+    required InstalledToolsStore store,
+    required InstallsOrganizationStore organizationStore,
+    ToolBundleDownloadService? toolBundleDownloadService,
+  }) : _installsApi = installsApi,
+       _catalogApi = catalogApi,
+       _store = store,
+       _organizationStore = organizationStore,
+       _toolBundleDownloadService = toolBundleDownloadService;
+
+  static const int maxPinnedTools = 3;
+  static const int maxFolderNameLength = 16;
+
+  final InstallsApi _installsApi;
+  final CatalogApi _catalogApi;
+  final InstalledToolsStore _store;
+  final InstallsOrganizationStore _organizationStore;
+  final ToolBundleDownloadService? _toolBundleDownloadService;
+
+  bool _bootstrapStarted = false;
+  InstalledToolsState _state = InstalledToolsState.initializing;
+  List<DeviceInstallRecord> _installedTools = const <DeviceInstallRecord>[];
+  bool _isSyncing = false;
+  bool _isCheckingUpdates = false;
+  String? _statusMessage;
+  String? _errorMessage;
+  DateTime? _lastSyncedAt;
+  List<ToolFolder> _folders = const <ToolFolder>[];
+  HomeSortMode _homeSortMode = HomeSortMode.defaultManual;
+
+  InstalledToolsState get state => _state;
+  bool get isSyncing => _isSyncing;
+  bool get isCheckingUpdates => _isCheckingUpdates;
+  bool get isBusy => _isSyncing || _isCheckingUpdates;
+  String? get statusMessage => _statusMessage;
+  String? get errorMessage => _errorMessage;
+  DateTime? get lastSyncedAt => _lastSyncedAt;
+  bool get hasFailed => _state == InstalledToolsState.failed;
+  bool get hasCachedTools => _installedTools.isNotEmpty;
+  HomeSortMode get homeSortMode => _homeSortMode;
+  List<ToolFolder> get folders => _sortedFolders(_folders);
+
+  List<DeviceInstallRecord> get installedTools => _sortedTools(_installedTools);
+
+  HomeGroupedInstalls get groupedHomeData {
+    final pinnedTools = _sortByMode(
+      _installedTools
+          .where((DeviceInstallRecord tool) => tool.pinned)
+          .toList(growable: false),
+    );
+    final folders = _sortedFolders(_folders);
+    final folderSections = folders
+        .map((folder) {
+          return HomeFolderSection(
+            folder: folder,
+            tools: _sortByMode(
+              _installedTools
+                  .where(
+                    (tool) =>
+                        !tool.pinned &&
+                        tool.folderId != null &&
+                        tool.folderId == folder.id,
+                  )
+                  .toList(growable: false),
+            ),
+          );
+        })
+        .toList(growable: false);
+    final unpinnedTools = _sortByMode(
+      _installedTools
+          .where(
+            (tool) =>
+                !tool.pinned &&
+                (tool.folderId == null || tool.folderId!.isEmpty),
+          )
+          .toList(growable: false),
+    );
+    return HomeGroupedInstalls(
+      pinnedTools: pinnedTools,
+      folders: folderSections,
+      unpinnedTools: unpinnedTools,
+    );
+  }
+
+  List<DeviceInstallRecord> _sortedTools(List<DeviceInstallRecord> tools) {
+    final pinned = _sortByMode(
+      tools.where((DeviceInstallRecord t) => t.pinned).toList(growable: false),
+    );
+    final unpinned = _sortByMode(
+      tools.where((DeviceInstallRecord t) => !t.pinned).toList(growable: false),
+    );
+    return <DeviceInstallRecord>[...pinned, ...unpinned];
+  }
+
+  Future<void> bootstrap() async {
+    if (_bootstrapStarted) {
+      return;
+    }
+    _bootstrapStarted = true;
+
+    _state = InstalledToolsState.initializing;
+    _statusMessage = null;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final organization = await _organizationStore.read();
+      final cached = await _store.read();
+      final hydrated = await _hydrateLocalBundleMetadata(cached);
+      _folders = organization.folders;
+      _homeSortMode = organization.homeSortMode;
+      _installedTools = _reconcileFolderAssignments(hydrated.installs);
+      if (hydrated.didMutate) {
+        await _persistState();
+      }
+      _state = InstalledToolsState.ready;
+      _statusMessage = _installedTools.isEmpty
+          ? 'No installed tools found yet.'
+          : 'Loaded installed tools from device cache.';
+    } catch (error) {
+      developer.log(
+        'Failed to bootstrap installed tools cache.',
+        name: 'InstalledToolsController',
+        error: error,
+      );
+      _installedTools = const <DeviceInstallRecord>[];
+      _folders = const <ToolFolder>[];
+      _homeSortMode = HomeSortMode.defaultManual;
+      _state = InstalledToolsState.failed;
+      _errorMessage = 'Failed to load installed tools cache: $error';
+      notifyListeners();
+      return;
+    }
+
+    notifyListeners();
+    unawaited(syncFromRepository());
+  }
+
+  Future<void> retryBootstrap() async {
+    _bootstrapStarted = false;
+    await bootstrap();
+  }
+
+  Future<void> syncFromRepository() async {
+    if (_isSyncing) {
+      return;
+    }
+
+    _isSyncing = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final remoteInstalls = await _installsApi.listInstalls();
+      _installedTools = _mergeRemoteWithCached(remoteInstalls, _installedTools);
+      _installedTools = await _hydrateCatalogMetadata(_installedTools);
+      final hydrated = await _hydrateLocalBundleMetadata(_installedTools);
+      _installedTools = _reconcileFolderAssignments(hydrated.installs);
+      _lastSyncedAt = DateTime.now().toUtc();
+      _state = InstalledToolsState.ready;
+      _statusMessage = remoteInstalls.isEmpty
+          ? 'No installed tools found for this device yet.'
+          : 'Installed tools synced from online repository.';
+      await _persistState();
+      notifyListeners();
+    } on NetworkException {
+      if (_installedTools.isEmpty) {
+        _state = InstalledToolsState.failed;
+        _errorMessage =
+            'Could not reach online repository to load installed tools.';
+      } else {
+        _state = InstalledToolsState.ready;
+        _statusMessage =
+            'Offline mode: showing installed tools from local cache.';
+      }
+    } catch (error) {
+      developer.log(
+        'Unexpected installed-tools sync error.',
+        name: 'InstalledToolsController',
+        error: error,
+      );
+      if (_installedTools.isEmpty) {
+        _state = InstalledToolsState.failed;
+        _errorMessage = 'Unexpected installed-tools sync error: $error';
+      } else {
+        _state = InstalledToolsState.ready;
+        _statusMessage =
+            'Unable to refresh right now. Showing cached installed tools.';
+      }
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
+    unawaited(checkForUpdates());
+  }
+
+  Future<void> checkForUpdates() async {
+    if (_isCheckingUpdates || _installedTools.isEmpty) {
+      return;
+    }
+
+    _isCheckingUpdates = true;
+    notifyListeners();
+
+    try {
+      final now = DateTime.now().toUtc();
+      final updatedTools = <DeviceInstallRecord>[];
+      for (final install in _installedTools) {
+        updatedTools.add(await _withLatestVersion(install, checkedAt: now));
+      }
+      _installedTools = updatedTools;
+      final updatesFound = updatedTools.any(
+        (DeviceInstallRecord t) => t.updateAvailable,
+      );
+      if (updatesFound) {
+        _statusMessage = 'Updates available for some tools.';
+      }
+      await _store.write(_installedTools);
+    } finally {
+      _isCheckingUpdates = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> removeInstall(DeviceInstallRecord install) async {
+    _installedTools = _installedTools
+        .where((DeviceInstallRecord t) => t.pluginSlug != install.pluginSlug)
+        .toList(growable: false);
+    _installedTools = _reconcileFolderAssignments(_installedTools);
+    _state = InstalledToolsState.ready;
+    _errorMessage = null;
+    _statusMessage = _installedTools.isEmpty
+        ? 'No installed tools.'
+        : 'Tool removed from this device.';
+    await _persistState();
+    notifyListeners();
+    try {
+      await _toolBundleDownloadService?.deleteBundle(install.pluginSlug);
+    } catch (_) {
+      // Best-effort bundle cleanup.
+    }
+  }
+
+  Future<void> togglePin(DeviceInstallRecord install) async {
+    final newPinned = !install.pinned;
+    if (newPinned) {
+      final currentPinnedCount = _installedTools
+          .where((DeviceInstallRecord t) => t.pinned)
+          .length;
+      if (currentPinnedCount >= maxPinnedTools) {
+        return;
+      }
+    }
+    _installedTools = _installedTools
+        .map((DeviceInstallRecord t) {
+          if (t.pluginSlug == install.pluginSlug) {
+            return t.copyWith(pinned: newPinned);
+          }
+          return t;
+        })
+        .toList(growable: false);
+    await _persistState();
+    notifyListeners();
+  }
+
+  int get pinnedCount =>
+      _installedTools.where((DeviceInstallRecord t) => t.pinned).length;
+
+  Future<void> recordInstall(DeviceInstallRecord installation) async {
+    final existingIndex = _installedTools.indexWhere(
+      (DeviceInstallRecord current) =>
+          current.pluginSlug == installation.pluginSlug,
+    );
+
+    final existing = existingIndex >= 0 ? _installedTools[existingIndex] : null;
+    final normalized = installation.copyWith(
+      updateAvailable: false,
+      latestAvailableVersion:
+          installation.installedVersion ?? installation.latestAvailableVersion,
+      lastUpdateCheckAt: DateTime.now().toUtc(),
+      pluginName: installation.pluginName ?? existing?.pluginName,
+      categoryName: installation.categoryName ?? existing?.categoryName,
+      pluginDescription:
+          installation.pluginDescription ?? existing?.pluginDescription,
+      categoryColor: installation.categoryColor ?? existing?.categoryColor,
+      iconPath: installation.iconPath ?? existing?.iconPath,
+      cardAccentColor:
+          installation.cardAccentColor ?? existing?.cardAccentColor,
+      pricingTier: installation.pricingTier ?? existing?.pricingTier,
+      pinned: existing?.pinned ?? false,
+      folderId: existing?.folderId,
+      lastLaunchedAt: existing?.lastLaunchedAt,
+    );
+
+    if (existingIndex >= 0) {
+      final mutableTools = _installedTools.toList(growable: true);
+      mutableTools[existingIndex] = normalized;
+      _installedTools = mutableTools;
+    } else {
+      _installedTools = <DeviceInstallRecord>[normalized, ..._installedTools];
+    }
+
+    _state = InstalledToolsState.ready;
+    _errorMessage = null;
+    _statusMessage = 'Installed tools updated locally.';
+    _installedTools = _reconcileFolderAssignments(_installedTools);
+    await _persistState();
+    notifyListeners();
+
+    unawaited(checkForUpdates());
+  }
+
+  List<DeviceInstallRecord> _mergeRemoteWithCached(
+    List<DeviceInstallRecord> remoteInstalls,
+    List<DeviceInstallRecord> cachedInstalls,
+  ) {
+    if (cachedInstalls.isEmpty) {
+      return remoteInstalls;
+    }
+
+    final remoteBySlug = <String, DeviceInstallRecord>{
+      for (final install in remoteInstalls) install.pluginSlug: install,
+    };
+
+    final merged = <DeviceInstallRecord>[];
+    for (final cached in cachedInstalls) {
+      final remote = remoteBySlug[cached.pluginSlug];
+      if (remote != null) {
+        merged.add(
+          remote.copyWith(
+            latestAvailableVersion: cached.latestAvailableVersion,
+            updateAvailable: cached.updateAvailable,
+            lastUpdateCheckAt: cached.lastUpdateCheckAt,
+            pluginName: cached.pluginName ?? remote.pluginName,
+            categoryName: cached.categoryName ?? remote.categoryName,
+            pluginDescription:
+                cached.pluginDescription ?? remote.pluginDescription,
+            categoryColor: cached.categoryColor ?? remote.categoryColor,
+            iconPath: cached.iconPath ?? remote.iconPath,
+            cardAccentColor: cached.cardAccentColor ?? remote.cardAccentColor,
+            pricingTier: cached.pricingTier ?? remote.pricingTier,
+            pinned: cached.pinned,
+          ),
+        );
+      } else {
+        merged.add(cached);
+      }
+    }
+
+    return merged;
+  }
+
+  Future<List<DeviceInstallRecord>> _hydrateCatalogMetadata(
+    List<DeviceInstallRecord> installs,
+  ) async {
+    final updatedInstalls = <DeviceInstallRecord>[];
+    for (final install in installs) {
+      if (!_needsCatalogMetadata(install)) {
+        updatedInstalls.add(install);
+        continue;
+      }
+      try {
+        final plugin = await _catalogApi.getPluginBySlug(install.pluginSlug);
+        updatedInstalls.add(
+          install.copyWith(
+            pluginName: plugin.name,
+            categoryName: plugin.categoryName,
+            categoryColor: plugin.categoryColor,
+            pluginDescription:
+                plugin.longDescription ?? plugin.shortDescription,
+            pricingTier: _normalizeTier(plugin.pricingType),
+          ),
+        );
+      } on NetworkException {
+        updatedInstalls.add(install);
+      } catch (_) {
+        developer.log(
+          'Failed to hydrate catalog metadata for install.',
+          name: 'InstalledToolsController',
+          error: 'slug=${install.pluginSlug}',
+        );
+        updatedInstalls.add(install);
+      }
+    }
+    return updatedInstalls;
+  }
+
+  bool _needsCatalogMetadata(DeviceInstallRecord install) {
+    return (install.pluginName?.trim().isEmpty ?? true) ||
+        (install.categoryName?.trim().isEmpty ?? true) ||
+        (install.categoryColor?.trim().isEmpty ?? true) ||
+        (install.pluginDescription?.trim().isEmpty ?? true) ||
+        (install.pricingTier?.trim().isEmpty ?? true);
+  }
+
+  Future<_InstallHydrationResult> _hydrateLocalBundleMetadata(
+    List<DeviceInstallRecord> installs,
+  ) async {
+    final service = _toolBundleDownloadService;
+    if (service == null || installs.isEmpty) {
+      return _InstallHydrationResult(installs: installs, didMutate: false);
+    }
+
+    final bundles = await service.listDownloadedBundles();
+    if (bundles.isEmpty) {
+      return _InstallHydrationResult(installs: installs, didMutate: false);
+    }
+    final bundlesBySlug = <String, DownloadedToolBundle>{
+      for (final bundle in bundles) bundle.pluginSlug: bundle,
+    };
+
+    var didMutate = false;
+    final hydrated = installs
+        .map((DeviceInstallRecord install) {
+          final bundle = bundlesBySlug[install.pluginSlug];
+          if (bundle == null) {
+            return install;
+          }
+          final iconPath = bundle.iconPath;
+          final iconAccentColor = bundle.iconAccentColor;
+          final category = bundle.category;
+          final pluginName = bundle.pluginName;
+          final updated = install.copyWith(
+            pluginName: install.pluginName ?? pluginName,
+            categoryName: install.categoryName ?? category,
+            iconPath: install.iconPath ?? iconPath,
+            cardAccentColor: install.cardAccentColor ?? iconAccentColor,
+            pricingTier:
+                install.pricingTier ?? _normalizeTier(bundle.verifiedTier),
+          );
+          if (!identical(updated, install) &&
+              (updated.pluginName != install.pluginName ||
+                  updated.categoryName != install.categoryName ||
+                  updated.iconPath != install.iconPath ||
+                  updated.cardAccentColor != install.cardAccentColor)) {
+            didMutate = true;
+          }
+          return updated;
+        })
+        .toList(growable: false);
+    return _InstallHydrationResult(installs: hydrated, didMutate: didMutate);
+  }
+
+  String? _normalizeTier(String? raw) {
+    final normalized = raw?.trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty) {
+      return null;
+    }
+    if (normalized == 'free') {
+      return 'free';
+    }
+    if (normalized == 'premium' || normalized == 'paid') {
+      return 'premium';
+    }
+    return null;
+  }
+
+  Future<void> addDebugTools({int count = 10}) async {
+    const names = <String>[
+      'Key Utility',
+      'Address Explorer',
+      'Seed Converter',
+      'Node Monitor',
+      'Transaction Inspector',
+      'UTXO Viewer',
+      'Lightning Helper',
+      'Fee Estimator',
+      'Wallet Toolkit',
+      'Script Decoder',
+    ];
+    const categories = <String>[
+      'Utilities',
+      'Security',
+      'Marketplace',
+      'Finance',
+      'Networking',
+    ];
+    const descriptions = <String>[
+      'Calculate public keys from private keys and export results quickly.',
+      'Inspect wallet addresses, balances, and chain metadata in one place.',
+      'Convert seed phrases between formats and verify checksums safely.',
+      'Monitor peer status, mempool health, and node responsiveness.',
+      'Decode transactions, signatures, and raw payloads for debugging.',
+      'Review UTXOs, filter spendable outputs, and estimate consolidation.',
+      'Estimate routing conditions and inspect Lightning network details.',
+      'Compare fee targets and suggest optimal confirmation windows.',
+      'Bundle common wallet maintenance tools for daily usage.',
+      'Decode script templates and explain opcode usage clearly.',
+    ];
+
+    final random = Random();
+    final now = DateTime.now().toUtc();
+    final deviceId = _installedTools.isNotEmpty
+        ? _installedTools.first.deviceId
+        : 'debug-device';
+
+    final generated = List<DeviceInstallRecord>.generate(count, (int index) {
+      final seed = now.microsecondsSinceEpoch + index;
+      final name = names[random.nextInt(names.length)];
+      return DeviceInstallRecord(
+        id: 'debug-$seed',
+        deviceId: deviceId,
+        pluginId: 'debug.plugin.$seed',
+        pluginSlug: 'debug-tool-$seed',
+        source: 'debug_seed',
+        installedAt: now.add(Duration(seconds: index)),
+        installedVersionId: '1.0.${index + 1}',
+        installedVersion: '1.0.${index + 1}',
+        updatedAt: now.add(Duration(seconds: index)),
+        latestAvailableVersion: '1.0.${index + 1}',
+        updateAvailable: false,
+        lastUpdateCheckAt: now,
+        pluginName: '$name ${100 + index}',
+        categoryName: categories[random.nextInt(categories.length)],
+        pluginDescription: descriptions[random.nextInt(descriptions.length)],
+      );
+    });
+
+    _installedTools = <DeviceInstallRecord>[...generated, ..._installedTools];
+    _state = InstalledToolsState.ready;
+    _errorMessage = null;
+    _statusMessage = 'Added $count test tools.';
+    _installedTools = _reconcileFolderAssignments(_installedTools);
+    await _persistState();
+    notifyListeners();
+  }
+
+  Future<void> setHomeSortMode(HomeSortMode mode) async {
+    if (_homeSortMode == mode) {
+      return;
+    }
+    _homeSortMode = mode;
+    await _persistState();
+    notifyListeners();
+  }
+
+  ToolFolder? folderById(String folderId) {
+    final normalized = folderId.trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+    for (final folder in _folders) {
+      if (folder.id == normalized) {
+        return folder;
+      }
+    }
+    return null;
+  }
+
+  List<DeviceInstallRecord> toolsForFolder(
+    String folderId, {
+    bool includePinned = true,
+  }) {
+    final normalized = folderId.trim();
+    if (normalized.isEmpty) {
+      return const <DeviceInstallRecord>[];
+    }
+    return _sortByMode(
+      _installedTools
+          .where(
+            (DeviceInstallRecord tool) =>
+                tool.folderId == normalized && (includePinned || !tool.pinned),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  bool hasFolderWithName(String name, {String? excludeFolderId}) {
+    final normalized = name.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return false;
+    }
+    for (final folder in _folders) {
+      if (folder.id == excludeFolderId) {
+        continue;
+      }
+      if (folder.name.trim().toLowerCase() == normalized) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<ToolFolder> createFolder({
+    required String name,
+    required String iconKey,
+    required String colorKey,
+  }) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError('Folder name is required.');
+    }
+    if (trimmedName.length > maxFolderNameLength) {
+      throw ArgumentError(
+        'Folder name must be $maxFolderNameLength characters or less.',
+      );
+    }
+    if (hasFolderWithName(trimmedName)) {
+      throw ArgumentError('A folder with this name already exists.');
+    }
+    final now = DateTime.now().toUtc();
+    final folder = ToolFolder(
+      id: 'folder_${now.microsecondsSinceEpoch}',
+      name: trimmedName,
+      iconKey: iconKey.trim(),
+      colorKey: colorKey.trim(),
+      createdAt: now,
+      updatedAt: now,
+      manualOrder: _folders.length,
+    );
+    _folders = <ToolFolder>[..._folders, folder];
+    await _persistState();
+    notifyListeners();
+    return folder;
+  }
+
+  Future<void> updateFolder({
+    required String folderId,
+    required String name,
+    required String iconKey,
+    required String colorKey,
+  }) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError('Folder name is required.');
+    }
+    final existing = folderById(folderId);
+    final isLegacyUnchangedLongName =
+        existing != null &&
+        existing.name.trim().length > maxFolderNameLength &&
+        existing.name.trim() == trimmedName;
+    if (trimmedName.length > maxFolderNameLength &&
+        !isLegacyUnchangedLongName) {
+      throw ArgumentError(
+        'Folder name must be $maxFolderNameLength characters or less.',
+      );
+    }
+    if (hasFolderWithName(trimmedName, excludeFolderId: folderId)) {
+      throw ArgumentError('A folder with this name already exists.');
+    }
+    _folders = _folders
+        .map((folder) {
+          if (folder.id != folderId) {
+            return folder;
+          }
+          return folder.copyWith(
+            name: trimmedName,
+            iconKey: iconKey.trim(),
+            colorKey: colorKey.trim(),
+            updatedAt: DateTime.now().toUtc(),
+          );
+        })
+        .toList(growable: false);
+    await _persistState();
+    notifyListeners();
+  }
+
+  Future<void> deleteFolder(String folderId) async {
+    _folders = _folders
+        .where((folder) => folder.id != folderId)
+        .toList(growable: false);
+    _installedTools = _installedTools
+        .map((tool) {
+          if (tool.folderId != folderId) {
+            return tool;
+          }
+          return tool.copyWith(folderId: null);
+        })
+        .toList(growable: false);
+    await _persistState();
+    notifyListeners();
+  }
+
+  Future<void> assignToolToFolder({
+    required String pluginSlug,
+    required String folderId,
+  }) async {
+    if (folderById(folderId) == null) {
+      throw ArgumentError('Folder does not exist.');
+    }
+    _installedTools = _installedTools
+        .map((tool) {
+          if (tool.pluginSlug != pluginSlug) {
+            return tool;
+          }
+          return tool.copyWith(folderId: folderId);
+        })
+        .toList(growable: false);
+    await _persistState();
+    notifyListeners();
+  }
+
+  Future<void> removeToolFromFolder({required String pluginSlug}) async {
+    _installedTools = _installedTools
+        .map((tool) {
+          if (tool.pluginSlug != pluginSlug) {
+            return tool;
+          }
+          return tool.copyWith(folderId: null);
+        })
+        .toList(growable: false);
+    await _persistState();
+    notifyListeners();
+  }
+
+  Future<void> markToolLaunched(String pluginSlug) async {
+    final launchedAt = DateTime.now().toUtc();
+    var didMutate = false;
+    _installedTools = _installedTools
+        .map((tool) {
+          if (tool.pluginSlug != pluginSlug) {
+            return tool;
+          }
+          didMutate = true;
+          return tool.copyWith(lastLaunchedAt: launchedAt);
+        })
+        .toList(growable: false);
+    if (!didMutate) {
+      return;
+    }
+    await _persistState();
+    notifyListeners();
+  }
+
+  List<ToolFolder> _sortedFolders(List<ToolFolder> folders) {
+    final copy = folders.toList(growable: true);
+    switch (_homeSortMode) {
+      case HomeSortMode.nameAsc:
+        copy.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
+        break;
+      case HomeSortMode.nameDesc:
+        copy.sort(
+          (a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()),
+        );
+        break;
+      case HomeSortMode.installDateNewest:
+        copy.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
+      case HomeSortMode.installDateOldest:
+        copy.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case HomeSortMode.lastUsed:
+      case HomeSortMode.defaultManual:
+        copy.sort((a, b) {
+          final aOrder = a.manualOrder ?? 0;
+          final bOrder = b.manualOrder ?? 0;
+          return aOrder.compareTo(bOrder);
+        });
+        break;
+    }
+    return copy;
+  }
+
+  List<DeviceInstallRecord> _sortByMode(List<DeviceInstallRecord> tools) {
+    final copy = tools.toList(growable: true);
+    switch (_homeSortMode) {
+      case HomeSortMode.nameAsc:
+        copy.sort(
+          (a, b) => a.displayName.toLowerCase().compareTo(
+            b.displayName.toLowerCase(),
+          ),
+        );
+        break;
+      case HomeSortMode.nameDesc:
+        copy.sort(
+          (a, b) => b.displayName.toLowerCase().compareTo(
+            a.displayName.toLowerCase(),
+          ),
+        );
+        break;
+      case HomeSortMode.installDateNewest:
+        copy.sort((a, b) => b.installedAt.compareTo(a.installedAt));
+        break;
+      case HomeSortMode.installDateOldest:
+        copy.sort((a, b) => a.installedAt.compareTo(b.installedAt));
+        break;
+      case HomeSortMode.lastUsed:
+        copy.sort((a, b) {
+          final aTime = a.lastLaunchedAt ?? a.installedAt;
+          final bTime = b.lastLaunchedAt ?? b.installedAt;
+          return bTime.compareTo(aTime);
+        });
+        break;
+      case HomeSortMode.defaultManual:
+        break;
+    }
+    return copy;
+  }
+
+  List<DeviceInstallRecord> _reconcileFolderAssignments(
+    List<DeviceInstallRecord> tools,
+  ) {
+    if (_folders.isEmpty) {
+      return tools
+          .map((tool) => tool.copyWith(folderId: null))
+          .toList(growable: false);
+    }
+    final validFolderIds = _folders.map((f) => f.id).toSet();
+    var didMutate = false;
+    final reconciled = tools
+        .map((tool) {
+          final folderId = tool.folderId;
+          if (folderId == null || folderId.isEmpty) {
+            return tool;
+          }
+          if (validFolderIds.contains(folderId)) {
+            return tool;
+          }
+          didMutate = true;
+          return tool.copyWith(folderId: null);
+        })
+        .toList(growable: false);
+    return didMutate ? reconciled : tools;
+  }
+
+  Future<void> _persistState() async {
+    await _store.write(_installedTools);
+    await _organizationStore.write(
+      InstallsOrganizationState(folders: _folders, homeSortMode: _homeSortMode),
+    );
+  }
+
+  Future<DeviceInstallRecord> _withLatestVersion(
+    DeviceInstallRecord install, {
+    required DateTime checkedAt,
+  }) async {
+    try {
+      final versions = await _catalogApi.listPluginVersions(
+        install.pluginSlug,
+        forceRefresh: true,
+      );
+      final latestVersion = versions.isEmpty ? null : versions.first.version;
+      return install.copyWith(
+        latestAvailableVersion: latestVersion,
+        updateAvailable: _isUpdateAvailable(
+          installedVersion: install.installedVersion,
+          latestVersion: latestVersion,
+        ),
+        lastUpdateCheckAt: checkedAt,
+      );
+    } on NetworkException {
+      return install.copyWith(lastUpdateCheckAt: checkedAt);
+    } catch (_) {
+      return install.copyWith(lastUpdateCheckAt: checkedAt);
+    }
+  }
+
+  bool _isUpdateAvailable({
+    required String? installedVersion,
+    required String? latestVersion,
+  }) {
+    if (installedVersion == null || latestVersion == null) {
+      return false;
+    }
+
+    final installed = installedVersion.trim();
+    final latest = latestVersion.trim();
+    if (installed.isEmpty || latest.isEmpty || installed == latest) {
+      return false;
+    }
+
+    final installedParts = _parseVersionParts(installed);
+    final latestParts = _parseVersionParts(latest);
+    if (installedParts == null || latestParts == null) {
+      return latest != installed;
+    }
+
+    final maxLength = installedParts.length > latestParts.length
+        ? installedParts.length
+        : latestParts.length;
+    for (var i = 0; i < maxLength; i++) {
+      final installedPart = i < installedParts.length ? installedParts[i] : 0;
+      final latestPart = i < latestParts.length ? latestParts[i] : 0;
+      if (latestPart > installedPart) {
+        return true;
+      }
+      if (latestPart < installedPart) {
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  List<int>? _parseVersionParts(String value) {
+    final parts = value.split('.');
+    if (parts.isEmpty) {
+      return null;
+    }
+
+    final parsed = <int>[];
+    final leadingDigitsPattern = RegExp(r'^\d+');
+    for (final rawPart in parts) {
+      final match = leadingDigitsPattern.firstMatch(rawPart.trim());
+      if (match == null) {
+        return null;
+      }
+      parsed.add(int.parse(match.group(0)!));
+    }
+    return parsed;
+  }
+}
+
+class _InstallHydrationResult {
+  const _InstallHydrationResult({
+    required this.installs,
+    required this.didMutate,
+  });
+
+  final List<DeviceInstallRecord> installs;
+  final bool didMutate;
+}
+
+class HomeFolderSection {
+  const HomeFolderSection({required this.folder, required this.tools});
+
+  final ToolFolder folder;
+  final List<DeviceInstallRecord> tools;
+}
+
+class HomeGroupedInstalls {
+  const HomeGroupedInstalls({
+    required this.pinnedTools,
+    required this.folders,
+    required this.unpinnedTools,
+  });
+
+  final List<DeviceInstallRecord> pinnedTools;
+  final List<HomeFolderSection> folders;
+  final List<DeviceInstallRecord> unpinnedTools;
+}

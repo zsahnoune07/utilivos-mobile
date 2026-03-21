@@ -1,0 +1,198 @@
+import 'dart:async';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:utilivo_mobile/core/billing/billing_gateway.dart';
+import 'package:utilivo_mobile/core/billing/models/billing_models.dart';
+import 'package:utilivo_mobile/core/config/app_config.dart';
+import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
+import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
+import 'package:utilivo_mobile/core/entitlement/models/premium_entitlement.dart';
+import 'package:utilivo_mobile/core/premium/premium_purchase_controller.dart';
+
+void main() {
+  test('initialize loads billing products when store is available', () async {
+    final gateway = _FakeBillingGateway(
+      available: true,
+      products: const <BillingProduct>[
+        BillingProduct(
+          id: 'utilivo_premium_one_time',
+          title: 'Premium',
+          description: 'Unlock premium plugins',
+          price: '\$9.99',
+        ),
+      ],
+    );
+    final entitlementController = EntitlementController(
+      store: _InMemoryEntitlementStore(),
+    );
+    await entitlementController.bootstrap();
+
+    final controller = PremiumPurchaseController(
+      config: _config(),
+      billingGateway: gateway,
+      entitlementController: entitlementController,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+
+    expect(controller.storeAvailable, true);
+    expect(controller.availableProducts, hasLength(1));
+    expect(controller.canPurchase, true);
+  });
+
+  test('purchase update unlocks entitlement for premium product', () async {
+    final gateway = _FakeBillingGateway(
+      available: true,
+      products: const <BillingProduct>[
+        BillingProduct(
+          id: 'utilivo_premium_one_time',
+          title: 'Premium',
+          description: 'Unlock premium plugins',
+          price: '\$9.99',
+        ),
+      ],
+    );
+    final entitlementController = EntitlementController(
+      store: _InMemoryEntitlementStore(),
+    );
+    await entitlementController.bootstrap();
+
+    final controller = PremiumPurchaseController(
+      config: _config(),
+      billingGateway: gateway,
+      entitlementController: entitlementController,
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    gateway.emit(
+      const BillingPurchaseUpdate(
+        status: BillingPurchaseStatus.purchased,
+        productId: 'utilivo_premium_one_time',
+        purchaseToken: 'purchase-token-1',
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+
+    expect(entitlementController.hasPremiumAccess, true);
+    expect(
+      entitlementController.entitlement.productId,
+      'utilivo_premium_one_time',
+    );
+    expect(
+      controller.statusMessage,
+      'Premium unlocked and verified successfully.',
+    );
+  });
+
+  test('restore update unlocks entitlement for subscription product', () async {
+    final gateway = _FakeBillingGateway(
+      available: true,
+      products: const <BillingProduct>[
+        BillingProduct(
+          id: 'utilivo_premium_subscription',
+          title: 'Premium Sub',
+          description: 'Monthly premium access',
+          price: '\$4.99',
+        ),
+      ],
+    );
+    final entitlementController = EntitlementController(
+      store: _InMemoryEntitlementStore(),
+    );
+    await entitlementController.bootstrap();
+
+    final controller = PremiumPurchaseController(
+      config: _config(),
+      billingGateway: gateway,
+      entitlementController: entitlementController,
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    gateway.emit(
+      const BillingPurchaseUpdate(
+        status: BillingPurchaseStatus.restored,
+        productId: 'utilivo_premium_subscription',
+        purchaseToken: 'restore-token-1',
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+
+    expect(entitlementController.hasPremiumAccess, true);
+    expect(entitlementController.entitlement.entitlementType, 'subscription');
+    expect(
+      controller.statusMessage,
+      'Premium restored and verified successfully.',
+    );
+  });
+}
+
+AppConfig _config() {
+  return const AppConfig(
+    appName: 'Utilivo',
+    apiBaseUrl: 'https://api.example.test',
+    androidPackageName: 'com.utilivo.utilivo_mobile',
+    premiumOneTimeProductId: 'utilivo_premium_one_time',
+    premiumSubscriptionProductId: 'utilivo_premium_subscription',
+  );
+}
+
+class _InMemoryEntitlementStore implements EntitlementStore {
+  PremiumEntitlement? _value;
+
+  @override
+  Future<void> clear() async {
+    _value = null;
+  }
+
+  @override
+  Future<PremiumEntitlement?> read() async {
+    return _value;
+  }
+
+  @override
+  Future<void> write(PremiumEntitlement entitlement) async {
+    _value = entitlement;
+  }
+}
+
+class _FakeBillingGateway implements BillingGateway {
+  _FakeBillingGateway({required this.available, required this.products});
+
+  final bool available;
+  final List<BillingProduct> products;
+  final StreamController<BillingPurchaseUpdate> _updates =
+      StreamController<BillingPurchaseUpdate>.broadcast();
+
+  @override
+  Stream<BillingPurchaseUpdate> get purchaseUpdates => _updates.stream;
+
+  @override
+  Future<void> buyNonConsumable(String productId) async {}
+
+  @override
+  void dispose() {
+    _updates.close();
+  }
+
+  void emit(BillingPurchaseUpdate update) {
+    _updates.add(update);
+  }
+
+  @override
+  Future<bool> isAvailable() async {
+    return available;
+  }
+
+  @override
+  Future<List<BillingProduct>> queryProducts(Set<String> productIds) async {
+    return products
+        .where((product) => productIds.contains(product.id))
+        .toList();
+  }
+
+  @override
+  Future<void> restorePurchases() async {}
+}
