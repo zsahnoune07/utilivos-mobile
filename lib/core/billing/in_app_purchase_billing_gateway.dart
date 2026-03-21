@@ -64,6 +64,11 @@ class InAppPurchaseBillingGateway implements BillingGateway {
 
   @override
   Future<void> buyNonConsumable(String productId) async {
+    await buyProduct(productId);
+  }
+
+  @override
+  Future<void> buyProduct(String productId) async {
     final product = _productsById[productId];
     if (product == null) {
       throw StateError('Product $productId is not loaded.');

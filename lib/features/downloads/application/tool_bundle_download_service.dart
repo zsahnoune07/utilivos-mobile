@@ -704,7 +704,7 @@ class ToolBundleDownloadService {
         signingPublicKey.isEmpty) {
       if (_normalizeTier(grantTier: grant.tier) == 'premium') {
         throw const ToolBundleFormatException(
-          'Premium bundle is missing signature metadata.',
+          'Pro bundle is missing signature metadata.',
         );
       }
       return null;

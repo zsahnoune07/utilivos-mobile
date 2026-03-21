@@ -7,12 +7,17 @@ import 'package:archive/archive.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:utilivo_mobile/core/billing/billing_gateway.dart';
 import 'package:utilivo_mobile/core/billing/models/billing_models.dart';
 import 'package:utilivo_mobile/core/config/app_config.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
 import 'package:utilivo_mobile/core/entitlement/models/premium_entitlement.dart';
+import 'package:utilivo_mobile/core/premium/free_tier_usage_store.dart';
+import 'package:utilivo_mobile/core/premium/paywall_coordinator.dart';
+import 'package:utilivo_mobile/core/premium/premium_analytics.dart';
+import 'package:utilivo_mobile/core/premium/premium_capability_service.dart';
 import 'package:utilivo_mobile/core/networking/api_client.dart';
 import 'package:utilivo_mobile/core/premium/premium_purchase_controller.dart';
 import 'package:utilivo_mobile/features/discover/data/catalog_api.dart';
@@ -30,26 +35,29 @@ import 'package:utilivo_mobile/features/installs/data/models/installs_organizati
 
 void main() {
   testWidgets(
-    'premium locked detail shows upgrade CTA and disabled Open Tool when purchase is unavailable',
+    'Pro-locked detail shows upgrade CTA and disabled Open Tool when purchase is unavailable',
     (WidgetTester tester) async {
       final harness = await _PluginDetailHarness.create(
         pricingType: 'premium',
         entitlementActive: false,
         initializeBilling: false,
+        premiumPreview: false,
       );
       addTearDown(harness.dispose);
 
       await tester.pumpWidget(harness.widget);
       await tester.pumpAndSettle();
 
-      expect(find.text('Premium Locked'), findsOneWidget);
-      expect(find.text('Upgrade to Premium'), findsOneWidget);
-      expect(find.text('Restore Purchases'), findsOneWidget);
+      expect(find.text('Pro required'), findsOneWidget);
+      expect(find.text('Go Pro'), findsOneWidget);
+      expect(find.text('Restore purchases'), findsOneWidget);
 
       final upgradeButton = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Upgrade to Premium'),
+        find.widgetWithText(FilledButton, 'Go Pro'),
       );
-      expect(upgradeButton.onPressed, isNull);
+      // Hard-locked Pro opens the paywall sheet (not direct IAP); enabled even
+      // when the billing store is unavailable.
+      expect(upgradeButton.onPressed, isNotNull);
 
       final openToolButton = tester.widget<OutlinedButton>(
         find.widgetWithText(OutlinedButton, 'Open Tool'),
@@ -59,12 +67,13 @@ void main() {
   );
 
   testWidgets(
-    'premium locked detail enables upgrade CTA when billing products are available',
+    'Pro-locked detail enables upgrade CTA when billing products are available',
     (WidgetTester tester) async {
       final harness = await _PluginDetailHarness.create(
         pricingType: 'premium',
         entitlementActive: false,
         initializeBilling: true,
+        premiumPreview: false,
       );
       addTearDown(harness.dispose);
 
@@ -72,13 +81,13 @@ void main() {
       await tester.pumpAndSettle();
 
       final upgradeButton = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Upgrade to Premium'),
+        find.widgetWithText(FilledButton, 'Go Pro'),
       );
       expect(upgradeButton.onPressed, isNotNull);
     },
   );
 
-  testWidgets('premium unlocked detail shows install CTA', (
+  testWidgets('Pro unlocked detail shows install CTA', (
     WidgetTester tester,
   ) async {
     final harness = await _PluginDetailHarness.create(
@@ -91,9 +100,9 @@ void main() {
     await tester.pumpWidget(harness.widget);
     await tester.pumpAndSettle();
 
-    expect(find.text('Premium Unlocked'), findsOneWidget);
+    expect(find.text('Pro active'), findsOneWidget);
     expect(find.text('Install'), findsOneWidget);
-    expect(find.text('Restore Purchases'), findsNothing);
+    expect(find.text('Restore purchases'), findsNothing);
 
     final installButton = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Install'),
@@ -131,6 +140,7 @@ class _PluginDetailHarness {
     required this.entitlementController,
     required this.premiumPurchaseController,
     required this.installedToolsController,
+    required this.premiumCapabilityService,
   });
 
   final Widget widget;
@@ -138,6 +148,7 @@ class _PluginDetailHarness {
   final EntitlementController entitlementController;
   final PremiumPurchaseController premiumPurchaseController;
   final InstalledToolsController installedToolsController;
+  final PremiumCapabilityService premiumCapabilityService;
 
   static const _slug = 'pro-tool';
   static const _config = AppConfig(
@@ -146,12 +157,15 @@ class _PluginDetailHarness {
     androidPackageName: 'com.utilivo.utilivo_mobile',
     premiumOneTimeProductId: 'utilivo_premium_one_time',
     premiumSubscriptionProductId: 'utilivo_premium_subscription',
+    premiumSubscriptionMonthlyProductId: '',
+    premiumSubscriptionAnnualProductId: '',
   );
 
   static Future<_PluginDetailHarness> create({
     required String pricingType,
     required bool entitlementActive,
     required bool initializeBilling,
+    bool premiumPreview = false,
   }) async {
     final dio = Dio(BaseOptions(baseUrl: _config.apiBaseUrl));
     final bundleBytes = _buildBundleArchiveBytes(
@@ -172,6 +186,9 @@ class _PluginDetailHarness {
             'CategoryName': 'Productivity',
             'PricingType': pricingType,
             'ShortDescription': 'Short description',
+            if (pricingType.toLowerCase() == 'premium' ||
+                pricingType.toLowerCase() == 'paid')
+              'premium_preview': premiumPreview,
           },
         }, 200);
       }
@@ -243,8 +260,8 @@ class _PluginDetailHarness {
           ? const <BillingProduct>[
               BillingProduct(
                 id: 'utilivo_premium_one_time',
-                title: 'Premium',
-                description: 'Unlock premium tools',
+                title: 'Utilivo Pro',
+                description: 'Unlock Pro tools',
                 price: '\$9.99',
               ),
             ]
@@ -258,6 +275,18 @@ class _PluginDetailHarness {
     if (initializeBilling) {
       await premiumPurchaseController.initialize();
     }
+
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final usageStore = await FreeTierUsageStore.open();
+    final premiumCapabilityService = PremiumCapabilityService(
+      entitlementController: entitlementController,
+      usageStore: usageStore,
+    );
+    final paywallCoordinator = PaywallCoordinator(
+      purchaseController: premiumPurchaseController,
+      entitlementController: entitlementController,
+      analytics: DebugPremiumAnalytics(),
+    );
 
     final catalogApi = CatalogApi(apiClient);
     final installsApi = InstallsApi(apiClient);
@@ -292,6 +321,8 @@ class _PluginDetailHarness {
         installedToolsController: installedToolsController,
         entitlementController: entitlementController,
         premiumPurchaseController: premiumPurchaseController,
+        premiumCapabilityService: premiumCapabilityService,
+        paywallCoordinator: paywallCoordinator,
       ),
     );
 
@@ -301,10 +332,12 @@ class _PluginDetailHarness {
       entitlementController: entitlementController,
       premiumPurchaseController: premiumPurchaseController,
       installedToolsController: installedToolsController,
+      premiumCapabilityService: premiumCapabilityService,
     );
   }
 
   Future<void> dispose() async {
+    premiumCapabilityService.dispose();
     installedToolsController.dispose();
     premiumPurchaseController.dispose();
     entitlementController.dispose();
@@ -418,6 +451,9 @@ class _FakeBillingGateway implements BillingGateway {
 
   @override
   Future<void> buyNonConsumable(String productId) async {}
+
+  @override
+  Future<void> buyProduct(String productId) async {}
 
   @override
   void dispose() {

@@ -5,6 +5,8 @@ class AppConfig {
     required this.androidPackageName,
     required this.premiumOneTimeProductId,
     required this.premiumSubscriptionProductId,
+    required this.premiumSubscriptionMonthlyProductId,
+    required this.premiumSubscriptionAnnualProductId,
     this.localToolBundlePath,
     this.localToolBundleSlug,
     this.localToolBundleVersion,
@@ -14,7 +16,11 @@ class AppConfig {
   final String apiBaseUrl;
   final String androidPackageName;
   final String premiumOneTimeProductId;
+
+  /// Legacy single subscription id; used as fallback when monthly/annual are empty.
   final String premiumSubscriptionProductId;
+  final String premiumSubscriptionMonthlyProductId;
+  final String premiumSubscriptionAnnualProductId;
   final String? localToolBundlePath;
   final String? localToolBundleSlug;
   final String? localToolBundleVersion;
@@ -40,6 +46,14 @@ class AppConfig {
       'PREMIUM_SUBSCRIPTION_PRODUCT_ID',
       defaultValue: 'utilivo_premium_subscription',
     );
+    final premiumSubscriptionMonthlyProductId = const String.fromEnvironment(
+      'PREMIUM_SUBSCRIPTION_MONTHLY_PRODUCT_ID',
+      defaultValue: '',
+    );
+    final premiumSubscriptionAnnualProductId = const String.fromEnvironment(
+      'PREMIUM_SUBSCRIPTION_ANNUAL_PRODUCT_ID',
+      defaultValue: '',
+    );
     final localToolBundlePath = const String.fromEnvironment(
       'LOCAL_TOOL_BUNDLE_PATH',
     );
@@ -62,6 +76,10 @@ class AppConfig {
         fallback: 'utilivo_premium_one_time',
       ),
       premiumSubscriptionProductId: premiumSubscriptionProductId.trim(),
+      premiumSubscriptionMonthlyProductId:
+          premiumSubscriptionMonthlyProductId.trim(),
+      premiumSubscriptionAnnualProductId:
+          premiumSubscriptionAnnualProductId.trim(),
       localToolBundlePath: _normalizeOptional(localToolBundlePath),
       localToolBundleSlug: _normalizeOptional(localToolBundleSlug),
       localToolBundleVersion: _normalizeOptional(localToolBundleVersion),

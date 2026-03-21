@@ -6,7 +6,7 @@ Flutter client for the Utilivo marketplace.
 
 `utilivo-mobile` now follows the marketplace MVP direction in `PLAN.md`:
 - anonymous usage (no login/register/profile route in active app flow)
-- purchase-based premium access
+- purchase-based Pro access
 - Home-first installed tools with online catalog browsing
 
 Implemented product behavior:
@@ -39,7 +39,7 @@ Implemented product behavior:
   - immediate Home cache update after install
 - Bundle download integration:
   - signed URL grant request via `GET /v1/plugins/:slug/download`
-  - entitlement assertion header for premium bundles
+  - entitlement assertion header for Pro-tier bundles
   - local file persistence + SHA-256 integrity validation when checksum is provided
   - bundle extraction + manifest entry resolution
   - downloaded bundle metadata persistence (archive path/hash/version + manifest/entry paths)
@@ -49,7 +49,7 @@ Implemented product behavior:
   - runtime loads plugin `manifest.json` entry file from extracted bundle
   - install flow prepares runtime bundle and auto-launches when ready
   - runtime launch is local/offline once bundle is prepared (no network call required to run)
-- Premium purchase and entitlement integration:
+- Pro purchase and entitlement integration:
   - Google Play billing gateway integration via `in_app_purchase`
   - upgrade flow (one-time SKU by default)
   - restore purchases flow
@@ -57,7 +57,7 @@ Implemented product behavior:
   - local secure entitlement + assertion metadata persistence
   - offline grace window for previously verified entitlement
   - background re-verification (periodic + app resume)
-  - premium lock/unlock gating in Browse, tool detail, and install CTA behavior
+  - Pro lock/unlock gating in Browse, tool detail, and install CTA behavior
 - Performance polish:
   - sliver-based lazy rendering for Discover and Home installed-tools lists
   - repaint boundaries for catalog and installed-tool cards

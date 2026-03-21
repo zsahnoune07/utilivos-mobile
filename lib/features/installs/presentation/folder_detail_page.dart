@@ -1,7 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/navigation/app_routes.dart';
+import '../../../core/premium/paywall_coordinator.dart';
+import '../../../core/premium/paywall_models.dart';
+import '../../../core/premium/premium_capability_service.dart';
+import '../application/folder_quota_exception.dart';
 import '../application/installed_tools_controller.dart';
 import '../data/models/install_models.dart';
 import '../data/models/installs_organization_models.dart';
@@ -14,11 +20,15 @@ class FolderDetailPage extends StatelessWidget {
   const FolderDetailPage({
     required this.folderId,
     required this.controller,
+    required this.premiumCapabilityService,
+    required this.paywallCoordinator,
     super.key,
   });
 
   final String folderId;
   final InstalledToolsController controller;
+  final PremiumCapabilityService premiumCapabilityService;
+  final PaywallCoordinator paywallCoordinator;
 
   @override
   Widget build(BuildContext context) {
@@ -120,6 +130,45 @@ class FolderDetailPage extends StatelessWidget {
     );
   }
 
+  void _openToolRuntime(BuildContext context, DeviceInstallRecord install) {
+    controller.markToolLaunched(install.pluginSlug);
+    unawaited(
+      premiumCapabilityService.recordToolEngagement(install.pluginSlug),
+    );
+    final restore = premiumCapabilityService.canRestoreSession;
+    context.push(
+      AppRoutes.pluginRuntime(
+        install.pluginSlug,
+        toolName: install.displayName,
+        restoreSession: restore,
+      ),
+    );
+  }
+
+  Future<void> _showPinLimitPaywall(BuildContext context) async {
+    await paywallCoordinator.show(
+      context,
+      const PaywallRequest(
+        trigger: PaywallTrigger.limitReached,
+        triggerSource: 'pins',
+        contextMessage:
+            'Pro includes unlimited pins so your essentials stay one tap away.',
+      ),
+    );
+  }
+
+  Future<void> _showFolderLimitPaywall(BuildContext context) async {
+    await paywallCoordinator.show(
+      context,
+      const PaywallRequest(
+        trigger: PaywallTrigger.limitReached,
+        triggerSource: 'folders',
+        contextMessage:
+            'Organize without limits: Pro unlocks unlimited folders and power-user layouts.',
+      ),
+    );
+  }
+
   Future<void> _confirmDeleteFolder(
     BuildContext context,
     ToolFolder folder,
@@ -197,16 +246,13 @@ class FolderDetailPage extends StatelessWidget {
         return ToolActionsSheet(
           install: install,
           controller: controller,
+          canPinMore: premiumCapabilityService.canPinMoreTools(
+            controller.pinnedCount,
+          ),
           folderContextOnly: false,
           onLaunch: () {
             Navigator.of(sheetContext).pop();
-            controller.markToolLaunched(install.pluginSlug);
-            context.push(
-              AppRoutes.pluginRuntime(
-                install.pluginSlug,
-                toolName: install.displayName,
-              ),
-            );
+            _openToolRuntime(context, install);
           },
           onUpdate: null,
           onDelete: () async {
@@ -215,10 +261,21 @@ class FolderDetailPage extends StatelessWidget {
               Navigator.of(sheetContext).pop();
             }
           },
+          onPinBlocked: () {
+            Navigator.of(sheetContext).pop();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (context.mounted) {
+                unawaited(_showPinLimitPaywall(context));
+              }
+            });
+          },
           onTogglePin: () async {
-            await controller.togglePin(install);
+            final changed = await controller.togglePin(install);
             if (sheetContext.mounted) {
               Navigator.of(sheetContext).pop();
+            }
+            if (!changed && context.mounted) {
+              await _showPinLimitPaywall(context);
             }
           },
           folders: controller.folders,
@@ -243,12 +300,19 @@ class FolderDetailPage extends StatelessWidget {
             if (result == null || result.type != FolderEditorResultType.save) {
               return null;
             }
-            final createdFolder = await controller.createFolder(
-              name: result.name,
-              iconKey: result.iconKey,
-              colorKey: result.colorKey,
-            );
-            return createdFolder.id;
+            try {
+              final createdFolder = await controller.createFolder(
+                name: result.name,
+                iconKey: result.iconKey,
+                colorKey: result.colorKey,
+              );
+              return createdFolder.id;
+            } on FolderQuotaExceededException {
+              if (context.mounted) {
+                await _showFolderLimitPaywall(context);
+              }
+              return null;
+            }
           },
           onRemoveFromFolder: () async {
             await controller.removeToolFromFolder(

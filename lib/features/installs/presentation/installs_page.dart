@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -6,12 +7,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/navigation/app_routes.dart';
+import '../../../core/premium/paywall_coordinator.dart';
+import '../../../core/premium/paywall_models.dart';
+import '../../../core/premium/premium_analytics.dart';
+import '../../../core/premium/premium_capability_service.dart';
 import '../../../core/networking/network_exception.dart';
 import '../../../shared/widgets/app_buttons.dart';
 import '../../../shared/widgets/app_skeletons.dart';
 import '../../../shared/widgets/app_state_views.dart';
 import '../../downloads/application/tool_bundle_download_service.dart';
 import '../../downloads/data/download_api.dart';
+import '../application/folder_quota_exception.dart';
 import '../application/installed_tools_controller.dart';
 import '../data/installs_api.dart';
 import '../data/models/install_models.dart';
@@ -29,6 +35,9 @@ class InstallsPage extends StatefulWidget {
     required this.toolBundleDownloadService,
     required this.installsApi,
     required this.entitlementController,
+    required this.premiumCapabilityService,
+    required this.paywallCoordinator,
+    required this.premiumAnalytics,
     super.key,
   });
 
@@ -38,6 +47,9 @@ class InstallsPage extends StatefulWidget {
   final ToolBundleDownloadService toolBundleDownloadService;
   final InstallsApi installsApi;
   final EntitlementController entitlementController;
+  final PremiumCapabilityService premiumCapabilityService;
+  final PaywallCoordinator paywallCoordinator;
+  final PremiumAnalytics premiumAnalytics;
 
   @override
   State<InstallsPage> createState() => _InstallsPageState();
@@ -151,6 +163,69 @@ class _InstallsPageState extends State<InstallsPage> {
       _searchFocusNode.unfocus();
     }
     FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  void _openToolRuntime(BuildContext context, DeviceInstallRecord install) {
+    widget.installedToolsController.markToolLaunched(install.pluginSlug);
+    unawaited(
+      widget.premiumCapabilityService.recordToolEngagement(install.pluginSlug),
+    );
+    final restore = widget.premiumCapabilityService.canRestoreSession;
+    context
+        .push(
+          AppRoutes.pluginRuntime(
+            install.pluginSlug,
+            toolName: install.displayName,
+            restoreSession: restore,
+          ),
+        )
+        .then((_) {
+          if (!context.mounted) {
+            return;
+          }
+          unawaited(_maybeOfferSoftPaywall(context));
+        });
+  }
+
+  Future<void> _maybeOfferSoftPaywall(BuildContext context) async {
+    if (!widget.premiumCapabilityService.shouldOfferSoftPaywall) {
+      return;
+    }
+    final result = await widget.paywallCoordinator.show(
+      context,
+      const PaywallRequest(
+        trigger: PaywallTrigger.softEngagement,
+        triggerSource: 'post_tool_session',
+        fullScreen: false,
+      ),
+    );
+    if (result == PaywallResult.dismissed) {
+      await widget.premiumCapabilityService.markSoftPaywallDismissed();
+    }
+  }
+
+  Future<void> _showPinLimitPaywall(BuildContext context) async {
+    await widget.paywallCoordinator.show(
+      context,
+      const PaywallRequest(
+        trigger: PaywallTrigger.limitReached,
+        triggerSource: 'pins',
+        contextMessage:
+            'Pro includes unlimited pins so your essentials stay one tap away.',
+      ),
+    );
+  }
+
+  Future<void> _showFolderLimitPaywall(BuildContext context) async {
+    await widget.paywallCoordinator.show(
+      context,
+      const PaywallRequest(
+        trigger: PaywallTrigger.limitReached,
+        triggerSource: 'folders',
+        contextMessage:
+            'Organize without limits: Pro unlocks unlimited folders and power-user layouts.',
+      ),
+    );
   }
 
   Future<void> _openMarketplace(BuildContext context, {String? search}) async {
@@ -428,15 +503,7 @@ class _InstallsPageState extends State<InstallsPage> {
                     if (install.updateAvailable) {
                       _showUpdateModal(context, install: install);
                     } else {
-                      widget.installedToolsController.markToolLaunched(
-                        install.pluginSlug,
-                      );
-                      context.push(
-                        AppRoutes.pluginRuntime(
-                          install.pluginSlug,
-                          toolName: install.displayName,
-                        ),
-                      );
+                      _openToolRuntime(context, install);
                     }
                   },
                   onLongPress: () => _showToolDetailsModal(
@@ -506,15 +573,7 @@ class _InstallsPageState extends State<InstallsPage> {
                   if (install.updateAvailable) {
                     _showUpdateModal(context, install: install);
                   } else {
-                    widget.installedToolsController.markToolLaunched(
-                      install.pluginSlug,
-                    );
-                    context.push(
-                      AppRoutes.pluginRuntime(
-                        install.pluginSlug,
-                        toolName: install.displayName,
-                      ),
-                    );
+                    _openToolRuntime(context, install);
                   }
                 },
                 onLongPress: () => _showToolDetailsModal(
@@ -557,12 +616,7 @@ class _InstallsPageState extends State<InstallsPage> {
           },
           onOpenAnyway: () {
             Navigator.of(dialogContext).pop();
-            context.push(
-              AppRoutes.pluginRuntime(
-                install.pluginSlug,
-                toolName: install.displayName,
-              ),
-            );
+            _openToolRuntime(context, install);
           },
         );
       },
@@ -652,17 +706,12 @@ class _InstallsPageState extends State<InstallsPage> {
         return ToolActionsSheet(
           install: install,
           controller: controller,
+          canPinMore: widget.premiumCapabilityService.canPinMoreTools(
+            controller.pinnedCount,
+          ),
           onLaunch: () {
             Navigator.of(sheetContext).pop();
-            widget.installedToolsController.markToolLaunched(
-              install.pluginSlug,
-            );
-            context.push(
-              AppRoutes.pluginRuntime(
-                install.pluginSlug,
-                toolName: install.displayName,
-              ),
-            );
+            _openToolRuntime(context, install);
           },
           onUpdate: install.updateAvailable
               ? () {
@@ -676,10 +725,21 @@ class _InstallsPageState extends State<InstallsPage> {
               Navigator.of(sheetContext).pop();
             }
           },
+          onPinBlocked: () {
+            Navigator.of(sheetContext).pop();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (context.mounted) {
+                unawaited(_showPinLimitPaywall(context));
+              }
+            });
+          },
           onTogglePin: () async {
-            await controller.togglePin(install);
+            final changed = await controller.togglePin(install);
             if (sheetContext.mounted) {
               Navigator.of(sheetContext).pop();
+            }
+            if (!changed && context.mounted) {
+              await _showPinLimitPaywall(context);
             }
           },
           folders: controller.folders,
@@ -702,12 +762,19 @@ class _InstallsPageState extends State<InstallsPage> {
             if (result == null || result.type != FolderEditorResultType.save) {
               return null;
             }
-            final createdFolder = await controller.createFolder(
-              name: result.name,
-              iconKey: result.iconKey,
-              colorKey: result.colorKey,
-            );
-            return createdFolder.id;
+            try {
+              final createdFolder = await controller.createFolder(
+                name: result.name,
+                iconKey: result.iconKey,
+                colorKey: result.colorKey,
+              );
+              return createdFolder.id;
+            } on FolderQuotaExceededException {
+              if (context.mounted) {
+                await _showFolderLimitPaywall(context);
+              }
+              return null;
+            }
           },
           onRemoveFromFolder: () async {
             await controller.removeToolFromFolder(
@@ -748,11 +815,17 @@ class _InstallsPageState extends State<InstallsPage> {
 
     if (result.type == FolderEditorResultType.save) {
       if (folder == null) {
-        await widget.installedToolsController.createFolder(
-          name: result.name,
-          iconKey: result.iconKey,
-          colorKey: result.colorKey,
-        );
+        try {
+          await widget.installedToolsController.createFolder(
+            name: result.name,
+            iconKey: result.iconKey,
+            colorKey: result.colorKey,
+          );
+        } on FolderQuotaExceededException {
+          if (context.mounted) {
+            await _showFolderLimitPaywall(context);
+          }
+        }
       } else {
         await widget.installedToolsController.updateFolder(
           folderId: folder.id,

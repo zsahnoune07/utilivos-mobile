@@ -44,6 +44,31 @@ class PremiumPurchaseController extends ChangeNotifier {
   String get configuredSubscriptionProductId =>
       _config.premiumSubscriptionProductId;
 
+  /// Falls back to legacy [AppConfig.premiumSubscriptionProductId] when annual id unset.
+  String get resolvedAnnualProductId {
+    final explicit = _config.premiumSubscriptionAnnualProductId.trim();
+    if (explicit.isNotEmpty) {
+      return explicit;
+    }
+    return _config.premiumSubscriptionProductId.trim();
+  }
+
+  String get resolvedMonthlyProductId =>
+      _config.premiumSubscriptionMonthlyProductId.trim();
+
+  /// Prefer annual → monthly → one-time for default selection in paywall.
+  String? get defaultSelectedProductId {
+    final annual = resolvedAnnualProductId;
+    if (annual.isNotEmpty) {
+      return annual;
+    }
+    final monthly = resolvedMonthlyProductId;
+    if (monthly.isNotEmpty) {
+      return monthly;
+    }
+    return _config.premiumOneTimeProductId;
+  }
+
   Future<void> initialize() async {
     if (_initialized) {
       return;
@@ -61,7 +86,8 @@ class PremiumPurchaseController extends ChangeNotifier {
       _storeAvailable = await _billingGateway.isAvailable();
       if (!_storeAvailable) {
         _statusMessage =
-            'Google Play Billing is unavailable on this device/runtime.';
+            'Google Play Billing is unavailable on this device/runtime. '
+            'Use debug tools to simulate Pro while validating UX.';
         return;
       }
 
@@ -69,15 +95,19 @@ class PremiumPurchaseController extends ChangeNotifier {
         _config.premiumOneTimeProductId,
         if (_config.premiumSubscriptionProductId.trim().isNotEmpty)
           _config.premiumSubscriptionProductId.trim(),
+        if (_config.premiumSubscriptionMonthlyProductId.trim().isNotEmpty)
+          _config.premiumSubscriptionMonthlyProductId.trim(),
+        if (_config.premiumSubscriptionAnnualProductId.trim().isNotEmpty)
+          _config.premiumSubscriptionAnnualProductId.trim(),
       };
 
       final products = await _billingGateway.queryProducts(productIds);
       _availableProducts = products;
       if (products.isEmpty) {
         _statusMessage =
-            'No premium products were returned for configured product IDs.';
+            'No Pro products were returned for configured product IDs.';
       } else {
-        _statusMessage = 'Premium products loaded.';
+        _statusMessage = 'Pro products loaded.';
       }
     } catch (error) {
       _errorMessage = 'Failed to initialize billing: $error';
@@ -88,6 +118,16 @@ class PremiumPurchaseController extends ChangeNotifier {
   }
 
   Future<void> purchasePremium() async {
+    final id = defaultSelectedProductId;
+    if (id == null || id.isEmpty) {
+      _errorMessage = 'No Pro product IDs are configured.';
+      notifyListeners();
+      return;
+    }
+    await purchaseProduct(id);
+  }
+
+  Future<void> purchaseProduct(String productId) async {
     _errorMessage = null;
     _statusMessage = null;
     notifyListeners();
@@ -98,10 +138,9 @@ class PremiumPurchaseController extends ChangeNotifier {
       return;
     }
 
-    final product = _preferredProduct();
-    if (product == null) {
-      _errorMessage =
-          'Premium product is unavailable. Verify product IDs in app config.';
+    final trimmed = productId.trim();
+    if (trimmed.isEmpty) {
+      _errorMessage = 'Invalid product id.';
       notifyListeners();
       return;
     }
@@ -111,7 +150,7 @@ class PremiumPurchaseController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _billingGateway.buyNonConsumable(product.id);
+      await _billingGateway.buyProduct(trimmed);
     } catch (error) {
       _isPurchaseInProgress = false;
       _errorMessage = 'Could not start purchase flow: $error';
@@ -143,22 +182,27 @@ class PremiumPurchaseController extends ChangeNotifier {
     }
   }
 
-  BillingProduct? _preferredProduct() {
-    final preferredId = _config.premiumOneTimeProductId;
-    for (final product in _availableProducts) {
-      if (product.id == preferredId) {
-        return product;
-      }
-    }
-    return _availableProducts.isEmpty ? null : _availableProducts.first;
-  }
-
   bool _isPremiumProductId(String productId) {
     if (productId == _config.premiumOneTimeProductId) {
       return true;
     }
-    return _config.premiumSubscriptionProductId.trim().isNotEmpty &&
-        productId == _config.premiumSubscriptionProductId.trim();
+    final monthly = resolvedMonthlyProductId;
+    if (monthly.isNotEmpty && productId == monthly) {
+      return true;
+    }
+    final annual = resolvedAnnualProductId;
+    if (annual.isNotEmpty && productId == annual) {
+      return true;
+    }
+    final legacy = _config.premiumSubscriptionProductId.trim();
+    return legacy.isNotEmpty && productId == legacy;
+  }
+
+  String _entitlementTypeForProduct(String productId) {
+    if (productId == _config.premiumOneTimeProductId) {
+      return 'one_time';
+    }
+    return 'subscription';
   }
 
   Future<void> _onPurchaseUpdate(BillingPurchaseUpdate update) async {
@@ -173,17 +217,14 @@ class PremiumPurchaseController extends ChangeNotifier {
               .activateFromBillingPurchase(
                 productId: update.productId,
                 purchaseToken: update.purchaseToken ?? '',
-                entitlementType:
-                    update.productId == _config.premiumSubscriptionProductId
-                    ? 'subscription'
-                    : 'one_time',
+                entitlementType: _entitlementTypeForProduct(update.productId),
               );
 
           switch (outcome) {
             case BillingVerificationOutcome.activated:
               _statusMessage = update.status == BillingPurchaseStatus.restored
-                  ? 'Premium restored and verified successfully.'
-                  : 'Premium unlocked and verified successfully.';
+                  ? 'Pro restored and verified successfully.'
+                  : 'Pro unlocked and verified successfully.';
               _errorMessage = null;
               break;
             case BillingVerificationOutcome.pending:
@@ -194,7 +235,7 @@ class PremiumPurchaseController extends ChangeNotifier {
             case BillingVerificationOutcome.rejected:
               _statusMessage = null;
               _errorMessage =
-                  'Purchase could not be verified. Premium remains locked.';
+                  'Purchase could not be verified. Pro remains locked.';
               break;
           }
         } else {
@@ -214,6 +255,40 @@ class PremiumPurchaseController extends ChangeNotifier {
         _errorMessage = update.errorMessage ?? 'Purchase failed.';
         break;
     }
+    notifyListeners();
+  }
+
+  /// Debug: simulate billing UX without a store (messages only).
+  void debugSimulatePurchaseCanceled() {
+    if (!kDebugMode) {
+      return;
+    }
+    _isPurchaseInProgress = false;
+    _isRestoreInProgress = false;
+    _errorMessage = null;
+    _statusMessage = 'Purchase canceled (simulated).';
+    notifyListeners();
+  }
+
+  /// Debug: simulate a failed purchase attempt (messages only).
+  void debugSimulatePurchaseFailed() {
+    if (!kDebugMode) {
+      return;
+    }
+    _isPurchaseInProgress = false;
+    _isRestoreInProgress = false;
+    _statusMessage = null;
+    _errorMessage = 'Purchase failed (simulated).';
+    notifyListeners();
+  }
+
+  /// Debug: clear purchase status lines from the panel.
+  void debugClearPurchaseMessages() {
+    if (!kDebugMode) {
+      return;
+    }
+    _statusMessage = null;
+    _errorMessage = null;
     notifyListeners();
   }
 

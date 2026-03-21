@@ -9,7 +9,7 @@ void main() {
 
     expect(payload['mode'], 'light');
     expect(tokens['--uv-color-background'], '#F8FAFC');
-    expect(tokens['--uv-color-surface'], '#EEFCF9');
+    expect(tokens['--uv-color-surface'], '#F8FAFC');
     expect(tokens['--uv-radius-md'], '12px');
     expect(tokens['--uv-space-4'], '16px');
     expect(tokens['--uv-font-size-headline-md'], '28px');
@@ -21,8 +21,8 @@ void main() {
 
     expect(payload['mode'], 'dark');
     expect(tokens['--uv-color-background'], '#0E1416');
-    expect(tokens['--uv-color-surface'], '#152025');
-    expect(tokens['--uv-color-primary'], '#00DECF');
+    expect(tokens['--uv-color-surface'], '#0E1416');
+    expect(tokens['--uv-color-primary'], '#FB9551');
     expect(tokens['--uv-color-text'], '#E2F1EE');
     expect(tokens['--uv-font-family'], 'Roboto, "Segoe UI", sans-serif');
   });

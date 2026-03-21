@@ -12,9 +12,11 @@ class ToolActionsSheet extends StatefulWidget {
   const ToolActionsSheet({
     required this.install,
     required this.controller,
+    required this.canPinMore,
     required this.onLaunch,
     required this.onDelete,
     required this.onTogglePin,
+    this.onPinBlocked,
     required this.folders,
     required this.onAssignFolder,
     required this.onRemoveFromFolder,
@@ -26,9 +28,11 @@ class ToolActionsSheet extends StatefulWidget {
 
   final DeviceInstallRecord install;
   final InstalledToolsController controller;
+  final bool canPinMore;
   final VoidCallback onLaunch;
   final VoidCallback onDelete;
   final VoidCallback onTogglePin;
+  final VoidCallback? onPinBlocked;
   final List<ToolFolder> folders;
   final ValueChanged<String> onAssignFolder;
   final VoidCallback onRemoveFromFolder;
@@ -78,9 +82,7 @@ class _ToolActionsSheetState extends State<ToolActionsSheet> {
     final status = widget.install.updateAvailable
         ? 'Update available: ${widget.install.latestAvailableVersion ?? 'latest'}'
         : 'Up to date';
-    final canPin =
-        widget.install.pinned ||
-        widget.controller.pinnedCount < InstalledToolsController.maxPinnedTools;
+    final canPin = widget.install.pinned || widget.canPinMore;
 
     return PopScope(
       canPop: _step == _ToolActionsSheetStep.actions,
@@ -170,13 +172,27 @@ class _ToolActionsSheetState extends State<ToolActionsSheet> {
           ],
           const SizedBox(height: 12),
           OutlinedButton.icon(
-            onPressed: canPin ? widget.onTogglePin : null,
+            onPressed: () {
+              if (widget.install.pinned) {
+                widget.onTogglePin();
+                return;
+              }
+              if (!widget.canPinMore) {
+                widget.onPinBlocked?.call();
+                return;
+              }
+              widget.onTogglePin();
+            },
             icon: Icon(
               widget.install.pinned ? Icons.push_pin : Icons.push_pin_outlined,
               size: 20,
             ),
             label: Text(
-              widget.install.pinned ? 'Unpin tool' : 'Pin tool',
+              widget.install.pinned
+                  ? 'Unpin tool'
+                  : widget.canPinMore
+                      ? 'Pin tool'
+                      : 'Pin tool (limit reached)',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),

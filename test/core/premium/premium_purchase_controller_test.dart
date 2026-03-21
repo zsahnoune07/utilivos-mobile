@@ -16,8 +16,8 @@ void main() {
       products: const <BillingProduct>[
         BillingProduct(
           id: 'utilivo_premium_one_time',
-          title: 'Premium',
-          description: 'Unlock premium plugins',
+          title: 'Utilivo Pro',
+          description: 'Unlock Pro tools',
           price: '\$9.99',
         ),
       ],
@@ -41,14 +41,14 @@ void main() {
     expect(controller.canPurchase, true);
   });
 
-  test('purchase update unlocks entitlement for premium product', () async {
+  test('purchase update unlocks entitlement for Pro product', () async {
     final gateway = _FakeBillingGateway(
       available: true,
       products: const <BillingProduct>[
         BillingProduct(
           id: 'utilivo_premium_one_time',
-          title: 'Premium',
-          description: 'Unlock premium plugins',
+          title: 'Utilivo Pro',
+          description: 'Unlock Pro tools',
           price: '\$9.99',
         ),
       ],
@@ -82,7 +82,7 @@ void main() {
     );
     expect(
       controller.statusMessage,
-      'Premium unlocked and verified successfully.',
+      'Pro unlocked and verified successfully.',
     );
   });
 
@@ -92,8 +92,8 @@ void main() {
       products: const <BillingProduct>[
         BillingProduct(
           id: 'utilivo_premium_subscription',
-          title: 'Premium Sub',
-          description: 'Monthly premium access',
+          title: 'Utilivo Pro (monthly)',
+          description: 'Monthly Pro access',
           price: '\$4.99',
         ),
       ],
@@ -124,7 +124,7 @@ void main() {
     expect(entitlementController.entitlement.entitlementType, 'subscription');
     expect(
       controller.statusMessage,
-      'Premium restored and verified successfully.',
+      'Pro restored and verified successfully.',
     );
   });
 }
@@ -136,6 +136,8 @@ AppConfig _config() {
     androidPackageName: 'com.utilivo.utilivo_mobile',
     premiumOneTimeProductId: 'utilivo_premium_one_time',
     premiumSubscriptionProductId: 'utilivo_premium_subscription',
+    premiumSubscriptionMonthlyProductId: '',
+    premiumSubscriptionAnnualProductId: '',
   );
 }
 
@@ -171,6 +173,9 @@ class _FakeBillingGateway implements BillingGateway {
 
   @override
   Future<void> buyNonConsumable(String productId) async {}
+
+  @override
+  Future<void> buyProduct(String productId) async {}
 
   @override
   void dispose() {

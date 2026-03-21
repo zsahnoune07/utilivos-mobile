@@ -2,7 +2,7 @@
 
 This plan is written so each phase can be delivered end-to-end with Codex. Milestones are concrete, testable, and sized for iterative shipping.
 
-Scope: utilivo-mobile is the Flutter client for the Utilivo marketplace. The app has no login, no account creation, and no user profile flows. Premium access is a global store entitlement (one-time or subscription) that unlocks the full premium tool repository.
+Scope: utilivo-mobile is the Flutter client for the Utilivo marketplace. The app has no login, no account creation, and no user profile flows. Pro access is a global store entitlement (one-time or subscription) that unlocks the full Pro tool catalog.
 
 ---
 
@@ -14,7 +14,7 @@ Observed structure includes:
 - `lib/features/home/presentation/home_page.dart`
 - Android, iOS, macOS, Windows, Linux, Web folders
 
-Goal: deliver a feature-based Flutter app with Home-first installed tools, online catalog browsing for new tools, premium purchase gating, secure bundle downloads, offline resilience, and release readiness.
+Goal: deliver a feature-based Flutter app with Home-first installed tools, online catalog browsing for new tools, Pro purchase gating, secure bundle downloads, offline resilience, and release readiness.
 
 ---
 
@@ -23,7 +23,7 @@ Goal: deliver a feature-based Flutter app with Home-first installed tools, onlin
 - Feature-first module boundaries.
 - Predictable state management and routing.
 - API-first DTO discipline with consistent error handling.
-- Offline-friendly behavior for already verified premium access.
+- Offline-friendly behavior for already verified Pro access.
 - No user identity dependency in MVP.
 
 ---
@@ -140,15 +140,15 @@ Acceptance
 ### Milestone 3.2: Tool detail page
 Tasks
 - Show tool metadata, version summary, changelog snippet, and pricing tier.
-- Surface lock state for premium tools when entitlement is inactive.
+- Surface lock state for Pro tools when entitlement is inactive.
 - Wire endpoint:
   - `GET /v1/plugins/:slug`
 
 Acceptance
-- Tool detail opens from list and reflects premium lock state correctly.
+- Tool detail opens from list and reflects Pro lock state correctly.
 
 Suggested Codex prompt
-"Implement Phase 3 for utilivo-mobile: build browse catalog + tool detail screens with category filtering, search, pagination, and premium lock state rendering for premium tools."
+"Implement Phase 3 for utilivo-mobile: build browse catalog + tool detail screens with category filtering, search, pagination, and Pro lock state rendering for Pro tools."
 
 ---
 
@@ -157,28 +157,28 @@ Suggested Codex prompt
 ### Milestone 4.1: Google Play Billing integration
 Tasks
 - Integrate `in_app_purchase` for Android billing.
-- Configure Premium product IDs:
+- Configure Pro product IDs:
   - one-time purchase SKU (MVP default)
   - optional subscription SKU placeholder (extension)
-- Build `Upgrade to Premium` purchase flow.
+- Build `Go Pro` purchase flow.
 - Build `Restore purchases` flow.
 
 Acceptance
 - Test purchase path works in sandbox.
-- Restore path can recover previously purchased Premium.
+- Restore path can recover previously purchased Pro.
 
 ### Milestone 4.2: Local entitlement persistence and UI gating
 Tasks
 - Persist entitlement status and last verification metadata in secure storage.
-- Gate premium tools in catalog/detail/install UI until entitlement is active.
+- Gate Pro tools in catalog/detail/install UI until entitlement is active.
 - Show clear locked/upgrade CTAs and post-purchase unlock state.
 
 Acceptance
-- Premium tools remain locked before purchase.
+- Pro tools remain locked before purchase.
 - Successful purchase updates UI without requiring app restart.
 
 Suggested Codex prompt
-"Implement Phase 4 for utilivo-mobile: integrate Google Play Billing with Upgrade and Restore flows, persist entitlement state in secure storage, and gate premium tool UI until entitlement is active."
+"Implement Phase 4 for utilivo-mobile: integrate Google Play Billing with Go Pro and Restore flows, persist entitlement state in secure storage, and gate Pro tool UI until entitlement is active."
 
 ---
 
@@ -188,21 +188,21 @@ Suggested Codex prompt
 Tasks
 - After purchase/restore, call `POST /v1/entitlements/verify`.
 - Store returned short-lived entitlement assertion and expiry.
-- Use assertion when requesting premium downloads.
+- Use assertion when requesting Pro-gated bundle downloads.
 
 Acceptance
-- Verified purchases return active premium entitlement in app state.
-- Invalid verification response keeps premium content locked.
+- Verified purchases return active Pro entitlement in app state.
+- Invalid verification response keeps Pro content locked.
 
 ### Milestone 5.2: Offline-friendly grace behavior
 Tasks
-- If entitlement was verified recently, allow premium access for a grace window while offline.
+- If entitlement was verified recently, allow Pro access for a grace window while offline.
 - Re-verify in background when connectivity returns.
 - Expire grace safely when verification remains stale.
 
 Acceptance
-- Previously verified premium remains usable offline during grace period.
-- App degrades to locked premium state once grace expires.
+- Previously verified Pro remains usable offline during grace period.
+- App degrades to locked Pro state once grace expires.
 
 Suggested Codex prompt
 "Implement Phase 5 for utilivo-mobile: add entitlement verification calls to utilivo-api, store short-lived entitlement assertions, and implement offline grace-period logic with background re-verification."
@@ -236,7 +236,7 @@ Tasks
 - Validate bundle hash when provided.
 
 Acceptance
-- Premium bundle download succeeds only with active entitlement.
+- Pro-tier bundle download succeeds only with active entitlement.
 - Integrity mismatch is detected and handled safely.
 
 ### Milestone 6.3: Local plugin runtime launch
@@ -255,7 +255,7 @@ Acceptance
 - Runtime launch gracefully reports missing/invalid bundle metadata.
 
 Suggested Codex prompt
-"Implement Phase 6 for utilivo-mobile: make Home installed-tools offline-first, add browse/install CTA from Home, sync installs and update checks when online, and keep premium downloads gated by entitlement."
+"Implement Phase 6 for utilivo-mobile: make Home installed-tools offline-first, add browse/install CTA from Home, sync installs and update checks when online, and keep Pro-gated downloads entitlement-protected."
 
 ---
 
@@ -294,7 +294,7 @@ Tasks
   - grace window decisions
   - API error mapping
 - Widget tests:
-  - premium lock states
+  - Pro lock states
   - purchase CTA states
   - browse list rendering
   - home installed-tools offline rendering
@@ -309,13 +309,13 @@ Tasks
   - open Home installed tools
   - open Browse and inspect a tool detail
   - simulate entitlement verification success
-  - request premium download
+  - request Pro bundle download
 
 Acceptance
 - Integration test runs on at least one CI target.
 
 Suggested Codex prompt
-"Implement Phase 8 for utilivo-mobile: add unit/widget tests for entitlement and premium lock behavior, plus an integration smoke test covering discover, verification success, and premium download request."
+"Implement Phase 8 for utilivo-mobile: add unit/widget tests for entitlement and Pro lock behavior, plus an integration smoke test covering discover, verification success, and Pro bundle download request."
 
 ---
 
@@ -328,7 +328,7 @@ Tasks
   - upgrade tap
   - purchase success/failure
   - restore success/failure
-  - premium download attempts
+  - Pro bundle download attempts
 
 Acceptance
 - Events visible in dev/staging dashboards.
@@ -355,4 +355,4 @@ Acceptance
 
 ## Future extension: Optional accounts later
 
-Accounts may be introduced later for cross-device sync and identity-based reviews. MVP premium entitlement and tool access must remain functional without accounts.
+Accounts may be introduced later for cross-device sync and identity-based reviews. MVP Pro entitlement and tool access must remain functional without accounts.

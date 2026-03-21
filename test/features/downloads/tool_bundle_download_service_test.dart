@@ -199,7 +199,7 @@ void main() {
   });
 
   test(
-    'downloadBundle rejects premium grants without signature metadata',
+    'downloadBundle rejects Pro-tier grants without signature metadata',
     () async {
       final tmpDir = await Directory.systemTemp.createTemp(
         'utilivo-download-test-',
@@ -213,7 +213,7 @@ void main() {
       final store = _InMemoryDownloadedToolBundleStore();
       final bundleBytes = _buildBundleArchiveBytes(
         pluginSlug: 'tool-premium',
-        pluginName: 'Tool Premium',
+        pluginName: 'Tool Pro',
         version: '1.0.0',
       );
       final service = ToolBundleDownloadService(

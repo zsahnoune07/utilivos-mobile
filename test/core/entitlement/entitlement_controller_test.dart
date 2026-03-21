@@ -58,7 +58,7 @@ void main() {
     },
   );
 
-  test('inactive verification keeps premium locked', () async {
+  test('inactive verification keeps Pro locked', () async {
     final controller = EntitlementController(
       store: _InMemoryEntitlementStore(),
       verificationApi: _FakeVerificationApi((_) async {
@@ -115,7 +115,7 @@ void main() {
   );
 
   test(
-    'expired grace window deactivates premium during background reverify',
+    'expired grace window deactivates Pro during background reverify',
     () async {
       final now = DateTime.now().toUtc();
       final controller = EntitlementController(

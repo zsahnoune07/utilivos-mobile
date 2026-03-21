@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/navigation/app_routes.dart';
+import '../../../core/premium/premium_capability_service.dart';
 import '../../../core/networking/network_exception.dart';
 import '../../../core/networking/models/cursor_page.dart';
 import '../../../shared/widgets/app_buttons.dart';
@@ -20,6 +21,20 @@ import '../../installs/data/installs_api.dart';
 import '../../installs/data/models/install_models.dart';
 import '../data/catalog_api.dart';
 import '../data/models/catalog_models.dart';
+
+String _installErrorUserMessage(NetworkException error, CatalogPlugin plugin) {
+  final m = error.message.toLowerCase();
+  if (m.contains('entitlement') ||
+      m.contains('premium') ||
+      m.contains('subscription') ||
+      m.contains('pro')) {
+    if (plugin.isPremium && !plugin.premiumPreview) {
+      return 'This Pro tool requires a subscription to install.';
+    }
+    return 'This download needs Pro verification. Open tool details to subscribe or reconnect.';
+  }
+  return 'Install failed: ${error.message}';
+}
 
 Color _fallbackCategoryColor(String seed) {
   final hash = seed.toLowerCase().codeUnits.fold<int>(
@@ -54,6 +69,7 @@ class DiscoverPage extends StatefulWidget {
     required this.toolBundleDownloadService,
     required this.installsApi,
     required this.installedToolsController,
+    required this.premiumCapabilityService,
     super.key,
   });
 
@@ -64,6 +80,7 @@ class DiscoverPage extends StatefulWidget {
   final ToolBundleDownloadService toolBundleDownloadService;
   final InstallsApi installsApi;
   final InstalledToolsController installedToolsController;
+  final PremiumCapabilityService premiumCapabilityService;
 
   @override
   State<DiscoverPage> createState() => _DiscoverPageState();
@@ -174,11 +191,19 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
     try {
       await widget.installedToolsController.markToolLaunched(plugin.slug);
+      unawaited(
+        widget.premiumCapabilityService.recordToolEngagement(plugin.slug),
+      );
       if (!mounted) {
         return;
       }
+      final restore = widget.premiumCapabilityService.canRestoreSession;
       await context.push(
-        AppRoutes.pluginRuntime(plugin.slug, toolName: plugin.name),
+        AppRoutes.pluginRuntime(
+          plugin.slug,
+          toolName: plugin.name,
+          restoreSession: restore,
+        ),
       );
     } finally {
       if (mounted && !_disposed) {
@@ -199,20 +224,32 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
     try {
       String? assertionToken;
+      final hasPremiumAccess = widget.entitlementController.hasPremiumAccess;
       if (plugin.isPremium) {
-        assertionToken = widget.entitlementController.activeAssertionToken;
-        if (assertionToken == null || assertionToken.trim().isEmpty) {
-          await widget.entitlementController.backgroundReverify(
-            reason: 'install',
-          );
+        if (hasPremiumAccess) {
           assertionToken = widget.entitlementController.activeAssertionToken;
-        }
-        if (assertionToken == null || assertionToken.trim().isEmpty) {
+          if (assertionToken == null || assertionToken.trim().isEmpty) {
+            await widget.entitlementController.backgroundReverify(
+              reason: 'install',
+            );
+            assertionToken = widget.entitlementController.activeAssertionToken;
+          }
+          if (assertionToken == null || assertionToken.trim().isEmpty) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Pro verification failed. Cannot install.'),
+              ),
+            );
+            setState(() {
+              _installStates[plugin.slug] = _PluginInstallState.idle;
+            });
+            return;
+          }
+        } else if (!plugin.premiumPreview) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Premium verification failed. Cannot install.'),
-            ),
+            const SnackBar(content: Text('This tool requires Pro to install.')),
           );
           setState(() {
             _installStates[plugin.slug] = _PluginInstallState.idle;
@@ -281,7 +318,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
         _installStates[plugin.slug] = _PluginInstallState.idle;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Install failed: ${error.message}')),
+        SnackBar(content: Text(_installErrorUserMessage(error, plugin))),
       );
     } catch (_) {
       developer.log(
@@ -547,10 +584,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
           ],
         ),
         body: AnimatedBuilder(
-          animation: Listenable.merge(<Listenable>[
-            widget.entitlementController,
-            widget.installedToolsController,
-          ]),
+        animation: Listenable.merge(<Listenable>[
+          widget.entitlementController,
+          widget.installedToolsController,
+          widget.premiumCapabilityService,
+        ]),
           builder: (BuildContext context, Widget? child) {
             final hasPremiumAccess =
                 widget.entitlementController.hasPremiumAccess;
@@ -813,7 +851,7 @@ class _DiscoverFilterRow extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _DiscoverFilterPill(
-                label: 'Premium',
+                label: 'Pro',
                 isSelected: selectedFilterTags.contains('premium'),
                 onTap: () => onToggleFilterTag('premium'),
                 colorScheme: colorScheme,
@@ -951,7 +989,7 @@ class _PluginListTile extends StatelessWidget {
       return 'Free';
     }
     if (normalized == 'premium' || normalized == 'paid') {
-      return 'Premium';
+      return 'Pro';
     }
     return '';
   }
@@ -960,7 +998,8 @@ class _PluginListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isLocked = plugin.isPremium && !hasPremiumAccess;
+    final isLocked =
+        plugin.isPremium && !hasPremiumAccess && !plugin.premiumPreview;
     final alreadyInstalled =
         (isInstalled || installState == _PluginInstallState.installed) &&
         !hasUpdate;
@@ -992,13 +1031,28 @@ class _PluginListTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    plugin.name,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          plugin.name,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (plugin.isPremium) ...<Widget>[
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.workspace_premium_rounded,
+                          size: 17,
+                          semanticLabel: 'Pro tool',
+                          color: colorScheme.tertiary,
+                        ),
+                      ],
+                    ],
                   ),
                   if (meta.isNotEmpty) ...<Widget>[
                     const SizedBox(height: 2),
@@ -1144,17 +1198,21 @@ class _InstallActionButton extends StatelessWidget {
       width: 42,
       height: 42,
       child: Tooltip(
-        message: isLocked ? 'Locked' : 'Install',
+        message: isLocked
+            ? 'Pro required — open tool for details'
+            : 'Install',
         child: OutlinedButton(
           onPressed: isLocked ? null : onInstall,
           style: OutlinedButton.styleFrom(
             padding: EdgeInsets.zero,
+            disabledForegroundColor:
+                colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
           ),
           child: Icon(
-            Icons.download_rounded,
+            isLocked ? Icons.lock_outline_rounded : Icons.download_rounded,
             size: 20,
             color: isLocked ? null : colorScheme.primary,
           ),

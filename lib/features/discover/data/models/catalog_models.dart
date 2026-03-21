@@ -47,6 +47,7 @@ class CatalogPlugin {
     this.currentVersionId,
     this.thumbnailUrl,
     this.categoryColor,
+    this.premiumPreview = false,
   });
 
   final String id;
@@ -61,12 +62,37 @@ class CatalogPlugin {
   final String? thumbnailUrl;
   final String? categoryColor;
 
+  /// When this tool is Pro-tier ([isPremium]), free users may install/run preview builds only if the API
+  /// sets `premium_preview` / `allows_free_preview_install` to true.
+  final bool premiumPreview;
+
   bool get isPremium {
     final normalized = pricingType.trim().toLowerCase();
     return normalized == 'premium' || normalized == 'paid';
   }
 
+  /// Install/download from catalog without an active subscription.
+  bool canFreeUserAttemptInstall(bool hasPremiumAccess) {
+    if (!isPremium) {
+      return true;
+    }
+    if (hasPremiumAccess) {
+      return true;
+    }
+    return premiumPreview;
+  }
+
   factory CatalogPlugin.fromJson(Map<String, dynamic> json) {
+    final pricingType = _readRequiredString(json, const <String>[
+      'pricing_type',
+      'PricingType',
+    ]);
+    final previewFromApi = _readOptionalBool(json, const <String>[
+      'premium_preview',
+      'PremiumPreview',
+      'allows_free_preview_install',
+      'AllowsFreePreviewInstall',
+    ]);
     return CatalogPlugin(
       id: _readRequiredString(json, const <String>['id', 'ID']),
       slug: _readRequiredString(json, const <String>['slug', 'Slug']),
@@ -79,10 +105,7 @@ class CatalogPlugin {
         'category_name',
         'CategoryName',
       ]),
-      pricingType: _readRequiredString(json, const <String>[
-        'pricing_type',
-        'PricingType',
-      ]),
+      pricingType: pricingType,
       shortDescription: _readOptionalString(json, const <String>[
         'short_description',
         'ShortDescription',
@@ -109,6 +132,7 @@ class CatalogPlugin {
         'category_color',
         'CategoryColor',
       ]),
+      premiumPreview: previewFromApi == true,
     );
   }
 
@@ -125,6 +149,7 @@ class CatalogPlugin {
       'current_version_id': currentVersionId,
       'thumbnail_url': thumbnailUrl,
       'category_color': categoryColor,
+      'premium_preview': premiumPreview,
     };
   }
 }
@@ -176,6 +201,33 @@ String? _readOptionalString(Map<String, dynamic> json, List<String> keys) {
     if (value is String) {
       final trimmed = value.trim();
       return trimmed.isEmpty ? null : value;
+    }
+  }
+  return null;
+}
+
+bool? _readOptionalBool(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is bool) {
+      return value;
+    }
+    if (value is String) {
+      final t = value.trim().toLowerCase();
+      if (t == 'true') {
+        return true;
+      }
+      if (t == 'false') {
+        return false;
+      }
+    }
+    if (value is num) {
+      if (value == 1) {
+        return true;
+      }
+      if (value == 0) {
+        return false;
+      }
     }
   }
   return null;

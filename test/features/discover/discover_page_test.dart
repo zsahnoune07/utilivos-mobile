@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -8,10 +9,16 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:utilivo_mobile/core/config/app_config.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
 import 'package:utilivo_mobile/core/entitlement/models/premium_entitlement.dart';
+import 'package:utilivo_mobile/core/billing/billing_gateway.dart';
+import 'package:utilivo_mobile/core/billing/models/billing_models.dart';
+import 'package:utilivo_mobile/core/premium/free_tier_usage_store.dart';
+import 'package:utilivo_mobile/core/premium/premium_capability_service.dart';
+import 'package:utilivo_mobile/core/premium/premium_purchase_controller.dart';
 import 'package:utilivo_mobile/core/navigation/app_routes.dart';
 import 'package:utilivo_mobile/core/networking/api_client.dart';
 import 'package:utilivo_mobile/features/discover/data/catalog_api.dart';
@@ -128,6 +135,8 @@ class _DiscoverHarness {
     required this.bundleDio,
     required this.baseDir,
     required this.runtimeOpenCounter,
+    required this.premiumCapabilityService,
+    required this.premiumPurchaseController,
   });
 
   final GoRouter router;
@@ -137,6 +146,8 @@ class _DiscoverHarness {
   final Dio bundleDio;
   final Directory baseDir;
   final ValueNotifier<int> runtimeOpenCounter;
+  final PremiumCapabilityService premiumCapabilityService;
+  final PremiumPurchaseController premiumPurchaseController;
 
   int get runtimeOpenCount => runtimeOpenCounter.value;
 
@@ -299,6 +310,28 @@ class _DiscoverHarness {
     );
     await entitlementController.bootstrap();
 
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final usageStore = await FreeTierUsageStore.open();
+    final premiumCapabilityService = PremiumCapabilityService(
+      entitlementController: entitlementController,
+      usageStore: usageStore,
+    );
+    const billingConfig = AppConfig(
+      appName: 'Utilivo',
+      apiBaseUrl: 'https://api.example.test',
+      androidPackageName: 'com.utilivo.utilivo_mobile',
+      premiumOneTimeProductId: 'utilivo_premium_one_time',
+      premiumSubscriptionProductId: '',
+      premiumSubscriptionMonthlyProductId: '',
+      premiumSubscriptionAnnualProductId: '',
+    );
+    final discoverBilling = _DiscoverTestBillingGateway();
+    final premiumPurchaseController = PremiumPurchaseController(
+      config: billingConfig,
+      billingGateway: discoverBilling,
+      entitlementController: entitlementController,
+    );
+    await premiumPurchaseController.initialize();
     final runtimeOpenCounter = ValueNotifier<int>(0);
     final router = GoRouter(
       initialLocation: AppRoutes.discover,
@@ -313,6 +346,8 @@ class _DiscoverHarness {
                 androidPackageName: 'com.utilivo.utilivo_mobile',
                 premiumOneTimeProductId: 'utilivo_premium_one_time',
                 premiumSubscriptionProductId: 'utilivo_premium_subscription',
+                premiumSubscriptionMonthlyProductId: '',
+                premiumSubscriptionAnnualProductId: '',
               ),
               catalogApi: CatalogApi(apiClient),
               entitlementController: entitlementController,
@@ -320,6 +355,7 @@ class _DiscoverHarness {
               toolBundleDownloadService: toolBundleDownloadService,
               installsApi: InstallsApi(apiClient),
               installedToolsController: controller,
+              premiumCapabilityService: premiumCapabilityService,
             );
           },
         ),
@@ -342,17 +378,50 @@ class _DiscoverHarness {
       bundleDio: bundleDio,
       baseDir: baseDir,
       runtimeOpenCounter: runtimeOpenCounter,
+      premiumCapabilityService: premiumCapabilityService,
+      premiumPurchaseController: premiumPurchaseController,
     );
   }
 
   Future<void> dispose() async {
     router.dispose();
     await Future<void>.delayed(const Duration(milliseconds: 80));
+    premiumCapabilityService.dispose();
+    premiumPurchaseController.dispose();
     controller.dispose();
     entitlementController.dispose();
     apiDio.close(force: true);
     bundleDio.close(force: true);
   }
+}
+
+class _DiscoverTestBillingGateway implements BillingGateway {
+  final StreamController<BillingPurchaseUpdate> _updates =
+      StreamController<BillingPurchaseUpdate>.broadcast();
+
+  @override
+  Stream<BillingPurchaseUpdate> get purchaseUpdates => _updates.stream;
+
+  @override
+  Future<void> buyNonConsumable(String productId) async {}
+
+  @override
+  Future<void> buyProduct(String productId) async {}
+
+  @override
+  void dispose() {
+    _updates.close();
+  }
+
+  @override
+  Future<bool> isAvailable() async => false;
+
+  @override
+  Future<List<BillingProduct>> queryProducts(Set<String> productIds) async =>
+      const <BillingProduct>[];
+
+  @override
+  Future<void> restorePurchases() async {}
 }
 
 Map<String, dynamic> _installPayload({

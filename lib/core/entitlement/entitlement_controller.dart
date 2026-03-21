@@ -424,6 +424,41 @@ class EntitlementController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Debug / local QA only: treat the device as Pro for in-app gates and downloads.
+  ///
+  /// The assertion string is synthetic; your API must accept
+  /// `DEBUG_UTILIVO_LOCAL_PRO` in dev/staging, or use catalog preview installs
+  /// without an assertion. Stripped in release (no-op).
+  Future<void> debugGrantLocalProEntitlement() async {
+    if (!kDebugMode) {
+      return;
+    }
+    final now = DateTime.now().toUtc();
+    await _persist(
+      PremiumEntitlement(
+        premiumActive: true,
+        updatedAt: now,
+        entitlementType: 'debug_local',
+        productId: 'debug_pro',
+        purchaseToken: 'debug_purchase_token',
+        assertionToken: 'DEBUG_UTILIVO_LOCAL_PRO',
+        assertionExpiresAt: now.add(const Duration(days: 365)),
+        graceExpiresAt: now.add(const Duration(days: 365)),
+        verificationState: 'debug',
+        lastVerificationAt: now,
+        verificationSource: 'debug_local_simulation',
+      ),
+    );
+  }
+
+  /// Debug: clear simulated or real stored entitlement (same as inactive reset).
+  Future<void> debugClearLocalProEntitlement() async {
+    if (!kDebugMode) {
+      return;
+    }
+    await setInactive();
+  }
+
   @override
   void dispose() {
     _backgroundReverifyTimer?.cancel();

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:developer' as developer;
 
@@ -8,6 +9,9 @@ import '../../../core/config/app_config.dart';
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/navigation/app_routes.dart';
 import '../../../core/networking/network_exception.dart';
+import '../../../core/premium/paywall_coordinator.dart';
+import '../../../core/premium/paywall_models.dart';
+import '../../../core/premium/premium_capability_service.dart';
 import '../../../core/premium/premium_purchase_controller.dart';
 import '../../../shared/widgets/app_buttons.dart';
 import '../../../shared/widgets/app_info_tile.dart';
@@ -32,6 +36,8 @@ class PluginDetailPage extends StatefulWidget {
     required this.installedToolsController,
     required this.entitlementController,
     required this.premiumPurchaseController,
+    required this.premiumCapabilityService,
+    required this.paywallCoordinator,
     super.key,
   });
 
@@ -44,6 +50,8 @@ class PluginDetailPage extends StatefulWidget {
   final InstalledToolsController installedToolsController;
   final EntitlementController entitlementController;
   final PremiumPurchaseController premiumPurchaseController;
+  final PremiumCapabilityService premiumCapabilityService;
+  final PaywallCoordinator paywallCoordinator;
 
   @override
   State<PluginDetailPage> createState() => _PluginDetailPageState();
@@ -160,7 +168,7 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
     final plugin = _plugin;
     final hasPremiumAccess = widget.entitlementController.hasPremiumAccess;
     final canInstall =
-        plugin != null && (!plugin.isPremium || hasPremiumAccess);
+        plugin != null && plugin.canFreeUserAttemptInstall(hasPremiumAccess);
     if (!canInstall) {
       return;
     }
@@ -263,23 +271,36 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
     });
 
     String? assertionToken;
+    final hasPremiumAccess = widget.entitlementController.hasPremiumAccess;
     if (plugin.isPremium) {
-      assertionToken = widget.entitlementController.activeAssertionToken;
-      if (assertionToken == null || assertionToken.trim().isEmpty) {
-        await widget.entitlementController.backgroundReverify(
-          reason: requestReason,
-        );
+      if (hasPremiumAccess) {
         assertionToken = widget.entitlementController.activeAssertionToken;
-      }
-      if (assertionToken == null || assertionToken.trim().isEmpty) {
+        if (assertionToken == null || assertionToken.trim().isEmpty) {
+          await widget.entitlementController.backgroundReverify(
+            reason: requestReason,
+          );
+          assertionToken = widget.entitlementController.activeAssertionToken;
+        }
+        if (assertionToken == null || assertionToken.trim().isEmpty) {
+          if (!mounted) {
+            return false;
+          }
+          setState(() {
+            _isDownloading = false;
+            _downloadProgress = null;
+            _downloadErrorMessage =
+                'No valid Pro verification. Connect online to refresh entitlement.';
+          });
+          return false;
+        }
+      } else if (!plugin.premiumPreview) {
         if (!mounted) {
           return false;
         }
         setState(() {
           _isDownloading = false;
           _downloadProgress = null;
-          _downloadErrorMessage =
-              'No valid entitlement assertion. Connect online to verify premium.';
+          _downloadErrorMessage = 'This tool requires Pro to install.';
         });
         return false;
       }
@@ -370,10 +391,18 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
 
   Future<void> _openRuntime(String slug) async {
     await widget.installedToolsController.markToolLaunched(slug);
+    unawaited(widget.premiumCapabilityService.recordToolEngagement(slug));
     if (!mounted) {
       return;
     }
-    context.push(AppRoutes.pluginRuntime(slug, toolName: _plugin?.name));
+    final restore = widget.premiumCapabilityService.canRestoreSession;
+    context.push(
+      AppRoutes.pluginRuntime(
+        slug,
+        toolName: _plugin?.name,
+        restoreSession: restore,
+      ),
+    );
   }
 
   void _goBack(BuildContext context) {
@@ -418,6 +447,7 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
           widget.entitlementController,
           widget.premiumPurchaseController,
           widget.installedToolsController,
+          widget.premiumCapabilityService,
         ]),
         builder: (BuildContext context, Widget? child) {
           return Padding(
@@ -448,7 +478,10 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
   Widget _buildContent(BuildContext context, CatalogPlugin plugin) {
     final latestVersion = _versions.isEmpty ? null : _versions.first.version;
     final hasPremiumAccess = widget.entitlementController.hasPremiumAccess;
-    final isPremiumLocked = plugin.isPremium && !hasPremiumAccess;
+    final hardPremiumLock =
+        plugin.isPremium && !hasPremiumAccess && !plugin.premiumPreview;
+    final previewInstallable =
+        plugin.isPremium && !hasPremiumAccess && plugin.premiumPreview;
     final purchaseController = widget.premiumPurchaseController;
     final isInstalled = widget.installedToolsController.installedTools.any(
       (install) => install.pluginSlug == plugin.slug,
@@ -465,7 +498,7 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
               baseUrl: widget.config.apiBaseUrl,
               size: 58,
               borderRadius: 12,
-              fallbackIcon: isPremiumLocked
+              fallbackIcon: hardPremiumLock
                   ? Icons.lock_outline
                   : Icons.extension_outlined,
             ),
@@ -474,11 +507,26 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    plugin.name,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          plugin.name,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ),
+                      if (plugin.isPremium) ...<Widget>[
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.workspace_premium_rounded,
+                          size: 22,
+                          semanticLabel: 'Pro tool',
+                          color: Theme.of(context).colorScheme.tertiary,
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -508,33 +556,44 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
         if (plugin.isPremium) ...<Widget>[
           const SizedBox(height: 16),
           AppInfoTile(
-            leading: isPremiumLocked
-                ? Icons.workspace_premium_outlined
-                : Icons.workspace_premium,
-            title: isPremiumLocked ? 'Premium Locked' : 'Premium Unlocked',
-            subtitle: isPremiumLocked
-                ? 'Upgrade once to unlock the full premium tool repository.'
-                : 'Premium entitlement is active for the full premium tool repository.',
+            leading: hasPremiumAccess
+                ? Icons.workspace_premium
+                : Icons.workspace_premium_outlined,
+            title: hasPremiumAccess
+                ? 'Pro active'
+                : previewInstallable
+                    ? 'Pro tool · Preview install'
+                    : 'Pro required',
+            subtitle: hasPremiumAccess
+                ? 'Full access to Pro tools and workflows.'
+                : previewInstallable
+                    ? 'Install and explore; upgrade for full output, exports, and saved sessions.'
+                    : 'Subscribe to install and unlock the full tool.',
           ),
         ],
         const SizedBox(height: 16),
         AppPrimaryButton(
-          label: isPremiumLocked
-              ? 'Upgrade to Premium'
+          label: hardPremiumLock
+              ? 'Go Pro'
               : (isInstalled ? 'Installed' : 'Install'),
-          onPressed: isPremiumLocked
-              ? (purchaseController.canPurchase
-                    ? purchaseController.purchasePremium
-                    : null)
+          onPressed: hardPremiumLock
+              ? () => widget.paywallCoordinator.show(
+                    context,
+                    const PaywallRequest(
+                      trigger: PaywallTrigger.contextualFeature,
+                      triggerSource: 'plugin_detail_install',
+                      contextMessage:
+                          'Unlock full Pro tools, saved workflows, and unlimited organization.',
+                    ),
+                  )
               : (isInstalled ? null : _trackInstall),
-          isLoading: isPremiumLocked
-              ? purchaseController.isPurchaseInProgress
-              : _isInstalling,
+          isLoading:
+              hardPremiumLock ? false : _isInstalling,
         ),
-        if (isPremiumLocked) ...<Widget>[
+        if (hardPremiumLock) ...<Widget>[
           const SizedBox(height: 8),
           AppSecondaryButton(
-            label: 'Restore Purchases',
+            label: 'Restore purchases',
             onPressed: purchaseController.isRestoreInProgress
                 ? null
                 : purchaseController.restorePurchases,
@@ -630,7 +689,7 @@ String _displayTier(String pricingType) {
     return 'Free';
   }
   if (normalized == 'premium' || normalized == 'paid') {
-    return 'Premium';
+    return 'Pro';
   }
   return 'Free';
 }

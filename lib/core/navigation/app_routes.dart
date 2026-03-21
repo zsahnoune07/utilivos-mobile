@@ -17,12 +17,21 @@ class AppRoutes {
     return '$discoverPluginDetailPrefix/$slug';
   }
 
-  static String pluginRuntime(String slug, {String? toolName}) {
+  static String pluginRuntime(
+    String slug, {
+    String? toolName,
+    bool restoreSession = false,
+  }) {
+    final params = <String, String>{};
+    if (toolName != null && toolName.trim().isNotEmpty) {
+      params['name'] = toolName.trim();
+    }
+    if (restoreSession) {
+      params['restore'] = '1';
+    }
     return Uri(
       path: '$pluginRuntimePrefix/$slug',
-      queryParameters: toolName == null || toolName.trim().isEmpty
-          ? null
-          : <String, String>{'name': toolName},
+      queryParameters: params.isEmpty ? null : params,
     ).toString();
   }
 

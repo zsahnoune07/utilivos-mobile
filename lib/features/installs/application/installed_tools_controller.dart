@@ -5,7 +5,11 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/networking/network_exception.dart';
+import '../../../core/premium/folder_creation_policy.dart';
+import '../../../core/premium/freemium_limits.dart';
+import '../../../core/premium/pinning_policy.dart';
 import '../../discover/data/catalog_api.dart';
+import 'folder_quota_exception.dart';
 import '../../downloads/application/tool_bundle_download_service.dart';
 import '../../downloads/data/models/downloaded_tool_bundle.dart';
 import '../data/installed_tools_store.dart';
@@ -23,13 +27,19 @@ class InstalledToolsController extends ChangeNotifier {
     required InstalledToolsStore store,
     required InstallsOrganizationStore organizationStore,
     ToolBundleDownloadService? toolBundleDownloadService,
+    PinningPolicy pinningPolicy = const UnlimitedPinningPolicy(),
+    FolderCreationPolicy folderCreationPolicy =
+        const UnlimitedFolderCreationPolicy(),
   }) : _installsApi = installsApi,
        _catalogApi = catalogApi,
        _store = store,
        _organizationStore = organizationStore,
-       _toolBundleDownloadService = toolBundleDownloadService;
+       _toolBundleDownloadService = toolBundleDownloadService,
+       _pinningPolicy = pinningPolicy,
+       _folderCreationPolicy = folderCreationPolicy;
 
-  static const int maxPinnedTools = 3;
+  /// Free-tier pin cap (Pro bypasses via [PinningPolicy]).
+  static int get maxPinnedTools => FreemiumLimits.maxPinnedTools;
   static const int maxFolderNameLength = 16;
 
   final InstallsApi _installsApi;
@@ -37,6 +47,8 @@ class InstalledToolsController extends ChangeNotifier {
   final InstalledToolsStore _store;
   final InstallsOrganizationStore _organizationStore;
   final ToolBundleDownloadService? _toolBundleDownloadService;
+  final PinningPolicy _pinningPolicy;
+  final FolderCreationPolicy _folderCreationPolicy;
 
   bool _bootstrapStarted = false;
   InstalledToolsState _state = InstalledToolsState.initializing;
@@ -262,15 +274,17 @@ class InstalledToolsController extends ChangeNotifier {
     }
   }
 
-  Future<void> togglePin(DeviceInstallRecord install) async {
+  /// Returns `true` if pin state changed.
+  Future<bool> togglePin(DeviceInstallRecord install) async {
     final newPinned = !install.pinned;
-    if (newPinned) {
-      final currentPinnedCount = _installedTools
-          .where((DeviceInstallRecord t) => t.pinned)
-          .length;
-      if (currentPinnedCount >= maxPinnedTools) {
-        return;
-      }
+    final currentPinnedCount = _installedTools
+        .where((DeviceInstallRecord t) => t.pinned)
+        .length;
+    if (!_pinningPolicy.allowPinChange(
+      currentPinnedCount: currentPinnedCount,
+      targetPinned: newPinned,
+    )) {
+      return false;
     }
     _installedTools = _installedTools
         .map((DeviceInstallRecord t) {
@@ -282,6 +296,7 @@ class InstalledToolsController extends ChangeNotifier {
         .toList(growable: false);
     await _persistState();
     notifyListeners();
+    return true;
   }
 
   int get pinnedCount =>
@@ -618,6 +633,9 @@ class InstalledToolsController extends ChangeNotifier {
     }
     if (hasFolderWithName(trimmedName)) {
       throw ArgumentError('A folder with this name already exists.');
+    }
+    if (!_folderCreationPolicy.allowCreateFolder(_folders.length)) {
+      throw const FolderQuotaExceededException();
     }
     final now = DateTime.now().toUtc();
     final folder = ToolFolder(

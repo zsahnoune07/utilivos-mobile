@@ -19,7 +19,7 @@ class EntitlementVerificationResult {
     final premiumActive = json['premium_active'];
     if (premiumActive is! bool) {
       throw const FormatException(
-        'Entitlement verification payload must include premium_active boolean.',
+        'Entitlement verification payload must include boolean field "premium_active".',
       );
     }
 

@@ -13,7 +13,14 @@ import '../config/app_config.dart';
 import '../networking/api_client.dart';
 import '../networking/interceptors/device_id_interceptor.dart';
 import '../networking/interceptors/request_id_interceptor.dart';
+import '../premium/folder_creation_policy.dart';
+import '../premium/free_tier_usage_store.dart';
+import '../premium/paywall_coordinator.dart';
+import '../premium/pinning_policy.dart';
+import '../premium/premium_analytics.dart';
+import '../premium/premium_capability_service.dart';
 import '../premium/premium_purchase_controller.dart';
+import '../premium/tool_session_store.dart';
 import '../../features/discover/data/catalog_api.dart';
 import '../../features/discover/data/catalog_cache_store.dart';
 import '../../features/discover/data/secure_catalog_cache_store.dart';
@@ -37,6 +44,11 @@ class AppDependencies {
     required this.deviceIdentityManager,
     required this.entitlementController,
     required this.premiumPurchaseController,
+    required this.freeTierUsageStore,
+    required this.premiumCapabilityService,
+    required this.premiumAnalytics,
+    required this.paywallCoordinator,
+    required this.toolSessionStore,
     required this.installedToolsController,
     required this.healthApi,
     required this.catalogApi,
@@ -51,6 +63,11 @@ class AppDependencies {
   final DeviceIdentityManager deviceIdentityManager;
   final EntitlementController entitlementController;
   final PremiumPurchaseController premiumPurchaseController;
+  final FreeTierUsageStore freeTierUsageStore;
+  final PremiumCapabilityService premiumCapabilityService;
+  final PremiumAnalytics premiumAnalytics;
+  final PaywallCoordinator paywallCoordinator;
+  final ToolSessionStore toolSessionStore;
   final InstalledToolsController installedToolsController;
   final HealthApi healthApi;
   final CatalogApi catalogApi;
@@ -68,6 +85,8 @@ class AppDependencies {
     DownloadedToolBundleStore? downloadedToolBundleStore,
     BillingGateway? billingGateway,
     Dio? dio,
+    required FreeTierUsageStore freeTierUsageStore,
+    PremiumAnalytics? premiumAnalytics,
   }) {
     final resolvedConfig = config ?? AppConfig.fromEnvironment();
     final resolvedDio =
@@ -106,6 +125,18 @@ class AppDependencies {
       entitlementController: entitlementController,
     );
 
+    final resolvedAnalytics = premiumAnalytics ?? DebugPremiumAnalytics();
+    final premiumCapabilityService = PremiumCapabilityService(
+      entitlementController: entitlementController,
+      usageStore: freeTierUsageStore,
+    );
+    final paywallCoordinator = PaywallCoordinator(
+      purchaseController: premiumPurchaseController,
+      entitlementController: entitlementController,
+      analytics: resolvedAnalytics,
+    );
+    final toolSessionStore = ToolSessionStore(premiumCapabilityService);
+
     resolvedDio.interceptors.add(RequestIdInterceptor());
     resolvedDio.interceptors.add(
       DeviceIdInterceptor(
@@ -138,6 +169,8 @@ class AppDependencies {
       store: resolvedInstalledToolsStore,
       organizationStore: resolvedInstallsOrganizationStore,
       toolBundleDownloadService: toolBundleDownloadService,
+      pinningPolicy: FreemiumPinningPolicy(entitlementController),
+      folderCreationPolicy: FreemiumFolderCreationPolicy(entitlementController),
     );
 
     return AppDependencies._(
@@ -147,6 +180,11 @@ class AppDependencies {
       deviceIdentityManager: deviceIdentityManager,
       entitlementController: entitlementController,
       premiumPurchaseController: premiumPurchaseController,
+      freeTierUsageStore: freeTierUsageStore,
+      premiumCapabilityService: premiumCapabilityService,
+      premiumAnalytics: resolvedAnalytics,
+      paywallCoordinator: paywallCoordinator,
+      toolSessionStore: toolSessionStore,
       installedToolsController: installedToolsController,
       healthApi: healthApi,
       catalogApi: catalogApi,
@@ -158,6 +196,7 @@ class AppDependencies {
 
   void dispose() {
     installedToolsController.dispose();
+    premiumCapabilityService.dispose();
     premiumPurchaseController.dispose();
     entitlementController.dispose();
     dio.close(force: true);

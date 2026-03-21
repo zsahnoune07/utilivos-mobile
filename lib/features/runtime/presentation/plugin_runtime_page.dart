@@ -9,6 +9,12 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/networking/network_exception.dart';
+import '../../../core/premium/paywall_coordinator.dart';
+import '../../../core/premium/paywall_models.dart';
+import '../../../core/premium/premium_analytics.dart';
+import '../../../core/premium/premium_capability_service.dart';
+import '../../../core/premium/tool_gate.dart';
+import '../../../core/premium/tool_session_store.dart';
 import '../../../core/theme/app_design_tokens.dart';
 import '../../../shared/widgets/app_state_views.dart';
 import '../../discover/data/catalog_api.dart';
@@ -21,19 +27,29 @@ class PluginRuntimePage extends StatefulWidget {
   const PluginRuntimePage({
     required this.pluginSlug,
     this.initialToolName,
+    this.restoreSessionRequested = false,
     required this.catalogApi,
     required this.downloadApi,
     required this.toolBundleDownloadService,
     required this.entitlementController,
+    required this.premiumCapabilityService,
+    required this.paywallCoordinator,
+    required this.toolSessionStore,
+    required this.premiumAnalytics,
     super.key,
   });
 
   final String pluginSlug;
   final String? initialToolName;
+  final bool restoreSessionRequested;
   final CatalogApi catalogApi;
   final DownloadApi downloadApi;
   final ToolBundleDownloadService toolBundleDownloadService;
   final EntitlementController entitlementController;
+  final PremiumCapabilityService premiumCapabilityService;
+  final PaywallCoordinator paywallCoordinator;
+  final ToolSessionStore toolSessionStore;
+  final PremiumAnalytics premiumAnalytics;
 
   @override
   State<PluginRuntimePage> createState() => _PluginRuntimePageState();
@@ -51,12 +67,16 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
   String? _toolName;
   double? _downloadProgress;
   bool _isPreparing = false;
+  bool _previewMode = false;
   static const Duration _premiumOfflineWindow = Duration(hours: 72);
 
   @override
   void initState() {
     super.initState();
     _toolName = widget.initialToolName;
+    unawaited(
+      widget.premiumCapabilityService.recordToolEngagement(widget.pluginSlug),
+    );
     unawaited(_prepareAndLoad());
   }
 
@@ -98,12 +118,26 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         return;
       }
 
+      final tier = preparedBundle.verifiedTier?.trim().toLowerCase() ?? '';
+      final preview = tier == 'premium' &&
+          !widget.entitlementController.hasPremiumAccess;
+      _previewMode = preview;
+
       final webViewController = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(Theme.of(context).colorScheme.surface)
+        ..addJavaScriptChannel(
+          'UtilivoHost',
+          onMessageReceived: (JavaScriptMessage message) {
+            unawaited(_handleHostMessage(message.message));
+          },
+        )
         ..setNavigationDelegate(
           NavigationDelegate(
-            onPageFinished: (_) => unawaited(_injectThemeIntoWebView()),
+            onPageFinished: (_) {
+              unawaited(_injectThemeIntoWebView());
+              unawaited(_injectHostBootstrap());
+            },
             onWebResourceError: (WebResourceError error) {
               if (!mounted) {
                 return;
@@ -129,6 +163,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         _toolName = preparedBundle.pluginName ?? widget.pluginSlug;
       });
       unawaited(_injectThemeIntoWebView());
+      unawaited(_injectHostBootstrap());
     } on NetworkException catch (_) {
       if (!mounted) {
         return;
@@ -234,18 +269,22 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     if (tier != 'premium') {
       return;
     }
-    final entitlement = widget.entitlementController.entitlement;
-    final now = DateTime.now().toUtc();
-    final referenceTime =
-        entitlement.lastVerificationAt ?? bundle.entitlementVerifiedAt;
-    final hasRecentVerification =
-        referenceTime != null &&
-        now.difference(referenceTime.toUtc()) <= _premiumOfflineWindow;
-    if (!entitlement.premiumActive || !hasRecentVerification) {
-      throw const _RuntimeLaunchException(
-        'Premium authorization expired or missing. Reconnect and verify entitlement to continue.',
-      );
+    if (widget.entitlementController.hasPremiumAccess) {
+      final entitlement = widget.entitlementController.entitlement;
+      final now = DateTime.now().toUtc();
+      final referenceTime =
+          entitlement.lastVerificationAt ?? bundle.entitlementVerifiedAt;
+      final hasRecentVerification =
+          referenceTime != null &&
+          now.difference(referenceTime.toUtc()) <= _premiumOfflineWindow;
+      if (!entitlement.premiumActive || !hasRecentVerification) {
+        throw const _RuntimeLaunchException(
+          'Pro authorization expired or missing. Reconnect and verify entitlement to continue.',
+        );
+      }
+      return;
     }
+    // Pro-tier bundle without subscription: preview mode (catalog allowed install).
   }
 
   Future<void> _configureLocalBundleAccess(WebViewController controller) async {
@@ -272,23 +311,258 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     if (!plugin.isPremium) {
       return null;
     }
-
-    var assertionToken = widget.entitlementController.activeAssertionToken;
-    if (assertionToken != null && assertionToken.trim().isNotEmpty) {
-      return assertionToken;
+    if (widget.entitlementController.hasPremiumAccess) {
+      var assertionToken = widget.entitlementController.activeAssertionToken;
+      if (assertionToken != null && assertionToken.trim().isNotEmpty) {
+        return assertionToken;
+      }
+      await widget.entitlementController.backgroundReverify(
+        reason: 'runtime_launch',
+      );
+      assertionToken = widget.entitlementController.activeAssertionToken;
+      if (assertionToken != null && assertionToken.trim().isNotEmpty) {
+        return assertionToken;
+      }
+      throw const _RuntimeLaunchException(
+        'Pro verification is required before first run. Connect once and try again.',
+      );
     }
-
-    await widget.entitlementController.backgroundReverify(
-      reason: 'runtime_launch',
-    );
-    assertionToken = widget.entitlementController.activeAssertionToken;
-    if (assertionToken != null && assertionToken.trim().isNotEmpty) {
-      return assertionToken;
+    if (plugin.premiumPreview) {
+      return null;
     }
-
     throw const _RuntimeLaunchException(
-      'Premium verification is required before first run. Connect once and try again.',
+      'This tool requires Pro. Subscribe to install and run the full version.',
     );
+  }
+
+  Future<void> _handleHostMessage(String raw) async {
+    if (!mounted) {
+      return;
+    }
+    Map<String, dynamic>? data;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        data = decoded;
+      }
+    } catch (_) {
+      return;
+    }
+    if (data == null) {
+      return;
+    }
+    final type = data['type']?.toString();
+    final id = data['id']?.toString() ?? '';
+
+    switch (type) {
+      case 'gate':
+        final action = data['action']?.toString() ?? '';
+        if (widget.premiumCapabilityService.hasPremiumAccess) {
+          _emitHostReply(<String, Object?>{'id': id, 'allowed': true});
+          return;
+        }
+        widget.premiumAnalytics.blockedFeatureAttempted(
+          featureId: analyticsIdForGateAction(action),
+          source: 'tool_runtime',
+        );
+        await widget.paywallCoordinator.show(
+          context,
+          PaywallRequest(
+            trigger: PaywallTrigger.hardGate,
+            triggerSource: 'tool_runtime_gate',
+            blockedFeatureId: action,
+            contextMessage: paywallContextForGateAction(action),
+          ),
+        );
+        _emitHostReply(<String, Object?>{'id': id, 'allowed': false});
+        return;
+      case 'persistState':
+        final payload = data['payload'];
+        if (payload is String) {
+          await widget.toolSessionStore.writeStateJson(
+            widget.pluginSlug,
+            payload,
+          );
+        }
+        _emitHostReply(<String, Object?>{'id': id, 'ok': true});
+        return;
+      case 'loadState':
+        final json = await widget.toolSessionStore.readStateJson(
+          widget.pluginSlug,
+        );
+        _emitHostReply(<String, Object?>{
+          'id': id,
+          'payload': json,
+        });
+        return;
+      case 'recordStorage':
+        if (!widget.premiumCapabilityService.canPerformStorageAction()) {
+          await widget.paywallCoordinator.show(
+            context,
+            PaywallRequest(
+              trigger: PaywallTrigger.limitReached,
+              triggerSource: 'storage_quota',
+              contextMessage: paywallContextForGateAction('storage'),
+            ),
+          );
+          _emitHostReply(<String, Object?>{'id': id, 'ok': false});
+          return;
+        }
+        await widget.premiumCapabilityService.recordStorageActionConsumed();
+        _emitHostReply(<String, Object?>{'id': id, 'ok': true});
+        return;
+      case 'pinHomeShortcut':
+        if (!widget.premiumCapabilityService.canAddHomeScreenLaunchers) {
+          await widget.paywallCoordinator.show(
+            context,
+            PaywallRequest(
+              trigger: PaywallTrigger.contextualFeature,
+              triggerSource: 'home_shortcut',
+              blockedFeatureId: 'home_shortcut',
+              contextMessage: 'Pin tools to your home screen with Pro.',
+            ),
+          );
+          _emitHostReply(<String, Object?>{'id': id, 'ok': false});
+          return;
+        }
+        final label = (data['label']?.toString().trim().isNotEmpty ?? false)
+            ? data['label'].toString()
+            : (widget.initialToolName ?? widget.pluginSlug);
+        try {
+          final ok = await _runtimeChannel.invokeMethod<bool>(
+            'requestPinToolShortcut',
+            <String, Object>{
+              'pluginSlug': widget.pluginSlug,
+              'toolName': label,
+            },
+          );
+          _emitHostReply(<String, Object?>{'id': id, 'ok': ok ?? false});
+        } catch (_) {
+          _emitHostReply(<String, Object?>{'id': id, 'ok': false});
+        }
+        return;
+      default:
+        return;
+    }
+  }
+
+  void _emitHostReply(Map<String, Object?> detail) {
+    final controller = _webViewController;
+    if (controller == null) {
+      return;
+    }
+    final encoded = jsonEncode(detail);
+    unawaited(
+      controller.runJavaScript(
+        'document.dispatchEvent(new CustomEvent("utilivo-host-reply", { detail: $encoded }));',
+      ),
+    );
+  }
+
+  Future<void> _injectHostBootstrap() async {
+    final webViewController = _webViewController;
+    if (webViewController == null || !mounted) {
+      return;
+    }
+
+    final cap = widget.premiumCapabilityService;
+    final snapshot = <String, Object?>{
+      'previewMode': _previewMode,
+      'hasPremium': widget.entitlementController.hasPremiumAccess,
+      'persistAllowed': cap.canPersistToolState,
+      'restoreRequested': widget.restoreSessionRequested,
+      'storageRemaining': cap.remainingFreeStorageActionsToday,
+      'slug': widget.pluginSlug,
+      'canPinShortcut': cap.canAddHomeScreenLaunchers,
+    };
+    final snapshotJson = jsonEncode(snapshot);
+
+    String? initialState;
+    if (widget.restoreSessionRequested && cap.canRestoreSession) {
+      initialState = await widget.toolSessionStore.readStateJson(
+        widget.pluginSlug,
+      );
+    }
+    final stateInit = initialState == null
+        ? 'window.__UTILIVO_INITIAL_STATE__ = null;'
+        : 'window.__UTILIVO_INITIAL_STATE__ = JSON.parse(${jsonEncode(initialState)});';
+
+    final script =
+        '''
+(() => {
+  const snapshot = $snapshotJson;
+  window.__UTILIVO_HOST__ = snapshot;
+  $stateInit
+  if (!window.utilivo) {
+    window.utilivo = {
+      requestGate(action) {
+        return new Promise((resolve) => {
+          const id = String(Math.random()).slice(2);
+          function onReply(e) {
+            if (!e || !e.detail || e.detail.id !== id) return;
+            document.removeEventListener('utilivo-host-reply', onReply);
+            resolve(!!e.detail.allowed);
+          }
+          document.addEventListener('utilivo-host-reply', onReply);
+          UtilivoHost.postMessage(JSON.stringify({ type: 'gate', id, action: String(action || '') }));
+        });
+      },
+      persistState(payload) {
+        return new Promise((resolve) => {
+          const id = String(Math.random()).slice(2);
+          function onReply(e) {
+            if (!e || !e.detail || e.detail.id !== id) return;
+            document.removeEventListener('utilivo-host-reply', onReply);
+            resolve(!!e.detail.ok);
+          }
+          document.addEventListener('utilivo-host-reply', onReply);
+          UtilivoHost.postMessage(JSON.stringify({ type: 'persistState', id, payload: typeof payload === 'string' ? payload : JSON.stringify(payload) }));
+        });
+      },
+      loadState() {
+        return new Promise((resolve) => {
+          const id = String(Math.random()).slice(2);
+          function onReply(e) {
+            if (!e || !e.detail || e.detail.id !== id) return;
+            document.removeEventListener('utilivo-host-reply', onReply);
+            resolve(e.detail.payload != null ? e.detail.payload : null);
+          }
+          document.addEventListener('utilivo-host-reply', onReply);
+          UtilivoHost.postMessage(JSON.stringify({ type: 'loadState', id }));
+        });
+      },
+      recordStorageAction() {
+        return new Promise((resolve) => {
+          const id = String(Math.random()).slice(2);
+          function onReply(e) {
+            if (!e || !e.detail || e.detail.id !== id) return;
+            document.removeEventListener('utilivo-host-reply', onReply);
+            resolve(!!e.detail.ok);
+          }
+          document.addEventListener('utilivo-host-reply', onReply);
+          UtilivoHost.postMessage(JSON.stringify({ type: 'recordStorage', id }));
+        });
+      },
+      requestPinHomeShortcut(label) {
+        return new Promise((resolve) => {
+          const id = String(Math.random()).slice(2);
+          function onReply(e) {
+            if (!e || !e.detail || e.detail.id !== id) return;
+            document.removeEventListener('utilivo-host-reply', onReply);
+            resolve(!!e.detail.ok);
+          }
+          document.addEventListener('utilivo-host-reply', onReply);
+          UtilivoHost.postMessage(JSON.stringify({ type: 'pinHomeShortcut', id, label: label || '' }));
+        });
+      }
+    };
+  }
+})();
+''';
+
+    try {
+      await webViewController.runJavaScript(script);
+    } catch (_) {}
   }
 
   Future<void> _injectThemeIntoWebView() async {
@@ -331,9 +605,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
 
     try {
       await webViewController.runJavaScript(script);
-    } catch (_) {
-      // Ignore transient injection failures while the document initializes.
-    }
+    } catch (_) {}
   }
 
   @override
@@ -344,14 +616,28 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         title: Text(
           _toolName ?? widget.pluginSlug,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-            fontSize: 22,
-          ),
+                fontWeight: FontWeight.w800,
+                fontSize: 22,
+              ),
         ),
         backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
+        actions: <Widget>[
+          if (_previewMode)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Center(
+                child: Chip(
+                  label: const Text('Preview'),
+                  visualDensity: VisualDensity.compact,
+                  side: BorderSide.none,
+                  backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                ),
+              ),
+            ),
+        ],
       ),
       body: SafeArea(
         child: AppStateBody(

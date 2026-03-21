@@ -6,6 +6,10 @@ abstract interface class BillingGateway {
   Future<bool> isAvailable();
   Future<List<BillingProduct>> queryProducts(Set<String> productIds);
   Future<void> buyNonConsumable(String productId);
+
+  /// Same store flow as [buyNonConsumable]; used for subscriptions and alternate SKUs.
+  Future<void> buyProduct(String productId);
+
   Future<void> restorePurchases();
   void dispose();
 }

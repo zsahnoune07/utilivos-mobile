@@ -1,9 +1,16 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/bootstrap/app_bootstrap_controller.dart';
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/navigation/app_routes.dart';
+import '../../../core/premium/free_tier_usage_store.dart';
+import '../../../core/premium/paywall_coordinator.dart';
+import '../../../core/premium/paywall_models.dart';
+import '../../../core/premium/premium_capability_service.dart';
 import '../../../core/premium/premium_purchase_controller.dart';
 import '../../../shared/widgets/app_buttons.dart';
 import '../../../shared/widgets/app_info_tile.dart';
@@ -14,12 +21,18 @@ class SettingsPage extends StatefulWidget {
     required this.bootstrapController,
     required this.entitlementController,
     required this.premiumPurchaseController,
+    required this.paywallCoordinator,
+    required this.freeTierUsageStore,
+    required this.premiumCapabilityService,
     super.key,
   });
 
   final AppBootstrapController bootstrapController;
   final EntitlementController entitlementController;
   final PremiumPurchaseController premiumPurchaseController;
+  final PaywallCoordinator paywallCoordinator;
+  final FreeTierUsageStore freeTierUsageStore;
+  final PremiumCapabilityService premiumCapabilityService;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -77,6 +90,7 @@ class _SettingsPageState extends State<SettingsPage> {
           widget.bootstrapController,
           widget.entitlementController,
           widget.premiumPurchaseController,
+          widget.premiumCapabilityService,
         ]),
         builder: (BuildContext context, Widget? child) {
         final entitlement = widget.entitlementController.entitlement;
@@ -92,7 +106,7 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           children: <Widget>[
             const Text(
-              'Anonymous-device configuration and premium purchase controls.',
+              'Anonymous-device configuration and Pro subscription controls.',
             ),
             const SizedBox(height: 12),
             AppSurfaceCard(
@@ -129,11 +143,11 @@ class _SettingsPageState extends State<SettingsPage> {
                         ? Icons.workspace_premium
                         : Icons.workspace_premium_outlined,
                     title: isPremiumActive
-                        ? 'Premium Active'
-                        : 'Premium Locked',
+                        ? 'Pro active'
+                        : 'Pro locked',
                     subtitle: isPremiumActive
-                        ? 'Premium is active on this device.'
-                        : 'Upgrade once to unlock the full premium tool repository.',
+                        ? 'Pro is active on this device.'
+                        : 'Upgrade to unlock the full Pro tool library and power features.',
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -166,20 +180,23 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 12),
                   AppPrimaryButton(
                     label: isPremiumActive
-                        ? 'Premium Already Active'
-                        : 'Upgrade to Premium',
-                    onPressed:
-                        isPremiumActive || !purchaseController.canPurchase
+                        ? 'Pro already active'
+                        : 'Go Pro',
+                    onPressed: isPremiumActive
                         ? null
-                        : purchaseController.purchasePremium,
-                    isLoading:
-                        purchaseController.isPurchaseInProgress ||
-                        purchaseController.isLoadingProducts,
+                        : () => widget.paywallCoordinator.show(
+                              context,
+                              const PaywallRequest(
+                                trigger: PaywallTrigger.contextualFeature,
+                                triggerSource: 'settings',
+                              ),
+                            ),
+                    isLoading: false,
                     expand: true,
                   ),
                   const SizedBox(height: 8),
                   AppSecondaryButton(
-                    label: 'Restore Purchases',
+                    label: 'Restore purchases',
                     onPressed:
                         purchaseController.isRestoreInProgress ||
                             !purchaseController.storeAvailable
@@ -203,6 +220,90 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
             ),
+            if (kDebugMode) ...<Widget>[
+              const SizedBox(height: 12),
+              AppSurfaceCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const AppInfoTile(
+                      leading: Icons.bug_report_outlined,
+                      title: 'Developer — Pro & limits (debug only)',
+                      subtitle:
+                          'Validate paywall, gates, quotas, and deep links without store billing. '
+                          'RevenueCat / Play sandbox integration can follow once UX is signed off.',
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Deep link example: utilivo://tool/{slug}?restore=1',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    const SizedBox(height: 12),
+                    AppPrimaryButton(
+                      label: 'Simulate Pro (local)',
+                      onPressed: () async {
+                        await widget.entitlementController
+                            .debugGrantLocalProEntitlement();
+                      },
+                      expand: true,
+                    ),
+                    const SizedBox(height: 8),
+                    AppSecondaryButton(
+                      label: 'Clear simulated Pro',
+                      onPressed: () async {
+                        await widget.entitlementController
+                            .debugClearLocalProEntitlement();
+                      },
+                      expand: true,
+                    ),
+                    const SizedBox(height: 8),
+                    AppSecondaryButton(
+                      label: 'Simulate purchase canceled',
+                      onPressed: purchaseController.debugSimulatePurchaseCanceled,
+                      expand: true,
+                    ),
+                    const SizedBox(height: 8),
+                    AppSecondaryButton(
+                      label: 'Simulate purchase error',
+                      onPressed: purchaseController.debugSimulatePurchaseFailed,
+                      expand: true,
+                    ),
+                    const SizedBox(height: 8),
+                    AppSecondaryButton(
+                      label: 'Clear purchase status lines',
+                      onPressed: purchaseController.debugClearPurchaseMessages,
+                      expand: true,
+                    ),
+                    const SizedBox(height: 8),
+                    AppSecondaryButton(
+                      label: 'Reset free-tier usage counters',
+                      onPressed: () async {
+                        await widget.freeTierUsageStore.debugResetAll();
+                        widget.premiumCapabilityService.refreshQuotas();
+                      },
+                      expand: true,
+                    ),
+                    const SizedBox(height: 8),
+                    AppSecondaryButton(
+                      label: 'Open paywall (test)',
+                      onPressed: () {
+                        unawaited(
+                          widget.paywallCoordinator.show(
+                            context,
+                            const PaywallRequest(
+                              trigger: PaywallTrigger.contextualFeature,
+                              triggerSource: 'debug_panel',
+                              contextMessage: 'Test paywall presentation.',
+                            ),
+                          ),
+                        );
+                      },
+                      expand: true,
+                    ),
+                  ],
+                ),
+              ),
+            ],
             ],
           );
         },
