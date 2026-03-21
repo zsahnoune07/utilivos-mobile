@@ -80,10 +80,10 @@ GoRouter createAppRouter({
               downloadApi: dependencies.downloadApi,
               toolBundleDownloadService: dependencies.toolBundleDownloadService,
               entitlementController: dependencies.entitlementController,
-              premiumCapabilityService: dependencies.premiumCapabilityService,
+              proCapabilityService: dependencies.proCapabilityService,
               paywallCoordinator: dependencies.paywallCoordinator,
               toolSessionStore: dependencies.toolSessionStore,
-              premiumAnalytics: dependencies.premiumAnalytics,
+              proAnalytics: dependencies.proAnalytics,
             ),
             transitionsBuilder:
                 (
@@ -142,9 +142,9 @@ GoRouter createAppRouter({
                     dependencies.toolBundleDownloadService,
                 installsApi: dependencies.installsApi,
                 entitlementController: dependencies.entitlementController,
-                premiumCapabilityService: dependencies.premiumCapabilityService,
+                proCapabilityService: dependencies.proCapabilityService,
                 paywallCoordinator: dependencies.paywallCoordinator,
-                premiumAnalytics: dependencies.premiumAnalytics,
+                proAnalytics: dependencies.proAnalytics,
               );
             },
           ),
@@ -155,7 +155,7 @@ GoRouter createAppRouter({
               return FolderDetailPage(
                 folderId: folderId,
                 controller: dependencies.installedToolsController,
-                premiumCapabilityService: dependencies.premiumCapabilityService,
+                proCapabilityService: dependencies.proCapabilityService,
                 paywallCoordinator: dependencies.paywallCoordinator,
               );
             },
@@ -178,7 +178,7 @@ GoRouter createAppRouter({
                     dependencies.toolBundleDownloadService,
                 installsApi: dependencies.installsApi,
                 installedToolsController: dependencies.installedToolsController,
-                premiumCapabilityService: dependencies.premiumCapabilityService,
+                proCapabilityService: dependencies.proCapabilityService,
               );
             },
             routes: <RouteBase>[
@@ -197,9 +197,9 @@ GoRouter createAppRouter({
                     installedToolsController:
                         dependencies.installedToolsController,
                     entitlementController: dependencies.entitlementController,
-                    premiumPurchaseController:
-                        dependencies.premiumPurchaseController,
-                    premiumCapabilityService: dependencies.premiumCapabilityService,
+                    proPurchaseController:
+                        dependencies.proPurchaseController,
+                    proCapabilityService: dependencies.proCapabilityService,
                     paywallCoordinator: dependencies.paywallCoordinator,
                   );
                 },
@@ -222,11 +222,11 @@ GoRouter createAppRouter({
               return SettingsPage(
                 bootstrapController: bootstrapController,
                 entitlementController: dependencies.entitlementController,
-                premiumPurchaseController:
-                    dependencies.premiumPurchaseController,
+                proPurchaseController:
+                    dependencies.proPurchaseController,
                 paywallCoordinator: dependencies.paywallCoordinator,
                 freeTierUsageStore: dependencies.freeTierUsageStore,
-                premiumCapabilityService: dependencies.premiumCapabilityService,
+                proCapabilityService: dependencies.proCapabilityService,
               );
             },
           ),

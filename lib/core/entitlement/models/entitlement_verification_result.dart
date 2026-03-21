@@ -1,6 +1,6 @@
 class EntitlementVerificationResult {
   const EntitlementVerificationResult({
-    required this.premiumActive,
+    required this.proActive,
     this.entitlementType,
     this.expiresAt,
     this.assertionToken,
@@ -8,7 +8,7 @@ class EntitlementVerificationResult {
     this.verificationState,
   });
 
-  final bool premiumActive;
+  final bool proActive;
   final String? entitlementType;
   final DateTime? expiresAt;
   final String? assertionToken;
@@ -16,15 +16,15 @@ class EntitlementVerificationResult {
   final String? verificationState;
 
   factory EntitlementVerificationResult.fromJson(Map<String, dynamic> json) {
-    final premiumActive = json['premium_active'];
-    if (premiumActive is! bool) {
+    final proActive = json['pro_active'];
+    if (proActive is! bool) {
       throw const FormatException(
-        'Entitlement verification payload must include boolean field "premium_active".',
+        'Entitlement verification payload must include boolean field "pro_active".',
       );
     }
 
     return EntitlementVerificationResult(
-      premiumActive: premiumActive,
+      proActive: proActive,
       entitlementType: _readOptionalString(json['entitlement_type']),
       expiresAt: _readOptionalDateTime(json['expires_at']),
       assertionToken: _readOptionalString(json['assertion_token']),

@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/navigation/app_routes.dart';
-import '../../../core/premium/paywall_coordinator.dart';
-import '../../../core/premium/paywall_models.dart';
-import '../../../core/premium/premium_capability_service.dart';
+import '../../../core/pro/paywall_coordinator.dart';
+import '../../../core/pro/paywall_models.dart';
+import '../../../core/pro/pro_capability_service.dart';
 import '../application/folder_quota_exception.dart';
 import '../application/installed_tools_controller.dart';
 import '../data/models/install_models.dart';
@@ -20,14 +20,14 @@ class FolderDetailPage extends StatelessWidget {
   const FolderDetailPage({
     required this.folderId,
     required this.controller,
-    required this.premiumCapabilityService,
+    required this.proCapabilityService,
     required this.paywallCoordinator,
     super.key,
   });
 
   final String folderId;
   final InstalledToolsController controller;
-  final PremiumCapabilityService premiumCapabilityService;
+  final ProCapabilityService proCapabilityService;
   final PaywallCoordinator paywallCoordinator;
 
   @override
@@ -133,9 +133,9 @@ class FolderDetailPage extends StatelessWidget {
   void _openToolRuntime(BuildContext context, DeviceInstallRecord install) {
     controller.markToolLaunched(install.pluginSlug);
     unawaited(
-      premiumCapabilityService.recordToolEngagement(install.pluginSlug),
+      proCapabilityService.recordToolEngagement(install.pluginSlug),
     );
-    final restore = premiumCapabilityService.canRestoreSession;
+    final restore = proCapabilityService.canRestoreSession;
     context.push(
       AppRoutes.pluginRuntime(
         install.pluginSlug,
@@ -246,7 +246,7 @@ class FolderDetailPage extends StatelessWidget {
         return ToolActionsSheet(
           install: install,
           controller: controller,
-          canPinMore: premiumCapabilityService.canPinMoreTools(
+          canPinMore: proCapabilityService.canPinMoreTools(
             controller.pinnedCount,
           ),
           folderContextOnly: false,

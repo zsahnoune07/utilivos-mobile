@@ -1,7 +1,7 @@
 import 'paywall_models.dart';
 
 /// Hooks for subscription funnel analytics; replace with Firebase/Amplitude etc.
-abstract class PremiumAnalytics {
+abstract class ProAnalytics {
   void paywallShown(PaywallRequest request);
 
   void paywallDismissed(PaywallRequest request, {required bool converted});
@@ -17,7 +17,7 @@ abstract class PremiumAnalytics {
 }
 
 /// Logs in debug mode only; no-op in release unless kDebugMode.
-class DebugPremiumAnalytics implements PremiumAnalytics {
+class DebugProAnalytics implements ProAnalytics {
   @override
   void paywallShown(PaywallRequest request) {
     assert(() {

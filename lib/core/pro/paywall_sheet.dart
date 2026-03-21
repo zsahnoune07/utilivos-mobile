@@ -4,16 +4,16 @@ import '../entitlement/entitlement_controller.dart';
 import 'paywall_models.dart';
 import 'paywall_offer_page.dart';
 import 'paywall_offer_view.dart';
-import 'premium_analytics.dart';
-import 'premium_purchase_controller.dart';
+import '../pro/pro_analytics.dart';
+import '../pro/pro_purchase_controller.dart';
 
 /// Compact bottom sheet with optional drill-in to full comparison page.
 Future<PaywallResult> showPaywallSheet({
   required BuildContext context,
   required PaywallRequest request,
-  required PremiumPurchaseController purchaseController,
+  required ProPurchaseController purchaseController,
   required EntitlementController entitlementController,
-  required PremiumAnalytics analytics,
+  required ProAnalytics analytics,
   bool fullScreen = false,
 }) async {
   PaywallResult outcome = PaywallResult.dismissed;

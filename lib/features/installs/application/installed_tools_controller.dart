@@ -5,9 +5,9 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/networking/network_exception.dart';
-import '../../../core/premium/folder_creation_policy.dart';
-import '../../../core/premium/freemium_limits.dart';
-import '../../../core/premium/pinning_policy.dart';
+import '../../../core/pro/folder_creation_policy.dart';
+import '../../../core/pro/freemium_limits.dart';
+import '../../../core/pro/pinning_policy.dart';
 import '../../discover/data/catalog_api.dart';
 import 'folder_quota_exception.dart';
 import '../../downloads/application/tool_bundle_download_service.dart';
@@ -485,8 +485,8 @@ class InstalledToolsController extends ChangeNotifier {
     if (normalized == 'free') {
       return 'free';
     }
-    if (normalized == 'premium' || normalized == 'paid') {
-      return 'premium';
+    if (normalized == 'pro' || normalized == 'paid') {
+      return 'pro';
     }
     return null;
   }

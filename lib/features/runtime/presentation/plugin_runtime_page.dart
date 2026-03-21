@@ -9,12 +9,12 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/networking/network_exception.dart';
-import '../../../core/premium/paywall_coordinator.dart';
-import '../../../core/premium/paywall_models.dart';
-import '../../../core/premium/premium_analytics.dart';
-import '../../../core/premium/premium_capability_service.dart';
-import '../../../core/premium/tool_gate.dart';
-import '../../../core/premium/tool_session_store.dart';
+import '../../../core/pro/paywall_coordinator.dart';
+import '../../../core/pro/paywall_models.dart';
+import '../../../core/pro/pro_analytics.dart';
+import '../../../core/pro/pro_capability_service.dart';
+import '../../../core/pro/tool_gate.dart';
+import '../../../core/pro/tool_session_store.dart';
 import '../../../core/theme/app_design_tokens.dart';
 import '../../../shared/widgets/app_state_views.dart';
 import '../../discover/data/catalog_api.dart';
@@ -32,10 +32,10 @@ class PluginRuntimePage extends StatefulWidget {
     required this.downloadApi,
     required this.toolBundleDownloadService,
     required this.entitlementController,
-    required this.premiumCapabilityService,
+    required this.proCapabilityService,
     required this.paywallCoordinator,
     required this.toolSessionStore,
-    required this.premiumAnalytics,
+    required this.proAnalytics,
     super.key,
   });
 
@@ -46,10 +46,10 @@ class PluginRuntimePage extends StatefulWidget {
   final DownloadApi downloadApi;
   final ToolBundleDownloadService toolBundleDownloadService;
   final EntitlementController entitlementController;
-  final PremiumCapabilityService premiumCapabilityService;
+  final ProCapabilityService proCapabilityService;
   final PaywallCoordinator paywallCoordinator;
   final ToolSessionStore toolSessionStore;
-  final PremiumAnalytics premiumAnalytics;
+  final ProAnalytics proAnalytics;
 
   @override
   State<PluginRuntimePage> createState() => _PluginRuntimePageState();
@@ -68,14 +68,14 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
   double? _downloadProgress;
   bool _isPreparing = false;
   bool _previewMode = false;
-  static const Duration _premiumOfflineWindow = Duration(hours: 72);
+  static const Duration _proOfflineWindow = Duration(hours: 72);
 
   @override
   void initState() {
     super.initState();
     _toolName = widget.initialToolName;
     unawaited(
-      widget.premiumCapabilityService.recordToolEngagement(widget.pluginSlug),
+      widget.proCapabilityService.recordToolEngagement(widget.pluginSlug),
     );
     unawaited(_prepareAndLoad());
   }
@@ -119,8 +119,8 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
       }
 
       final tier = preparedBundle.verifiedTier?.trim().toLowerCase() ?? '';
-      final preview = tier == 'premium' &&
-          !widget.entitlementController.hasPremiumAccess;
+      final preview = tier == 'pro' &&
+          !widget.entitlementController.hasProAccess;
       _previewMode = preview;
 
       final webViewController = WebViewController()
@@ -266,18 +266,18 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         'Bundle metadata is not verified. Reinstall this tool from Tool Library.',
       );
     }
-    if (tier != 'premium') {
+    if (tier != 'pro') {
       return;
     }
-    if (widget.entitlementController.hasPremiumAccess) {
+    if (widget.entitlementController.hasProAccess) {
       final entitlement = widget.entitlementController.entitlement;
       final now = DateTime.now().toUtc();
       final referenceTime =
           entitlement.lastVerificationAt ?? bundle.entitlementVerifiedAt;
       final hasRecentVerification =
           referenceTime != null &&
-          now.difference(referenceTime.toUtc()) <= _premiumOfflineWindow;
-      if (!entitlement.premiumActive || !hasRecentVerification) {
+          now.difference(referenceTime.toUtc()) <= _proOfflineWindow;
+      if (!entitlement.proActive || !hasRecentVerification) {
         throw const _RuntimeLaunchException(
           'Pro authorization expired or missing. Reconnect and verify entitlement to continue.',
         );
@@ -308,10 +308,10 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
   }
 
   Future<String?> _resolveAssertionToken(CatalogPlugin plugin) async {
-    if (!plugin.isPremium) {
+    if (!plugin.isPro) {
       return null;
     }
-    if (widget.entitlementController.hasPremiumAccess) {
+    if (widget.entitlementController.hasProAccess) {
       var assertionToken = widget.entitlementController.activeAssertionToken;
       if (assertionToken != null && assertionToken.trim().isNotEmpty) {
         return assertionToken;
@@ -327,7 +327,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         'Pro verification is required before first run. Connect once and try again.',
       );
     }
-    if (plugin.premiumPreview) {
+    if (plugin.proPreview) {
       return null;
     }
     throw const _RuntimeLaunchException(
@@ -357,11 +357,11 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     switch (type) {
       case 'gate':
         final action = data['action']?.toString() ?? '';
-        if (widget.premiumCapabilityService.hasPremiumAccess) {
+        if (widget.proCapabilityService.hasProAccess) {
           _emitHostReply(<String, Object?>{'id': id, 'allowed': true});
           return;
         }
-        widget.premiumAnalytics.blockedFeatureAttempted(
+        widget.proAnalytics.blockedFeatureAttempted(
           featureId: analyticsIdForGateAction(action),
           source: 'tool_runtime',
         );
@@ -396,7 +396,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         });
         return;
       case 'recordStorage':
-        if (!widget.premiumCapabilityService.canPerformStorageAction()) {
+        if (!widget.proCapabilityService.canPerformStorageAction()) {
           await widget.paywallCoordinator.show(
             context,
             PaywallRequest(
@@ -408,11 +408,11 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
           _emitHostReply(<String, Object?>{'id': id, 'ok': false});
           return;
         }
-        await widget.premiumCapabilityService.recordStorageActionConsumed();
+        await widget.proCapabilityService.recordStorageActionConsumed();
         _emitHostReply(<String, Object?>{'id': id, 'ok': true});
         return;
       case 'pinHomeShortcut':
-        if (!widget.premiumCapabilityService.canAddHomeScreenLaunchers) {
+        if (!widget.proCapabilityService.canAddHomeScreenLaunchers) {
           await widget.paywallCoordinator.show(
             context,
             PaywallRequest(
@@ -465,10 +465,10 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
       return;
     }
 
-    final cap = widget.premiumCapabilityService;
+    final cap = widget.proCapabilityService;
     final snapshot = <String, Object?>{
       'previewMode': _previewMode,
-      'hasPremium': widget.entitlementController.hasPremiumAccess,
+      'hasPro': widget.entitlementController.hasProAccess,
       'persistAllowed': cap.canPersistToolState,
       'restoreRequested': widget.restoreSessionRequested,
       'storageRemaining': cap.remainingFreeStorageActionsToday,

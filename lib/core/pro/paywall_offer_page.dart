@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../entitlement/entitlement_controller.dart';
 import 'paywall_models.dart';
 import 'paywall_offer_view.dart';
-import 'premium_analytics.dart';
-import 'premium_purchase_controller.dart';
+import '../pro/pro_analytics.dart';
+import '../pro/pro_purchase_controller.dart';
 
 /// Full-screen Pro offer with comparison table (preferred over sheet for main CTAs).
 class PaywallOfferPage extends StatelessWidget {
@@ -17,9 +17,9 @@ class PaywallOfferPage extends StatelessWidget {
   });
 
   final PaywallRequest request;
-  final PremiumPurchaseController purchaseController;
+  final ProPurchaseController purchaseController;
   final EntitlementController entitlementController;
-  final PremiumAnalytics analytics;
+  final ProAnalytics analytics;
 
   @override
   Widget build(BuildContext context) {

@@ -13,8 +13,8 @@ import 'package:utilivo_mobile/core/billing/models/billing_models.dart';
 import 'package:utilivo_mobile/core/device/device_id_store.dart';
 import 'package:utilivo_mobile/core/di/app_dependencies.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
-import 'package:utilivo_mobile/core/premium/free_tier_usage_store.dart';
-import 'package:utilivo_mobile/core/entitlement/models/premium_entitlement.dart';
+import 'package:utilivo_mobile/core/pro/free_tier_usage_store.dart';
+import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
 import 'package:utilivo_mobile/core/navigation/app_routes.dart';
 import 'package:utilivo_mobile/features/discover/data/catalog_cache_store.dart';
 import 'package:utilivo_mobile/features/discover/data/models/catalog_cache_snapshot.dart';
@@ -344,7 +344,7 @@ class _InMemoryDeviceIdStore implements DeviceIdStore {
 }
 
 class _InMemoryEntitlementStore implements EntitlementStore {
-  PremiumEntitlement? _entitlement;
+  ProEntitlement? _entitlement;
 
   @override
   Future<void> clear() async {
@@ -352,12 +352,12 @@ class _InMemoryEntitlementStore implements EntitlementStore {
   }
 
   @override
-  Future<PremiumEntitlement?> read() async {
+  Future<ProEntitlement?> read() async {
     return _entitlement;
   }
 
   @override
-  Future<void> write(PremiumEntitlement entitlement) async {
+  Future<void> write(ProEntitlement entitlement) async {
     _entitlement = entitlement;
   }
 }

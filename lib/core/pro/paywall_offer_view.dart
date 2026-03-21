@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../billing/models/billing_models.dart';
 import '../entitlement/entitlement_controller.dart';
 import 'paywall_models.dart';
-import 'premium_analytics.dart';
-import 'premium_purchase_controller.dart';
+import '../pro/pro_analytics.dart';
+import '../pro/pro_purchase_controller.dart';
 
 /// Shared paywall content: value props, Free vs Pro comparison, plan picker, CTAs.
 class PaywallOfferView extends StatefulWidget {
@@ -21,9 +21,9 @@ class PaywallOfferView extends StatefulWidget {
   });
 
   final PaywallRequest request;
-  final PremiumPurchaseController purchaseController;
+  final ProPurchaseController purchaseController;
   final EntitlementController entitlementController;
-  final PremiumAnalytics analytics;
+  final ProAnalytics analytics;
   final void Function(PaywallResult result) onClose;
 
   /// Full [PaywallOfferPage] sets true; bottom sheet may set false and link here.
@@ -58,7 +58,7 @@ class _PaywallOfferViewState extends State<PaywallOfferView> {
   }
 
   void _onEntitlementChanged() {
-    if (widget.entitlementController.hasPremiumAccess && mounted) {
+    if (widget.entitlementController.hasProAccess && mounted) {
       widget.analytics.conversionSuccess(
         widget.request,
         productId: _selectedProductId ?? 'unknown',

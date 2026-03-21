@@ -34,7 +34,7 @@ class FreemiumPinningPolicy implements PinningPolicy {
     if (!targetPinned) {
       return true;
     }
-    if (_entitlement.hasPremiumAccess) {
+    if (_entitlement.hasProAccess) {
       return true;
     }
     return currentPinnedCount < FreemiumLimits.maxPinnedTools;

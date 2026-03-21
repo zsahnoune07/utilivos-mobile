@@ -212,7 +212,7 @@ void main() {
 
       final store = _InMemoryDownloadedToolBundleStore();
       final bundleBytes = _buildBundleArchiveBytes(
-        pluginSlug: 'tool-premium',
+        pluginSlug: 'tool-pro',
         pluginName: 'Tool Pro',
         version: '1.0.0',
       );
@@ -232,11 +232,11 @@ void main() {
 
       await expectLater(
         () => service.downloadBundle(
-          pluginSlug: 'tool-premium',
+          pluginSlug: 'tool-pro',
           grant: const PluginDownloadGrant(
             url: 'https://example.test/bundle',
             version: '1.0.0',
-            tier: 'premium',
+            tier: 'pro',
           ),
         ),
         throwsA(isA<ToolBundleFormatException>()),

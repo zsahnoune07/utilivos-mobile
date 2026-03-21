@@ -6,7 +6,7 @@ import '../networking/network_exception.dart';
 import 'entitlement_store.dart';
 import 'entitlement_verification_api.dart';
 import 'models/entitlement_verification_result.dart';
-import 'models/premium_entitlement.dart';
+import 'models/pro_entitlement.dart';
 
 enum EntitlementState { initializing, ready, failed }
 
@@ -37,7 +37,7 @@ class EntitlementController extends ChangeNotifier {
   bool _bootstrapStarted = false;
   bool _verificationInFlight = false;
   EntitlementState _state = EntitlementState.initializing;
-  PremiumEntitlement _entitlement = PremiumEntitlement.inactive();
+  ProEntitlement _entitlement = ProEntitlement.inactive();
   String? _errorMessage;
   Timer? _backgroundReverifyTimer;
 
@@ -46,10 +46,10 @@ class EntitlementController extends ChangeNotifier {
   bool get isReady => _state == EntitlementState.ready;
   bool get hasFailed => _state == EntitlementState.failed;
   String? get errorMessage => _errorMessage;
-  PremiumEntitlement get entitlement => _entitlement;
+  ProEntitlement get entitlement => _entitlement;
 
-  bool get hasPremiumAccess {
-    if (!_entitlement.premiumActive) {
+  bool get hasProAccess {
+    if (!_entitlement.proActive) {
       return false;
     }
 
@@ -91,12 +91,12 @@ class EntitlementController extends ChangeNotifier {
     try {
       final storedEntitlement = await _store.read();
       _entitlement = _normalizeStoredEntitlement(
-        storedEntitlement ?? PremiumEntitlement.inactive(),
+        storedEntitlement ?? ProEntitlement.inactive(),
       );
       _state = EntitlementState.ready;
       await _store.write(_entitlement);
     } catch (error) {
-      _entitlement = PremiumEntitlement.inactive();
+      _entitlement = ProEntitlement.inactive();
       _state = EntitlementState.failed;
       _errorMessage = 'Failed to load entitlement state: $error';
       notifyListeners();
@@ -128,7 +128,7 @@ class EntitlementController extends ChangeNotifier {
 
     final now = DateTime.now().toUtc();
     _entitlement = _entitlement.copyWith(
-      premiumActive: false,
+      proActive: false,
       updatedAt: now,
       entitlementType: entitlementType,
       productId: trimmedProductId,
@@ -139,7 +139,7 @@ class EntitlementController extends ChangeNotifier {
 
     if (_verificationApi == null) {
       final fallbackEntitlement = _entitlement.copyWith(
-        premiumActive: true,
+        proActive: true,
         updatedAt: now,
         lastVerificationAt: now,
         graceExpiresAt: now.add(_offlineGracePeriod),
@@ -166,7 +166,7 @@ class EntitlementController extends ChangeNotifier {
       );
       await _persist(persisted);
       _scheduleBackgroundReverify();
-      return verification.premiumActive
+      return verification.proActive
           ? BillingVerificationOutcome.activated
           : BillingVerificationOutcome.rejected;
     } on NetworkException catch (error) {
@@ -180,7 +180,7 @@ class EntitlementController extends ChangeNotifier {
       _errorMessage = 'Entitlement verification failed: $error';
       await _persist(
         _entitlement.copyWith(
-          premiumActive: false,
+          proActive: false,
           updatedAt: now,
           verificationSource: 'verification_failed',
         ),
@@ -232,7 +232,7 @@ class EntitlementController extends ChangeNotifier {
     final now = DateTime.now().toUtc();
     await _persist(
       _entitlement.copyWith(
-        premiumActive: false,
+        proActive: false,
         updatedAt: now,
         assertionToken: null,
         assertionExpiresAt: null,
@@ -245,20 +245,20 @@ class EntitlementController extends ChangeNotifier {
     unawaited(backgroundReverify(reason: 'app_resumed'));
   }
 
-  PremiumEntitlement _normalizeStoredEntitlement(PremiumEntitlement stored) {
+  ProEntitlement _normalizeStoredEntitlement(ProEntitlement stored) {
     final now = DateTime.now().toUtc();
     var normalized = stored;
 
-    if (normalized.premiumActive && normalized.graceExpiresAt == null) {
+    if (normalized.proActive && normalized.graceExpiresAt == null) {
       final baseTime = normalized.lastVerificationAt ?? normalized.updatedAt;
       normalized = normalized.copyWith(
         graceExpiresAt: baseTime.add(_offlineGracePeriod),
       );
     }
 
-    if (normalized.premiumActive && !hasPremiumAccessFor(normalized, now)) {
+    if (normalized.proActive && !hasProAccessFor(normalized, now)) {
       normalized = normalized.copyWith(
-        premiumActive: false,
+        proActive: false,
         updatedAt: now,
         assertionToken: null,
         assertionExpiresAt: null,
@@ -269,8 +269,8 @@ class EntitlementController extends ChangeNotifier {
     return normalized;
   }
 
-  bool hasPremiumAccessFor(PremiumEntitlement entitlement, DateTime now) {
-    if (!entitlement.premiumActive) {
+  bool hasProAccessFor(ProEntitlement entitlement, DateTime now) {
+    if (!entitlement.proActive) {
       return false;
     }
     if (entitlement.storeExpiresAt != null &&
@@ -284,7 +284,7 @@ class EntitlementController extends ChangeNotifier {
     return true;
   }
 
-  PremiumEntitlement _entitlementFromVerification({
+  ProEntitlement _entitlementFromVerification({
     required EntitlementVerificationResult verification,
     required String productId,
     required String purchaseToken,
@@ -292,8 +292,8 @@ class EntitlementController extends ChangeNotifier {
     required String verificationSource,
   }) {
     final now = DateTime.now().toUtc();
-    return PremiumEntitlement(
-      premiumActive: verification.premiumActive,
+    return ProEntitlement(
+      proActive: verification.proActive,
       updatedAt: now,
       entitlementType: verification.entitlementType ?? fallbackEntitlementType,
       productId: productId,
@@ -301,7 +301,7 @@ class EntitlementController extends ChangeNotifier {
       storeExpiresAt: verification.expiresAt,
       assertionToken: verification.assertionToken,
       assertionExpiresAt: verification.assertionExpiresAt,
-      graceExpiresAt: verification.premiumActive
+      graceExpiresAt: verification.proActive
           ? now.add(_offlineGracePeriod)
           : null,
       verificationState: verification.verificationState,
@@ -326,7 +326,7 @@ class EntitlementController extends ChangeNotifier {
       unawaited(
         _persist(
           _entitlement.copyWith(
-            premiumActive: false,
+            proActive: false,
             updatedAt: now,
             verificationSource: 'verification_failed_non_network',
           ),
@@ -335,12 +335,12 @@ class EntitlementController extends ChangeNotifier {
       return BillingVerificationOutcome.rejected;
     }
 
-    final canUseGrace = hasPremiumAccessFor(_entitlement, now);
+    final canUseGrace = hasProAccessFor(_entitlement, now);
     if (canUseGrace) {
       unawaited(
         _persist(
           _entitlement.copyWith(
-            premiumActive: true,
+            proActive: true,
             updatedAt: now,
             verificationSource: 'offline_grace_after_billing',
           ),
@@ -352,7 +352,7 @@ class EntitlementController extends ChangeNotifier {
     unawaited(
       _persist(
         _entitlement.copyWith(
-          premiumActive: false,
+          proActive: false,
           updatedAt: now,
           productId: productId,
           purchaseToken: purchaseToken,
@@ -377,10 +377,10 @@ class EntitlementController extends ChangeNotifier {
       return;
     }
 
-    if (hasPremiumAccessFor(_entitlement, now)) {
+    if (hasProAccessFor(_entitlement, now)) {
       await _persist(
         _entitlement.copyWith(
-          premiumActive: true,
+          proActive: true,
           updatedAt: now,
           verificationSource: 'offline_grace_$reason',
         ),
@@ -388,10 +388,10 @@ class EntitlementController extends ChangeNotifier {
       return;
     }
 
-    if (_entitlement.premiumActive) {
+    if (_entitlement.proActive) {
       await _persist(
         _entitlement.copyWith(
-          premiumActive: false,
+          proActive: false,
           updatedAt: now,
           assertionToken: null,
           assertionExpiresAt: null,
@@ -416,7 +416,7 @@ class EntitlementController extends ChangeNotifier {
     );
   }
 
-  Future<void> _persist(PremiumEntitlement entitlement) async {
+  Future<void> _persist(ProEntitlement entitlement) async {
     await _store.write(entitlement);
     _entitlement = entitlement;
     _state = EntitlementState.ready;
@@ -435,8 +435,8 @@ class EntitlementController extends ChangeNotifier {
     }
     final now = DateTime.now().toUtc();
     await _persist(
-      PremiumEntitlement(
-        premiumActive: true,
+      ProEntitlement(
+        proActive: true,
         updatedAt: now,
         entitlementType: 'debug_local',
         productId: 'debug_pro',

@@ -1,7 +1,7 @@
-import 'models/premium_entitlement.dart';
+import 'models/pro_entitlement.dart';
 
 abstract interface class EntitlementStore {
-  Future<PremiumEntitlement?> read();
-  Future<void> write(PremiumEntitlement entitlement);
+  Future<ProEntitlement?> read();
+  Future<void> write(ProEntitlement entitlement);
   Future<void> clear();
 }

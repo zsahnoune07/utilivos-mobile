@@ -11,16 +11,16 @@ import 'package:utilivo_mobile/core/billing/billing_gateway.dart';
 import 'package:utilivo_mobile/core/billing/models/billing_models.dart';
 import 'package:utilivo_mobile/core/config/app_config.dart';
 import 'package:utilivo_mobile/core/networking/api_client.dart';
-import 'package:utilivo_mobile/core/premium/free_tier_usage_store.dart';
-import 'package:utilivo_mobile/core/premium/paywall_coordinator.dart';
-import 'package:utilivo_mobile/core/premium/premium_analytics.dart';
-import 'package:utilivo_mobile/core/premium/premium_capability_service.dart';
-import 'package:utilivo_mobile/core/premium/premium_purchase_controller.dart';
+import 'package:utilivo_mobile/core/pro/free_tier_usage_store.dart';
+import 'package:utilivo_mobile/core/pro/paywall_coordinator.dart';
+import 'package:utilivo_mobile/core/pro/pro_analytics.dart';
+import 'package:utilivo_mobile/core/pro/pro_capability_service.dart';
+import 'package:utilivo_mobile/core/pro/pro_purchase_controller.dart';
 import 'package:utilivo_mobile/features/discover/data/catalog_api.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_verification_api.dart';
-import 'package:utilivo_mobile/core/entitlement/models/premium_entitlement.dart';
+import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
 import 'package:utilivo_mobile/features/downloads/application/tool_bundle_download_service.dart';
 import 'package:utilivo_mobile/features/downloads/data/download_api.dart';
 import 'package:utilivo_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
@@ -108,8 +108,8 @@ void main() {
     );
     await entitlementController.bootstrap();
     SharedPreferences.setMockInitialValues(<String, Object>{});
-    final premium = await _PremiumSidecar.create(entitlementController);
-    addTearDown(premium.dispose);
+    final pro = await _ProSidecar.create(entitlementController);
+    addTearDown(pro.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -120,9 +120,9 @@ void main() {
           toolBundleDownloadService: toolBundleDownloadService,
           installsApi: installsApi,
           entitlementController: entitlementController,
-          premiumCapabilityService: premium.capability,
-          paywallCoordinator: premium.paywall,
-          premiumAnalytics: premium.analytics,
+          proCapabilityService: pro.capability,
+          paywallCoordinator: pro.paywall,
+          proAnalytics: pro.analytics,
         ),
       ),
     );
@@ -458,8 +458,8 @@ void main() {
             return FolderDetailPage(
               folderId: id,
               controller: harness.controller,
-              premiumCapabilityService: harness.premium.capability,
-              paywallCoordinator: harness.premium.paywall,
+              proCapabilityService: harness.pro.capability,
+              paywallCoordinator: harness.pro.paywall,
             );
           },
         ),
@@ -549,8 +549,8 @@ void main() {
                 FolderDetailPage(
                   folderId: state.pathParameters['folderId']!,
                   controller: harness.controller,
-                  premiumCapabilityService: harness.premium.capability,
-                  paywallCoordinator: harness.premium.paywall,
+                  proCapabilityService: harness.pro.capability,
+                  paywallCoordinator: harness.pro.paywall,
                 ),
           ),
           GoRoute(
@@ -635,8 +635,8 @@ void main() {
                 FolderDetailPage(
                   folderId: state.pathParameters['folderId']!,
                   controller: harness.controller,
-                  premiumCapabilityService: harness.premium.capability,
-                  paywallCoordinator: harness.premium.paywall,
+                  proCapabilityService: harness.pro.capability,
+                  paywallCoordinator: harness.pro.paywall,
                 ),
           ),
         ],
@@ -917,8 +917,8 @@ void main() {
               FolderDetailPage(
                 folderId: state.pathParameters['folderId']!,
                 controller: harness.controller,
-                premiumCapabilityService: harness.premium.capability,
-                paywallCoordinator: harness.premium.paywall,
+                proCapabilityService: harness.pro.capability,
+                paywallCoordinator: harness.pro.paywall,
               ),
         ),
       ],
@@ -1196,20 +1196,20 @@ int _countDimmedBarriers(WidgetTester tester) {
       .length;
 }
 
-class _PremiumSidecar {
-  _PremiumSidecar._({
+class _ProSidecar {
+  _ProSidecar._({
     required this.capability,
     required this.paywall,
     required this.analytics,
     required this.purchaseController,
   });
 
-  final PremiumCapabilityService capability;
+  final ProCapabilityService capability;
   final PaywallCoordinator paywall;
-  final PremiumAnalytics analytics;
-  final PremiumPurchaseController purchaseController;
+  final ProAnalytics analytics;
+  final ProPurchaseController purchaseController;
 
-  static Future<_PremiumSidecar> create(
+  static Future<_ProSidecar> create(
     EntitlementController entitlementController,
   ) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -1218,29 +1218,29 @@ class _PremiumSidecar {
       appName: 'Utilivo',
       apiBaseUrl: 'https://api.example.test',
       androidPackageName: 'com.test.app',
-      premiumOneTimeProductId: 'utilivo_premium_one_time',
-      premiumSubscriptionProductId: '',
-      premiumSubscriptionMonthlyProductId: '',
-      premiumSubscriptionAnnualProductId: '',
+      proOneTimeProductId: 'utilivo_pro_one_time',
+      proSubscriptionProductId: '',
+      proSubscriptionMonthlyProductId: '',
+      proSubscriptionAnnualProductId: '',
     );
     final billing = _InstallsTestBillingGateway();
-    final purchaseController = PremiumPurchaseController(
+    final purchaseController = ProPurchaseController(
       config: config,
       billingGateway: billing,
       entitlementController: entitlementController,
     );
     await purchaseController.initialize();
-    final capability = PremiumCapabilityService(
+    final capability = ProCapabilityService(
       entitlementController: entitlementController,
       usageStore: usage,
     );
-    final analytics = DebugPremiumAnalytics();
+    final analytics = DebugProAnalytics();
     final paywall = PaywallCoordinator(
       purchaseController: purchaseController,
       entitlementController: entitlementController,
       analytics: analytics,
     );
-    return _PremiumSidecar._(
+    return _ProSidecar._(
       capability: capability,
       paywall: paywall,
       analytics: analytics,
@@ -1290,7 +1290,7 @@ class _InstallsHarness {
     required this.entitlementController,
     required this.dio,
     required this.bundleStoreDio,
-    required this.premium,
+    required this.pro,
   });
 
   final Widget page;
@@ -1298,7 +1298,7 @@ class _InstallsHarness {
   final EntitlementController entitlementController;
   final Dio dio;
   final Dio bundleStoreDio;
-  final _PremiumSidecar premium;
+  final _ProSidecar pro;
 
   static Future<_InstallsHarness> create({
     _InMemoryInstallsOrganizationStore? organizationStore,
@@ -1364,7 +1364,7 @@ class _InstallsHarness {
     final bundleStoreDio = Dio(
       BaseOptions(baseUrl: 'https://api.example.test'),
     );
-    final premium = await _PremiumSidecar.create(entitlementController);
+    final pro = await _ProSidecar.create(entitlementController);
     final page = InstallsPage(
       appName: 'Utilivo',
       installedToolsController: controller,
@@ -1375,9 +1375,9 @@ class _InstallsHarness {
       ),
       installsApi: InstallsApi(apiClient),
       entitlementController: entitlementController,
-      premiumCapabilityService: premium.capability,
-      paywallCoordinator: premium.paywall,
-      premiumAnalytics: premium.analytics,
+      proCapabilityService: pro.capability,
+      paywallCoordinator: pro.paywall,
+      proAnalytics: pro.analytics,
     );
 
     return _InstallsHarness(
@@ -1386,13 +1386,13 @@ class _InstallsHarness {
       entitlementController: entitlementController,
       dio: dio,
       bundleStoreDio: bundleStoreDio,
-      premium: premium,
+      pro: pro,
     );
   }
 
   Future<void> dispose() async {
     await Future<void>.delayed(const Duration(milliseconds: 80));
-    premium.dispose();
+    pro.dispose();
     controller.dispose();
     entitlementController.dispose();
     dio.close(force: true);
@@ -1450,7 +1450,7 @@ class _InMemoryDownloadedToolBundleStore implements DownloadedToolBundleStore {
 }
 
 class _InMemoryEntitlementStore implements EntitlementStore {
-  PremiumEntitlement? _value;
+  ProEntitlement? _value;
 
   @override
   Future<void> clear() async {
@@ -1458,10 +1458,10 @@ class _InMemoryEntitlementStore implements EntitlementStore {
   }
 
   @override
-  Future<PremiumEntitlement?> read() async => _value;
+  Future<ProEntitlement?> read() async => _value;
 
   @override
-  Future<void> write(PremiumEntitlement entitlement) async {
+  Future<void> write(ProEntitlement entitlement) async {
     _value = entitlement;
   }
 }

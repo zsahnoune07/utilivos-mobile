@@ -47,7 +47,7 @@ class CatalogPlugin {
     this.currentVersionId,
     this.thumbnailUrl,
     this.categoryColor,
-    this.premiumPreview = false,
+    this.proPreview = false,
   });
 
   final String id;
@@ -62,24 +62,24 @@ class CatalogPlugin {
   final String? thumbnailUrl;
   final String? categoryColor;
 
-  /// When this tool is Pro-tier ([isPremium]), free users may install/run preview builds only if the API
-  /// sets `premium_preview` / `allows_free_preview_install` to true.
-  final bool premiumPreview;
+  /// When this tool is Pro-tier ([isPro]), free users may install/run preview builds only if the API
+  /// sets `pro_preview` / `allows_free_preview_install` to true.
+  final bool proPreview;
 
-  bool get isPremium {
+  bool get isPro {
     final normalized = pricingType.trim().toLowerCase();
-    return normalized == 'premium' || normalized == 'paid';
+    return normalized == 'pro' || normalized == 'paid';
   }
 
   /// Install/download from catalog without an active subscription.
-  bool canFreeUserAttemptInstall(bool hasPremiumAccess) {
-    if (!isPremium) {
+  bool canFreeUserAttemptInstall(bool hasProAccess) {
+    if (!isPro) {
       return true;
     }
-    if (hasPremiumAccess) {
+    if (hasProAccess) {
       return true;
     }
-    return premiumPreview;
+    return proPreview;
   }
 
   factory CatalogPlugin.fromJson(Map<String, dynamic> json) {
@@ -88,8 +88,8 @@ class CatalogPlugin {
       'PricingType',
     ]);
     final previewFromApi = _readOptionalBool(json, const <String>[
-      'premium_preview',
-      'PremiumPreview',
+      'pro_preview',
+      'ProPreview',
       'allows_free_preview_install',
       'AllowsFreePreviewInstall',
     ]);
@@ -132,7 +132,7 @@ class CatalogPlugin {
         'category_color',
         'CategoryColor',
       ]),
-      premiumPreview: previewFromApi == true,
+      proPreview: previewFromApi == true,
     );
   }
 
@@ -149,7 +149,7 @@ class CatalogPlugin {
       'current_version_id': currentVersionId,
       'thumbnail_url': thumbnailUrl,
       'category_color': categoryColor,
-      'premium_preview': premiumPreview,
+      'pro_preview': proPreview,
     };
   }
 }

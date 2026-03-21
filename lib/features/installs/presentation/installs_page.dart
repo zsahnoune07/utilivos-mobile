@@ -7,10 +7,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/navigation/app_routes.dart';
-import '../../../core/premium/paywall_coordinator.dart';
-import '../../../core/premium/paywall_models.dart';
-import '../../../core/premium/premium_analytics.dart';
-import '../../../core/premium/premium_capability_service.dart';
+import '../../../core/pro/paywall_coordinator.dart';
+import '../../../core/pro/paywall_models.dart';
+import '../../../core/pro/pro_analytics.dart';
+import '../../../core/pro/pro_capability_service.dart';
 import '../../../core/networking/network_exception.dart';
 import '../../../shared/widgets/app_buttons.dart';
 import '../../../shared/widgets/app_skeletons.dart';
@@ -35,9 +35,9 @@ class InstallsPage extends StatefulWidget {
     required this.toolBundleDownloadService,
     required this.installsApi,
     required this.entitlementController,
-    required this.premiumCapabilityService,
+    required this.proCapabilityService,
     required this.paywallCoordinator,
-    required this.premiumAnalytics,
+    required this.proAnalytics,
     super.key,
   });
 
@@ -47,9 +47,9 @@ class InstallsPage extends StatefulWidget {
   final ToolBundleDownloadService toolBundleDownloadService;
   final InstallsApi installsApi;
   final EntitlementController entitlementController;
-  final PremiumCapabilityService premiumCapabilityService;
+  final ProCapabilityService proCapabilityService;
   final PaywallCoordinator paywallCoordinator;
-  final PremiumAnalytics premiumAnalytics;
+  final ProAnalytics proAnalytics;
 
   @override
   State<InstallsPage> createState() => _InstallsPageState();
@@ -168,9 +168,9 @@ class _InstallsPageState extends State<InstallsPage> {
   void _openToolRuntime(BuildContext context, DeviceInstallRecord install) {
     widget.installedToolsController.markToolLaunched(install.pluginSlug);
     unawaited(
-      widget.premiumCapabilityService.recordToolEngagement(install.pluginSlug),
+      widget.proCapabilityService.recordToolEngagement(install.pluginSlug),
     );
-    final restore = widget.premiumCapabilityService.canRestoreSession;
+    final restore = widget.proCapabilityService.canRestoreSession;
     context
         .push(
           AppRoutes.pluginRuntime(
@@ -188,7 +188,7 @@ class _InstallsPageState extends State<InstallsPage> {
   }
 
   Future<void> _maybeOfferSoftPaywall(BuildContext context) async {
-    if (!widget.premiumCapabilityService.shouldOfferSoftPaywall) {
+    if (!widget.proCapabilityService.shouldOfferSoftPaywall) {
       return;
     }
     final result = await widget.paywallCoordinator.show(
@@ -200,7 +200,7 @@ class _InstallsPageState extends State<InstallsPage> {
       ),
     );
     if (result == PaywallResult.dismissed) {
-      await widget.premiumCapabilityService.markSoftPaywallDismissed();
+      await widget.proCapabilityService.markSoftPaywallDismissed();
     }
   }
 
@@ -633,8 +633,8 @@ class _InstallsPageState extends State<InstallsPage> {
     );
     try {
       String? assertionToken;
-      final isPremium = install.pricingTier == 'premium';
-      if (isPremium) {
+      final isPro = install.pricingTier == 'pro';
+      if (isPro) {
         assertionToken = widget.entitlementController.activeAssertionToken;
         if (assertionToken == null || assertionToken.trim().isEmpty) {
           await widget.entitlementController.backgroundReverify(
@@ -706,7 +706,7 @@ class _InstallsPageState extends State<InstallsPage> {
         return ToolActionsSheet(
           install: install,
           controller: controller,
-          canPinMore: widget.premiumCapabilityService.canPinMoreTools(
+          canPinMore: widget.proCapabilityService.canPinMoreTools(
             controller.pinnedCount,
           ),
           onLaunch: () {

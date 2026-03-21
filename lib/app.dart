@@ -10,7 +10,7 @@ import 'core/di/app_dependencies.dart';
 import 'core/navigation/app_router.dart';
 import 'core/navigation/app_routes.dart';
 import 'core/navigation/deep_link_parser.dart';
-import 'core/premium/free_tier_usage_store.dart';
+import 'core/pro/free_tier_usage_store.dart';
 import 'core/theme/app_theme.dart';
 import 'features/installs/data/models/install_models.dart';
 
@@ -70,7 +70,7 @@ class _UtilivoAppState extends State<UtilivoApp> {
     super.initState();
     WidgetsBinding.instance.addObserver(_lifecycleObserver);
     unawaited(_bootstrapController.bootstrap());
-    unawaited(_dependencies.premiumPurchaseController.initialize());
+    unawaited(_dependencies.proPurchaseController.initialize());
     unawaited(_seedLocalToolBundleIfConfigured());
     _listenAppLinks();
   }

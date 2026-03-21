@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/navigation/app_routes.dart';
-import '../../../core/premium/premium_capability_service.dart';
+import '../../../core/pro/pro_capability_service.dart';
 import '../../../core/networking/network_exception.dart';
 import '../../../core/networking/models/cursor_page.dart';
 import '../../../shared/widgets/app_buttons.dart';
@@ -25,10 +25,10 @@ import '../data/models/catalog_models.dart';
 String _installErrorUserMessage(NetworkException error, CatalogPlugin plugin) {
   final m = error.message.toLowerCase();
   if (m.contains('entitlement') ||
-      m.contains('premium') ||
+      m.contains('pro') ||
       m.contains('subscription') ||
       m.contains('pro')) {
-    if (plugin.isPremium && !plugin.premiumPreview) {
+    if (plugin.isPro && !plugin.proPreview) {
       return 'This Pro tool requires a subscription to install.';
     }
     return 'This download needs Pro verification. Open tool details to subscribe or reconnect.';
@@ -69,7 +69,7 @@ class DiscoverPage extends StatefulWidget {
     required this.toolBundleDownloadService,
     required this.installsApi,
     required this.installedToolsController,
-    required this.premiumCapabilityService,
+    required this.proCapabilityService,
     super.key,
   });
 
@@ -80,7 +80,7 @@ class DiscoverPage extends StatefulWidget {
   final ToolBundleDownloadService toolBundleDownloadService;
   final InstallsApi installsApi;
   final InstalledToolsController installedToolsController;
-  final PremiumCapabilityService premiumCapabilityService;
+  final ProCapabilityService proCapabilityService;
 
   @override
   State<DiscoverPage> createState() => _DiscoverPageState();
@@ -150,8 +150,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
       if (_selectedFilterTags.contains('free') && lowerPricing == 'free') {
         matches = true;
       }
-      if (_selectedFilterTags.contains('premium') &&
-          (lowerPricing == 'premium' || lowerPricing == 'paid')) {
+      if (_selectedFilterTags.contains('pro') &&
+          (lowerPricing == 'pro' || lowerPricing == 'paid')) {
         matches = true;
       }
       return matches;
@@ -192,12 +192,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
     try {
       await widget.installedToolsController.markToolLaunched(plugin.slug);
       unawaited(
-        widget.premiumCapabilityService.recordToolEngagement(plugin.slug),
+        widget.proCapabilityService.recordToolEngagement(plugin.slug),
       );
       if (!mounted) {
         return;
       }
-      final restore = widget.premiumCapabilityService.canRestoreSession;
+      final restore = widget.proCapabilityService.canRestoreSession;
       await context.push(
         AppRoutes.pluginRuntime(
           plugin.slug,
@@ -224,9 +224,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
     try {
       String? assertionToken;
-      final hasPremiumAccess = widget.entitlementController.hasPremiumAccess;
-      if (plugin.isPremium) {
-        if (hasPremiumAccess) {
+      final hasProAccess = widget.entitlementController.hasProAccess;
+      if (plugin.isPro) {
+        if (hasProAccess) {
           assertionToken = widget.entitlementController.activeAssertionToken;
           if (assertionToken == null || assertionToken.trim().isEmpty) {
             await widget.entitlementController.backgroundReverify(
@@ -246,7 +246,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
             });
             return;
           }
-        } else if (!plugin.premiumPreview) {
+        } else if (!plugin.proPreview) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('This tool requires Pro to install.')),
@@ -587,11 +587,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
         animation: Listenable.merge(<Listenable>[
           widget.entitlementController,
           widget.installedToolsController,
-          widget.premiumCapabilityService,
+          widget.proCapabilityService,
         ]),
           builder: (BuildContext context, Widget? child) {
-            final hasPremiumAccess =
-                widget.entitlementController.hasPremiumAccess;
+            final hasProAccess =
+                widget.entitlementController.hasProAccess;
 
             return CustomScrollView(
               slivers: <Widget>[
@@ -615,7 +615,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                ..._buildCatalogSlivers(context, hasPremiumAccess),
+                ..._buildCatalogSlivers(context, hasProAccess),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                   sliver: SliverToBoxAdapter(
@@ -646,7 +646,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
   List<Widget> _buildCatalogSlivers(
     BuildContext context,
-    bool hasPremiumAccess,
+    bool hasProAccess,
   ) {
     final filteredPlugins = _viewState == AppViewState.content
         ? _filteredPluginsForActiveFilters()
@@ -698,7 +698,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 child: RepaintBoundary(
                   child: _PluginListTile(
                     plugin: plugin,
-                    hasPremiumAccess: hasPremiumAccess,
+                    hasProAccess: hasProAccess,
                     isInstalled: isInstalled,
                     hasUpdate: hasUpdate,
                     isLaunching: isLaunching,
@@ -738,7 +738,7 @@ String _normalizeTier(String raw) {
   if (normalized == 'free') {
     return 'free';
   }
-  return 'premium';
+  return 'pro';
 }
 
 class _DiscoverHeader extends StatelessWidget {
@@ -852,8 +852,8 @@ class _DiscoverFilterRow extends StatelessWidget {
               const SizedBox(width: 8),
               _DiscoverFilterPill(
                 label: 'Pro',
-                isSelected: selectedFilterTags.contains('premium'),
-                onTap: () => onToggleFilterTag('premium'),
+                isSelected: selectedFilterTags.contains('pro'),
+                onTap: () => onToggleFilterTag('pro'),
                 colorScheme: colorScheme,
               ),
             ],
@@ -959,7 +959,7 @@ class _DiscoverFilterPill extends StatelessWidget {
 class _PluginListTile extends StatelessWidget {
   const _PluginListTile({
     required this.plugin,
-    required this.hasPremiumAccess,
+    required this.hasProAccess,
     required this.isInstalled,
     required this.hasUpdate,
     required this.isLaunching,
@@ -972,7 +972,7 @@ class _PluginListTile extends StatelessWidget {
   });
 
   final CatalogPlugin plugin;
-  final bool hasPremiumAccess;
+  final bool hasProAccess;
   final bool isInstalled;
   final bool hasUpdate;
   final bool isLaunching;
@@ -988,7 +988,7 @@ class _PluginListTile extends StatelessWidget {
     if (normalized == 'free') {
       return 'Free';
     }
-    if (normalized == 'premium' || normalized == 'paid') {
+    if (normalized == 'pro' || normalized == 'paid') {
       return 'Pro';
     }
     return '';
@@ -999,7 +999,7 @@ class _PluginListTile extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isLocked =
-        plugin.isPremium && !hasPremiumAccess && !plugin.premiumPreview;
+        plugin.isPro && !hasProAccess && !plugin.proPreview;
     final alreadyInstalled =
         (isInstalled || installState == _PluginInstallState.installed) &&
         !hasUpdate;
@@ -1043,7 +1043,7 @@ class _PluginListTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (plugin.isPremium) ...<Widget>[
+                      if (plugin.isPro) ...<Widget>[
                         const SizedBox(width: 4),
                         Icon(
                           Icons.workspace_premium_rounded,

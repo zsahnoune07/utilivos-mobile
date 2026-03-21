@@ -3,10 +3,10 @@ class AppConfig {
     required this.appName,
     required this.apiBaseUrl,
     required this.androidPackageName,
-    required this.premiumOneTimeProductId,
-    required this.premiumSubscriptionProductId,
-    required this.premiumSubscriptionMonthlyProductId,
-    required this.premiumSubscriptionAnnualProductId,
+    required this.proOneTimeProductId,
+    required this.proSubscriptionProductId,
+    required this.proSubscriptionMonthlyProductId,
+    required this.proSubscriptionAnnualProductId,
     this.localToolBundlePath,
     this.localToolBundleSlug,
     this.localToolBundleVersion,
@@ -15,12 +15,12 @@ class AppConfig {
   final String appName;
   final String apiBaseUrl;
   final String androidPackageName;
-  final String premiumOneTimeProductId;
+  final String proOneTimeProductId;
 
   /// Legacy single subscription id; used as fallback when monthly/annual are empty.
-  final String premiumSubscriptionProductId;
-  final String premiumSubscriptionMonthlyProductId;
-  final String premiumSubscriptionAnnualProductId;
+  final String proSubscriptionProductId;
+  final String proSubscriptionMonthlyProductId;
+  final String proSubscriptionAnnualProductId;
   final String? localToolBundlePath;
   final String? localToolBundleSlug;
   final String? localToolBundleVersion;
@@ -38,19 +38,19 @@ class AppConfig {
       'ANDROID_PACKAGE_NAME',
       defaultValue: 'com.utilivo.utilivo_mobile',
     );
-    final premiumOneTimeProductId = const String.fromEnvironment(
+    final proOneTimeProductId = const String.fromEnvironment(
       'PREMIUM_ONE_TIME_PRODUCT_ID',
-      defaultValue: 'utilivo_premium_one_time',
+      defaultValue: 'utilivo_pro_one_time',
     );
-    final premiumSubscriptionProductId = const String.fromEnvironment(
+    final proSubscriptionProductId = const String.fromEnvironment(
       'PREMIUM_SUBSCRIPTION_PRODUCT_ID',
-      defaultValue: 'utilivo_premium_subscription',
+      defaultValue: 'utilivo_pro_subscription',
     );
-    final premiumSubscriptionMonthlyProductId = const String.fromEnvironment(
+    final proSubscriptionMonthlyProductId = const String.fromEnvironment(
       'PREMIUM_SUBSCRIPTION_MONTHLY_PRODUCT_ID',
       defaultValue: '',
     );
-    final premiumSubscriptionAnnualProductId = const String.fromEnvironment(
+    final proSubscriptionAnnualProductId = const String.fromEnvironment(
       'PREMIUM_SUBSCRIPTION_ANNUAL_PRODUCT_ID',
       defaultValue: '',
     );
@@ -71,15 +71,15 @@ class AppConfig {
         androidPackageName,
         fallback: 'com.utilivo.utilivo_mobile',
       ),
-      premiumOneTimeProductId: _normalizeNonEmpty(
-        premiumOneTimeProductId,
-        fallback: 'utilivo_premium_one_time',
+      proOneTimeProductId: _normalizeNonEmpty(
+        proOneTimeProductId,
+        fallback: 'utilivo_pro_one_time',
       ),
-      premiumSubscriptionProductId: premiumSubscriptionProductId.trim(),
-      premiumSubscriptionMonthlyProductId:
-          premiumSubscriptionMonthlyProductId.trim(),
-      premiumSubscriptionAnnualProductId:
-          premiumSubscriptionAnnualProductId.trim(),
+      proSubscriptionProductId: proSubscriptionProductId.trim(),
+      proSubscriptionMonthlyProductId:
+          proSubscriptionMonthlyProductId.trim(),
+      proSubscriptionAnnualProductId:
+          proSubscriptionAnnualProductId.trim(),
       localToolBundlePath: _normalizeOptional(localToolBundlePath),
       localToolBundleSlug: _normalizeOptional(localToolBundleSlug),
       localToolBundleVersion: _normalizeOptional(localToolBundleVersion),

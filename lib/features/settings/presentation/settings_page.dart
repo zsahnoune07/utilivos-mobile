@@ -7,11 +7,11 @@ import 'package:go_router/go_router.dart';
 import '../../../core/bootstrap/app_bootstrap_controller.dart';
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/navigation/app_routes.dart';
-import '../../../core/premium/free_tier_usage_store.dart';
-import '../../../core/premium/paywall_coordinator.dart';
-import '../../../core/premium/paywall_models.dart';
-import '../../../core/premium/premium_capability_service.dart';
-import '../../../core/premium/premium_purchase_controller.dart';
+import '../../../core/pro/free_tier_usage_store.dart';
+import '../../../core/pro/paywall_coordinator.dart';
+import '../../../core/pro/paywall_models.dart';
+import '../../../core/pro/pro_capability_service.dart';
+import '../../../core/pro/pro_purchase_controller.dart';
 import '../../../shared/widgets/app_buttons.dart';
 import '../../../shared/widgets/app_info_tile.dart';
 import '../../../shared/widgets/app_surface_card.dart';
@@ -20,19 +20,19 @@ class SettingsPage extends StatefulWidget {
   const SettingsPage({
     required this.bootstrapController,
     required this.entitlementController,
-    required this.premiumPurchaseController,
+    required this.proPurchaseController,
     required this.paywallCoordinator,
     required this.freeTierUsageStore,
-    required this.premiumCapabilityService,
+    required this.proCapabilityService,
     super.key,
   });
 
   final AppBootstrapController bootstrapController;
   final EntitlementController entitlementController;
-  final PremiumPurchaseController premiumPurchaseController;
+  final ProPurchaseController proPurchaseController;
   final PaywallCoordinator paywallCoordinator;
   final FreeTierUsageStore freeTierUsageStore;
-  final PremiumCapabilityService premiumCapabilityService;
+  final ProCapabilityService proCapabilityService;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -89,13 +89,13 @@ class _SettingsPageState extends State<SettingsPage> {
         animation: Listenable.merge(<Listenable>[
           widget.bootstrapController,
           widget.entitlementController,
-          widget.premiumPurchaseController,
-          widget.premiumCapabilityService,
+          widget.proPurchaseController,
+          widget.proCapabilityService,
         ]),
         builder: (BuildContext context, Widget? child) {
         final entitlement = widget.entitlementController.entitlement;
-        final isPremiumActive = widget.entitlementController.hasPremiumAccess;
-        final purchaseController = widget.premiumPurchaseController;
+        final isProActive = widget.entitlementController.hasProAccess;
+        final purchaseController = widget.proPurchaseController;
         final productSummary = purchaseController.availableProducts.isEmpty
             ? 'No products loaded from Google Play.'
             : purchaseController.availableProducts
@@ -139,13 +139,13 @@ class _SettingsPageState extends State<SettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   AppInfoTile(
-                    leading: isPremiumActive
+                    leading: isProActive
                         ? Icons.workspace_premium
                         : Icons.workspace_premium_outlined,
-                    title: isPremiumActive
+                    title: isProActive
                         ? 'Pro active'
                         : 'Pro locked',
-                    subtitle: isPremiumActive
+                    subtitle: isProActive
                         ? 'Pro is active on this device.'
                         : 'Upgrade to unlock the full Pro tool library and power features.',
                   ),
@@ -179,10 +179,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   ],
                   const SizedBox(height: 12),
                   AppPrimaryButton(
-                    label: isPremiumActive
+                    label: isProActive
                         ? 'Pro already active'
                         : 'Go Pro',
-                    onPressed: isPremiumActive
+                    onPressed: isProActive
                         ? null
                         : () => widget.paywallCoordinator.show(
                               context,
@@ -279,7 +279,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       label: 'Reset free-tier usage counters',
                       onPressed: () async {
                         await widget.freeTierUsageStore.debugResetAll();
-                        widget.premiumCapabilityService.refreshQuotas();
+                        widget.proCapabilityService.refreshQuotas();
                       },
                       expand: true,
                     ),

@@ -13,13 +13,13 @@ import 'package:utilivo_mobile/core/billing/models/billing_models.dart';
 import 'package:utilivo_mobile/core/config/app_config.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
-import 'package:utilivo_mobile/core/entitlement/models/premium_entitlement.dart';
-import 'package:utilivo_mobile/core/premium/free_tier_usage_store.dart';
-import 'package:utilivo_mobile/core/premium/paywall_coordinator.dart';
-import 'package:utilivo_mobile/core/premium/premium_analytics.dart';
-import 'package:utilivo_mobile/core/premium/premium_capability_service.dart';
+import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
+import 'package:utilivo_mobile/core/pro/free_tier_usage_store.dart';
+import 'package:utilivo_mobile/core/pro/paywall_coordinator.dart';
+import 'package:utilivo_mobile/core/pro/pro_analytics.dart';
+import 'package:utilivo_mobile/core/pro/pro_capability_service.dart';
 import 'package:utilivo_mobile/core/networking/api_client.dart';
-import 'package:utilivo_mobile/core/premium/premium_purchase_controller.dart';
+import 'package:utilivo_mobile/core/pro/pro_purchase_controller.dart';
 import 'package:utilivo_mobile/features/discover/data/catalog_api.dart';
 import 'package:utilivo_mobile/features/discover/presentation/plugin_detail_page.dart';
 import 'package:utilivo_mobile/features/downloads/application/tool_bundle_download_service.dart';
@@ -38,10 +38,10 @@ void main() {
     'Pro-locked detail shows upgrade CTA and disabled Open Tool when purchase is unavailable',
     (WidgetTester tester) async {
       final harness = await _PluginDetailHarness.create(
-        pricingType: 'premium',
+        pricingType: 'pro',
         entitlementActive: false,
         initializeBilling: false,
-        premiumPreview: false,
+        proPreview: false,
       );
       addTearDown(harness.dispose);
 
@@ -70,10 +70,10 @@ void main() {
     'Pro-locked detail enables upgrade CTA when billing products are available',
     (WidgetTester tester) async {
       final harness = await _PluginDetailHarness.create(
-        pricingType: 'premium',
+        pricingType: 'pro',
         entitlementActive: false,
         initializeBilling: true,
-        premiumPreview: false,
+        proPreview: false,
       );
       addTearDown(harness.dispose);
 
@@ -91,7 +91,7 @@ void main() {
     WidgetTester tester,
   ) async {
     final harness = await _PluginDetailHarness.create(
-      pricingType: 'premium',
+      pricingType: 'pro',
       entitlementActive: true,
       initializeBilling: false,
     );
@@ -138,34 +138,34 @@ class _PluginDetailHarness {
     required this.widget,
     required this.dio,
     required this.entitlementController,
-    required this.premiumPurchaseController,
+    required this.proPurchaseController,
     required this.installedToolsController,
-    required this.premiumCapabilityService,
+    required this.proCapabilityService,
   });
 
   final Widget widget;
   final Dio dio;
   final EntitlementController entitlementController;
-  final PremiumPurchaseController premiumPurchaseController;
+  final ProPurchaseController proPurchaseController;
   final InstalledToolsController installedToolsController;
-  final PremiumCapabilityService premiumCapabilityService;
+  final ProCapabilityService proCapabilityService;
 
   static const _slug = 'pro-tool';
   static const _config = AppConfig(
     appName: 'Utilivo',
     apiBaseUrl: 'https://api.example.test',
     androidPackageName: 'com.utilivo.utilivo_mobile',
-    premiumOneTimeProductId: 'utilivo_premium_one_time',
-    premiumSubscriptionProductId: 'utilivo_premium_subscription',
-    premiumSubscriptionMonthlyProductId: '',
-    premiumSubscriptionAnnualProductId: '',
+    proOneTimeProductId: 'utilivo_pro_one_time',
+    proSubscriptionProductId: 'utilivo_pro_subscription',
+    proSubscriptionMonthlyProductId: '',
+    proSubscriptionAnnualProductId: '',
   );
 
   static Future<_PluginDetailHarness> create({
     required String pricingType,
     required bool entitlementActive,
     required bool initializeBilling,
-    bool premiumPreview = false,
+    bool proPreview = false,
   }) async {
     final dio = Dio(BaseOptions(baseUrl: _config.apiBaseUrl));
     final bundleBytes = _buildBundleArchiveBytes(
@@ -186,9 +186,9 @@ class _PluginDetailHarness {
             'CategoryName': 'Productivity',
             'PricingType': pricingType,
             'ShortDescription': 'Short description',
-            if (pricingType.toLowerCase() == 'premium' ||
+            if (pricingType.toLowerCase() == 'pro' ||
                 pricingType.toLowerCase() == 'paid')
-              'premium_preview': premiumPreview,
+              'pro_preview': proPreview,
           },
         }, 200);
       }
@@ -259,7 +259,7 @@ class _PluginDetailHarness {
       products: initializeBilling
           ? const <BillingProduct>[
               BillingProduct(
-                id: 'utilivo_premium_one_time',
+                id: 'utilivo_pro_one_time',
                 title: 'Utilivo Pro',
                 description: 'Unlock Pro tools',
                 price: '\$9.99',
@@ -267,25 +267,25 @@ class _PluginDetailHarness {
             ]
           : const <BillingProduct>[],
     );
-    final premiumPurchaseController = PremiumPurchaseController(
+    final proPurchaseController = ProPurchaseController(
       config: _config,
       billingGateway: billingGateway,
       entitlementController: entitlementController,
     );
     if (initializeBilling) {
-      await premiumPurchaseController.initialize();
+      await proPurchaseController.initialize();
     }
 
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final usageStore = await FreeTierUsageStore.open();
-    final premiumCapabilityService = PremiumCapabilityService(
+    final proCapabilityService = ProCapabilityService(
       entitlementController: entitlementController,
       usageStore: usageStore,
     );
     final paywallCoordinator = PaywallCoordinator(
-      purchaseController: premiumPurchaseController,
+      purchaseController: proPurchaseController,
       entitlementController: entitlementController,
-      analytics: DebugPremiumAnalytics(),
+      analytics: DebugProAnalytics(),
     );
 
     final catalogApi = CatalogApi(apiClient);
@@ -320,8 +320,8 @@ class _PluginDetailHarness {
         installsApi: installsApi,
         installedToolsController: installedToolsController,
         entitlementController: entitlementController,
-        premiumPurchaseController: premiumPurchaseController,
-        premiumCapabilityService: premiumCapabilityService,
+        proPurchaseController: proPurchaseController,
+        proCapabilityService: proCapabilityService,
         paywallCoordinator: paywallCoordinator,
       ),
     );
@@ -330,27 +330,27 @@ class _PluginDetailHarness {
       widget: widget,
       dio: dio,
       entitlementController: entitlementController,
-      premiumPurchaseController: premiumPurchaseController,
+      proPurchaseController: proPurchaseController,
       installedToolsController: installedToolsController,
-      premiumCapabilityService: premiumCapabilityService,
+      proCapabilityService: proCapabilityService,
     );
   }
 
   Future<void> dispose() async {
-    premiumCapabilityService.dispose();
+    proCapabilityService.dispose();
     installedToolsController.dispose();
-    premiumPurchaseController.dispose();
+    proPurchaseController.dispose();
     entitlementController.dispose();
     dio.close(force: true);
   }
 
-  static PremiumEntitlement _activeEntitlement() {
+  static ProEntitlement _activeEntitlement() {
     final now = DateTime.now().toUtc();
-    return PremiumEntitlement(
-      premiumActive: true,
+    return ProEntitlement(
+      proActive: true,
       updatedAt: now,
       entitlementType: 'one_time',
-      productId: _config.premiumOneTimeProductId,
+      productId: _config.proOneTimeProductId,
       purchaseToken: 'purchase-token-1',
       graceExpiresAt: now.add(const Duration(days: 1)),
       lastVerificationAt: now,
@@ -360,10 +360,10 @@ class _PluginDetailHarness {
 }
 
 class _InMemoryEntitlementStore implements EntitlementStore {
-  _InMemoryEntitlementStore({PremiumEntitlement? initialValue})
+  _InMemoryEntitlementStore({ProEntitlement? initialValue})
     : _value = initialValue;
 
-  PremiumEntitlement? _value;
+  ProEntitlement? _value;
 
   @override
   Future<void> clear() async {
@@ -371,12 +371,12 @@ class _InMemoryEntitlementStore implements EntitlementStore {
   }
 
   @override
-  Future<PremiumEntitlement?> read() async {
+  Future<ProEntitlement?> read() async {
     return _value;
   }
 
   @override
-  Future<void> write(PremiumEntitlement entitlement) async {
+  Future<void> write(ProEntitlement entitlement) async {
     _value = entitlement;
   }
 }

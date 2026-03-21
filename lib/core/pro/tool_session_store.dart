@@ -4,13 +4,13 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import 'premium_capability_service.dart';
+import '../pro/pro_capability_service.dart';
 
-/// Persists opaque JSON tool state on disk for premium users only.
+/// Persists opaque JSON tool state on disk for pro users only.
 class ToolSessionStore {
   ToolSessionStore(this._capability);
 
-  final PremiumCapabilityService _capability;
+  final ProCapabilityService _capability;
 
   Future<Directory> _sessionDir() async {
     final root = await getApplicationSupportDirectory();

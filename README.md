@@ -107,8 +107,8 @@ Billing-related defines:
 
 ```bash
 flutter run \
-  --dart-define=PREMIUM_ONE_TIME_PRODUCT_ID=utilivo_premium_one_time \
-  --dart-define=PREMIUM_SUBSCRIPTION_PRODUCT_ID=utilivo_premium_subscription \
+  --dart-define=PREMIUM_ONE_TIME_PRODUCT_ID=utilivo_pro_one_time \
+  --dart-define=PREMIUM_SUBSCRIPTION_PRODUCT_ID=utilivo_pro_subscription \
   --dart-define=ANDROID_PACKAGE_NAME=com.utilivo.utilivo_mobile
 ```
 

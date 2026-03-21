@@ -1,6 +1,6 @@
-class PremiumEntitlement {
-  const PremiumEntitlement({
-    required this.premiumActive,
+class ProEntitlement {
+  const ProEntitlement({
+    required this.proActive,
     required this.updatedAt,
     this.entitlementType,
     this.productId,
@@ -14,7 +14,7 @@ class PremiumEntitlement {
     this.verificationSource,
   });
 
-  final bool premiumActive;
+  final bool proActive;
   final DateTime updatedAt;
   final String? entitlementType;
   final String? productId;
@@ -27,16 +27,16 @@ class PremiumEntitlement {
   final DateTime? lastVerificationAt;
   final String? verificationSource;
 
-  static PremiumEntitlement inactive() {
-    return PremiumEntitlement(
-      premiumActive: false,
+  static ProEntitlement inactive() {
+    return ProEntitlement(
+      proActive: false,
       updatedAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
     );
   }
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'premium_active': premiumActive,
+      'pro_active': proActive,
       'updated_at': updatedAt.toUtc().toIso8601String(),
       'entitlement_type': entitlementType,
       'product_id': productId,
@@ -51,15 +51,15 @@ class PremiumEntitlement {
     };
   }
 
-  factory PremiumEntitlement.fromJson(Map<String, dynamic> json) {
-    final premiumActive = json['premium_active'];
+  factory ProEntitlement.fromJson(Map<String, dynamic> json) {
+    final proActive = json['pro_active'];
     final rawUpdatedAt = json['updated_at'];
-    if (premiumActive is! bool || rawUpdatedAt is! String) {
+    if (proActive is! bool || rawUpdatedAt is! String) {
       throw const FormatException('Invalid entitlement payload.');
     }
 
-    return PremiumEntitlement(
-      premiumActive: premiumActive,
+    return ProEntitlement(
+      proActive: proActive,
       updatedAt: DateTime.parse(rawUpdatedAt).toUtc(),
       entitlementType: _readOptionalString(json['entitlement_type']),
       productId: _readOptionalString(json['product_id']),
@@ -76,8 +76,8 @@ class PremiumEntitlement {
 
   static const Object _unset = Object();
 
-  PremiumEntitlement copyWith({
-    bool? premiumActive,
+  ProEntitlement copyWith({
+    bool? proActive,
     DateTime? updatedAt,
     Object? entitlementType = _unset,
     Object? productId = _unset,
@@ -90,8 +90,8 @@ class PremiumEntitlement {
     Object? lastVerificationAt = _unset,
     Object? verificationSource = _unset,
   }) {
-    return PremiumEntitlement(
-      premiumActive: premiumActive ?? this.premiumActive,
+    return ProEntitlement(
+      proActive: proActive ?? this.proActive,
       updatedAt: updatedAt ?? this.updatedAt,
       entitlementType: identical(entitlementType, _unset)
           ? this.entitlementType

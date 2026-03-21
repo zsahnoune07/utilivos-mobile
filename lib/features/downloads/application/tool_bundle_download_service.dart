@@ -67,7 +67,7 @@ class ToolBundleDownloadService {
   final BundleFileDownloader? _downloadFile;
   final BundleBaseDirectoryProvider? _baseDirectoryProvider;
   List<DownloadedToolBundle>? _cachedBundles;
-  static const _supportedTierValues = <String>{'free', 'premium'};
+  static const _supportedTierValues = <String>{'free', 'pro'};
 
   Future<DownloadedToolBundle> downloadBundle({
     required String pluginSlug,
@@ -702,7 +702,7 @@ class ToolBundleDownloadService {
         signature.isEmpty ||
         signingPublicKey == null ||
         signingPublicKey.isEmpty) {
-      if (_normalizeTier(grantTier: grant.tier) == 'premium') {
+      if (_normalizeTier(grantTier: grant.tier) == 'pro') {
         throw const ToolBundleFormatException(
           'Pro bundle is missing signature metadata.',
         );

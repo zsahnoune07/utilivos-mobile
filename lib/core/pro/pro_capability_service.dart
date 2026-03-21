@@ -5,8 +5,8 @@ import 'free_tier_usage_store.dart';
 import 'freemium_limits.dart';
 
 /// Single place for "can user do X?" — UI and runtime bridge should use this.
-class PremiumCapabilityService extends ChangeNotifier {
-  PremiumCapabilityService({
+class ProCapabilityService extends ChangeNotifier {
+  ProCapabilityService({
     required EntitlementController entitlementController,
     required FreeTierUsageStore usageStore,
   }) : _entitlement = entitlementController,
@@ -21,42 +21,42 @@ class PremiumCapabilityService extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool get hasPremiumAccess => _entitlement.hasPremiumAccess;
+  bool get hasProAccess => _entitlement.hasProAccess;
 
   bool get isEntitlementReady => _entitlement.isReady;
 
   bool canPinMoreTools(int currentPinnedCount) {
-    if (hasPremiumAccess) {
+    if (hasProAccess) {
       return true;
     }
     return currentPinnedCount < FreemiumLimits.maxPinnedTools;
   }
 
   bool canCreateMoreFolders(int currentFolderCount) {
-    if (hasPremiumAccess) {
+    if (hasProAccess) {
       return true;
     }
     return currentFolderCount < FreemiumLimits.maxFolders;
   }
 
-  bool get canPersistToolState => hasPremiumAccess;
+  bool get canPersistToolState => hasProAccess;
 
-  bool get canRestoreSession => hasPremiumAccess;
+  bool get canRestoreSession => hasProAccess;
 
-  bool get canUseUnlimitedStorageActions => hasPremiumAccess;
+  bool get canUseUnlimitedStorageActions => hasProAccess;
 
-  bool get canAddHomeScreenLaunchers => hasPremiumAccess;
+  bool get canAddHomeScreenLaunchers => hasProAccess;
 
   /// Full access to Pro catalog tools (not preview mode).
-  bool get canUsePremiumToolFullAccess => hasPremiumAccess;
+  bool get canUseProToolFullAccess => hasProAccess;
 
   /// When false, Pro-tier bundles may still open in preview mode.
-  bool shouldRunPremiumBundleInPreviewMode() {
-    return !hasPremiumAccess;
+  bool shouldRunProBundleInPreviewMode() {
+    return !hasProAccess;
   }
 
   bool canPerformStorageAction() {
-    if (hasPremiumAccess) {
+    if (hasProAccess) {
       return true;
     }
     return _usage.remainingFreeStorageActionsToday > 0;
@@ -66,7 +66,7 @@ class PremiumCapabilityService extends ChangeNotifier {
       _usage.remainingFreeStorageActionsToday;
 
   Future<void> recordStorageActionConsumed() async {
-    if (hasPremiumAccess) {
+    if (hasProAccess) {
       return;
     }
     await _usage.recordStorageAction();
@@ -84,7 +84,7 @@ class PremiumCapabilityService extends ChangeNotifier {
   }
 
   bool get shouldOfferSoftPaywall =>
-      !hasPremiumAccess && _usage.shouldOfferSoftPaywall;
+      !hasProAccess && _usage.shouldOfferSoftPaywall;
 
   Future<void> markSoftPaywallDismissed() async {
     await _usage.markSoftPaywallDismissed();

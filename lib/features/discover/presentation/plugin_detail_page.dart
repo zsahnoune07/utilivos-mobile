@@ -9,10 +9,10 @@ import '../../../core/config/app_config.dart';
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/navigation/app_routes.dart';
 import '../../../core/networking/network_exception.dart';
-import '../../../core/premium/paywall_coordinator.dart';
-import '../../../core/premium/paywall_models.dart';
-import '../../../core/premium/premium_capability_service.dart';
-import '../../../core/premium/premium_purchase_controller.dart';
+import '../../../core/pro/paywall_coordinator.dart';
+import '../../../core/pro/paywall_models.dart';
+import '../../../core/pro/pro_capability_service.dart';
+import '../../../core/pro/pro_purchase_controller.dart';
 import '../../../shared/widgets/app_buttons.dart';
 import '../../../shared/widgets/app_info_tile.dart';
 import '../../../shared/widgets/app_skeletons.dart';
@@ -35,8 +35,8 @@ class PluginDetailPage extends StatefulWidget {
     required this.installsApi,
     required this.installedToolsController,
     required this.entitlementController,
-    required this.premiumPurchaseController,
-    required this.premiumCapabilityService,
+    required this.proPurchaseController,
+    required this.proCapabilityService,
     required this.paywallCoordinator,
     super.key,
   });
@@ -49,8 +49,8 @@ class PluginDetailPage extends StatefulWidget {
   final InstallsApi installsApi;
   final InstalledToolsController installedToolsController;
   final EntitlementController entitlementController;
-  final PremiumPurchaseController premiumPurchaseController;
-  final PremiumCapabilityService premiumCapabilityService;
+  final ProPurchaseController proPurchaseController;
+  final ProCapabilityService proCapabilityService;
   final PaywallCoordinator paywallCoordinator;
 
   @override
@@ -166,9 +166,9 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
 
   Future<void> _trackInstall() async {
     final plugin = _plugin;
-    final hasPremiumAccess = widget.entitlementController.hasPremiumAccess;
+    final hasProAccess = widget.entitlementController.hasProAccess;
     final canInstall =
-        plugin != null && plugin.canFreeUserAttemptInstall(hasPremiumAccess);
+        plugin != null && plugin.canFreeUserAttemptInstall(hasProAccess);
     if (!canInstall) {
       return;
     }
@@ -271,9 +271,9 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
     });
 
     String? assertionToken;
-    final hasPremiumAccess = widget.entitlementController.hasPremiumAccess;
-    if (plugin.isPremium) {
-      if (hasPremiumAccess) {
+    final hasProAccess = widget.entitlementController.hasProAccess;
+    if (plugin.isPro) {
+      if (hasProAccess) {
         assertionToken = widget.entitlementController.activeAssertionToken;
         if (assertionToken == null || assertionToken.trim().isEmpty) {
           await widget.entitlementController.backgroundReverify(
@@ -293,7 +293,7 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
           });
           return false;
         }
-      } else if (!plugin.premiumPreview) {
+      } else if (!plugin.proPreview) {
         if (!mounted) {
           return false;
         }
@@ -391,11 +391,11 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
 
   Future<void> _openRuntime(String slug) async {
     await widget.installedToolsController.markToolLaunched(slug);
-    unawaited(widget.premiumCapabilityService.recordToolEngagement(slug));
+    unawaited(widget.proCapabilityService.recordToolEngagement(slug));
     if (!mounted) {
       return;
     }
-    final restore = widget.premiumCapabilityService.canRestoreSession;
+    final restore = widget.proCapabilityService.canRestoreSession;
     context.push(
       AppRoutes.pluginRuntime(
         slug,
@@ -445,9 +445,9 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
       body: AnimatedBuilder(
         animation: Listenable.merge(<Listenable>[
           widget.entitlementController,
-          widget.premiumPurchaseController,
+          widget.proPurchaseController,
           widget.installedToolsController,
-          widget.premiumCapabilityService,
+          widget.proCapabilityService,
         ]),
         builder: (BuildContext context, Widget? child) {
           return Padding(
@@ -477,12 +477,12 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
 
   Widget _buildContent(BuildContext context, CatalogPlugin plugin) {
     final latestVersion = _versions.isEmpty ? null : _versions.first.version;
-    final hasPremiumAccess = widget.entitlementController.hasPremiumAccess;
-    final hardPremiumLock =
-        plugin.isPremium && !hasPremiumAccess && !plugin.premiumPreview;
+    final hasProAccess = widget.entitlementController.hasProAccess;
+    final hardProLock =
+        plugin.isPro && !hasProAccess && !plugin.proPreview;
     final previewInstallable =
-        plugin.isPremium && !hasPremiumAccess && plugin.premiumPreview;
-    final purchaseController = widget.premiumPurchaseController;
+        plugin.isPro && !hasProAccess && plugin.proPreview;
+    final purchaseController = widget.proPurchaseController;
     final isInstalled = widget.installedToolsController.installedTools.any(
       (install) => install.pluginSlug == plugin.slug,
     );
@@ -498,7 +498,7 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
               baseUrl: widget.config.apiBaseUrl,
               size: 58,
               borderRadius: 12,
-              fallbackIcon: hardPremiumLock
+              fallbackIcon: hardProLock
                   ? Icons.lock_outline
                   : Icons.extension_outlined,
             ),
@@ -517,7 +517,7 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
                               ),
                         ),
                       ),
-                      if (plugin.isPremium) ...<Widget>[
+                      if (plugin.isPro) ...<Widget>[
                         const SizedBox(width: 6),
                         Icon(
                           Icons.workspace_premium_rounded,
@@ -553,18 +553,18 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
-        if (plugin.isPremium) ...<Widget>[
+        if (plugin.isPro) ...<Widget>[
           const SizedBox(height: 16),
           AppInfoTile(
-            leading: hasPremiumAccess
+            leading: hasProAccess
                 ? Icons.workspace_premium
                 : Icons.workspace_premium_outlined,
-            title: hasPremiumAccess
+            title: hasProAccess
                 ? 'Pro active'
                 : previewInstallable
                     ? 'Pro tool · Preview install'
                     : 'Pro required',
-            subtitle: hasPremiumAccess
+            subtitle: hasProAccess
                 ? 'Full access to Pro tools and workflows.'
                 : previewInstallable
                     ? 'Install and explore; upgrade for full output, exports, and saved sessions.'
@@ -573,10 +573,10 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
         ],
         const SizedBox(height: 16),
         AppPrimaryButton(
-          label: hardPremiumLock
+          label: hardProLock
               ? 'Go Pro'
               : (isInstalled ? 'Installed' : 'Install'),
-          onPressed: hardPremiumLock
+          onPressed: hardProLock
               ? () => widget.paywallCoordinator.show(
                     context,
                     const PaywallRequest(
@@ -588,9 +588,9 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
                   )
               : (isInstalled ? null : _trackInstall),
           isLoading:
-              hardPremiumLock ? false : _isInstalling,
+              hardProLock ? false : _isInstalling,
         ),
-        if (hardPremiumLock) ...<Widget>[
+        if (hardProLock) ...<Widget>[
           const SizedBox(height: 8),
           AppSecondaryButton(
             label: 'Restore purchases',
@@ -688,7 +688,7 @@ String _displayTier(String pricingType) {
   if (normalized == 'free') {
     return 'Free';
   }
-  if (normalized == 'premium' || normalized == 'paid') {
+  if (normalized == 'pro' || normalized == 'paid') {
     return 'Pro';
   }
   return 'Free';

@@ -13,14 +13,14 @@ import '../config/app_config.dart';
 import '../networking/api_client.dart';
 import '../networking/interceptors/device_id_interceptor.dart';
 import '../networking/interceptors/request_id_interceptor.dart';
-import '../premium/folder_creation_policy.dart';
-import '../premium/free_tier_usage_store.dart';
-import '../premium/paywall_coordinator.dart';
-import '../premium/pinning_policy.dart';
-import '../premium/premium_analytics.dart';
-import '../premium/premium_capability_service.dart';
-import '../premium/premium_purchase_controller.dart';
-import '../premium/tool_session_store.dart';
+import '../pro/folder_creation_policy.dart';
+import '../pro/free_tier_usage_store.dart';
+import '../pro/paywall_coordinator.dart';
+import '../pro/pinning_policy.dart';
+import '../pro/pro_analytics.dart';
+import '../pro/pro_capability_service.dart';
+import '../pro/pro_purchase_controller.dart';
+import '../pro/tool_session_store.dart';
 import '../../features/discover/data/catalog_api.dart';
 import '../../features/discover/data/catalog_cache_store.dart';
 import '../../features/discover/data/secure_catalog_cache_store.dart';
@@ -43,10 +43,10 @@ class AppDependencies {
     required this.apiClient,
     required this.deviceIdentityManager,
     required this.entitlementController,
-    required this.premiumPurchaseController,
+    required this.proPurchaseController,
     required this.freeTierUsageStore,
-    required this.premiumCapabilityService,
-    required this.premiumAnalytics,
+    required this.proCapabilityService,
+    required this.proAnalytics,
     required this.paywallCoordinator,
     required this.toolSessionStore,
     required this.installedToolsController,
@@ -62,10 +62,10 @@ class AppDependencies {
   final ApiClient apiClient;
   final DeviceIdentityManager deviceIdentityManager;
   final EntitlementController entitlementController;
-  final PremiumPurchaseController premiumPurchaseController;
+  final ProPurchaseController proPurchaseController;
   final FreeTierUsageStore freeTierUsageStore;
-  final PremiumCapabilityService premiumCapabilityService;
-  final PremiumAnalytics premiumAnalytics;
+  final ProCapabilityService proCapabilityService;
+  final ProAnalytics proAnalytics;
   final PaywallCoordinator paywallCoordinator;
   final ToolSessionStore toolSessionStore;
   final InstalledToolsController installedToolsController;
@@ -86,7 +86,7 @@ class AppDependencies {
     BillingGateway? billingGateway,
     Dio? dio,
     required FreeTierUsageStore freeTierUsageStore,
-    PremiumAnalytics? premiumAnalytics,
+    ProAnalytics? proAnalytics,
   }) {
     final resolvedConfig = config ?? AppConfig.fromEnvironment();
     final resolvedDio =
@@ -119,23 +119,23 @@ class AppDependencies {
     );
     final resolvedBillingGateway =
         billingGateway ?? InAppPurchaseBillingGateway();
-    final premiumPurchaseController = PremiumPurchaseController(
+    final proPurchaseController = ProPurchaseController(
       config: resolvedConfig,
       billingGateway: resolvedBillingGateway,
       entitlementController: entitlementController,
     );
 
-    final resolvedAnalytics = premiumAnalytics ?? DebugPremiumAnalytics();
-    final premiumCapabilityService = PremiumCapabilityService(
+    final resolvedAnalytics = proAnalytics ?? DebugProAnalytics();
+    final proCapabilityService = ProCapabilityService(
       entitlementController: entitlementController,
       usageStore: freeTierUsageStore,
     );
     final paywallCoordinator = PaywallCoordinator(
-      purchaseController: premiumPurchaseController,
+      purchaseController: proPurchaseController,
       entitlementController: entitlementController,
       analytics: resolvedAnalytics,
     );
-    final toolSessionStore = ToolSessionStore(premiumCapabilityService);
+    final toolSessionStore = ToolSessionStore(proCapabilityService);
 
     resolvedDio.interceptors.add(RequestIdInterceptor());
     resolvedDio.interceptors.add(
@@ -179,10 +179,10 @@ class AppDependencies {
       apiClient: apiClient,
       deviceIdentityManager: deviceIdentityManager,
       entitlementController: entitlementController,
-      premiumPurchaseController: premiumPurchaseController,
+      proPurchaseController: proPurchaseController,
       freeTierUsageStore: freeTierUsageStore,
-      premiumCapabilityService: premiumCapabilityService,
-      premiumAnalytics: resolvedAnalytics,
+      proCapabilityService: proCapabilityService,
+      proAnalytics: resolvedAnalytics,
       paywallCoordinator: paywallCoordinator,
       toolSessionStore: toolSessionStore,
       installedToolsController: installedToolsController,
@@ -196,8 +196,8 @@ class AppDependencies {
 
   void dispose() {
     installedToolsController.dispose();
-    premiumCapabilityService.dispose();
-    premiumPurchaseController.dispose();
+    proCapabilityService.dispose();
+    proPurchaseController.dispose();
     entitlementController.dispose();
     dio.close(force: true);
   }

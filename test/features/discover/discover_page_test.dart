@@ -13,12 +13,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:utilivo_mobile/core/config/app_config.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
-import 'package:utilivo_mobile/core/entitlement/models/premium_entitlement.dart';
+import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
 import 'package:utilivo_mobile/core/billing/billing_gateway.dart';
 import 'package:utilivo_mobile/core/billing/models/billing_models.dart';
-import 'package:utilivo_mobile/core/premium/free_tier_usage_store.dart';
-import 'package:utilivo_mobile/core/premium/premium_capability_service.dart';
-import 'package:utilivo_mobile/core/premium/premium_purchase_controller.dart';
+import 'package:utilivo_mobile/core/pro/free_tier_usage_store.dart';
+import 'package:utilivo_mobile/core/pro/pro_capability_service.dart';
+import 'package:utilivo_mobile/core/pro/pro_purchase_controller.dart';
 import 'package:utilivo_mobile/core/navigation/app_routes.dart';
 import 'package:utilivo_mobile/core/networking/api_client.dart';
 import 'package:utilivo_mobile/features/discover/data/catalog_api.dart';
@@ -135,8 +135,8 @@ class _DiscoverHarness {
     required this.bundleDio,
     required this.baseDir,
     required this.runtimeOpenCounter,
-    required this.premiumCapabilityService,
-    required this.premiumPurchaseController,
+    required this.proCapabilityService,
+    required this.proPurchaseController,
   });
 
   final GoRouter router;
@@ -146,8 +146,8 @@ class _DiscoverHarness {
   final Dio bundleDio;
   final Directory baseDir;
   final ValueNotifier<int> runtimeOpenCounter;
-  final PremiumCapabilityService premiumCapabilityService;
-  final PremiumPurchaseController premiumPurchaseController;
+  final ProCapabilityService proCapabilityService;
+  final ProPurchaseController proPurchaseController;
 
   int get runtimeOpenCount => runtimeOpenCounter.value;
 
@@ -312,7 +312,7 @@ class _DiscoverHarness {
 
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final usageStore = await FreeTierUsageStore.open();
-    final premiumCapabilityService = PremiumCapabilityService(
+    final proCapabilityService = ProCapabilityService(
       entitlementController: entitlementController,
       usageStore: usageStore,
     );
@@ -320,18 +320,18 @@ class _DiscoverHarness {
       appName: 'Utilivo',
       apiBaseUrl: 'https://api.example.test',
       androidPackageName: 'com.utilivo.utilivo_mobile',
-      premiumOneTimeProductId: 'utilivo_premium_one_time',
-      premiumSubscriptionProductId: '',
-      premiumSubscriptionMonthlyProductId: '',
-      premiumSubscriptionAnnualProductId: '',
+      proOneTimeProductId: 'utilivo_pro_one_time',
+      proSubscriptionProductId: '',
+      proSubscriptionMonthlyProductId: '',
+      proSubscriptionAnnualProductId: '',
     );
     final discoverBilling = _DiscoverTestBillingGateway();
-    final premiumPurchaseController = PremiumPurchaseController(
+    final proPurchaseController = ProPurchaseController(
       config: billingConfig,
       billingGateway: discoverBilling,
       entitlementController: entitlementController,
     );
-    await premiumPurchaseController.initialize();
+    await proPurchaseController.initialize();
     final runtimeOpenCounter = ValueNotifier<int>(0);
     final router = GoRouter(
       initialLocation: AppRoutes.discover,
@@ -344,10 +344,10 @@ class _DiscoverHarness {
                 appName: 'Utilivo',
                 apiBaseUrl: 'https://api.example.test',
                 androidPackageName: 'com.utilivo.utilivo_mobile',
-                premiumOneTimeProductId: 'utilivo_premium_one_time',
-                premiumSubscriptionProductId: 'utilivo_premium_subscription',
-                premiumSubscriptionMonthlyProductId: '',
-                premiumSubscriptionAnnualProductId: '',
+                proOneTimeProductId: 'utilivo_pro_one_time',
+                proSubscriptionProductId: 'utilivo_pro_subscription',
+                proSubscriptionMonthlyProductId: '',
+                proSubscriptionAnnualProductId: '',
               ),
               catalogApi: CatalogApi(apiClient),
               entitlementController: entitlementController,
@@ -355,7 +355,7 @@ class _DiscoverHarness {
               toolBundleDownloadService: toolBundleDownloadService,
               installsApi: InstallsApi(apiClient),
               installedToolsController: controller,
-              premiumCapabilityService: premiumCapabilityService,
+              proCapabilityService: proCapabilityService,
             );
           },
         ),
@@ -378,16 +378,16 @@ class _DiscoverHarness {
       bundleDio: bundleDio,
       baseDir: baseDir,
       runtimeOpenCounter: runtimeOpenCounter,
-      premiumCapabilityService: premiumCapabilityService,
-      premiumPurchaseController: premiumPurchaseController,
+      proCapabilityService: proCapabilityService,
+      proPurchaseController: proPurchaseController,
     );
   }
 
   Future<void> dispose() async {
     router.dispose();
     await Future<void>.delayed(const Duration(milliseconds: 80));
-    premiumCapabilityService.dispose();
-    premiumPurchaseController.dispose();
+    proCapabilityService.dispose();
+    proPurchaseController.dispose();
     controller.dispose();
     entitlementController.dispose();
     apiDio.close(force: true);
@@ -483,7 +483,7 @@ class _InMemoryDownloadedToolBundleStore implements DownloadedToolBundleStore {
 }
 
 class _InMemoryEntitlementStore implements EntitlementStore {
-  PremiumEntitlement? _value;
+  ProEntitlement? _value;
 
   @override
   Future<void> clear() async {
@@ -491,12 +491,12 @@ class _InMemoryEntitlementStore implements EntitlementStore {
   }
 
   @override
-  Future<PremiumEntitlement?> read() async {
+  Future<ProEntitlement?> read() async {
     return _value;
   }
 
   @override
-  Future<void> write(PremiumEntitlement entitlement) async {
+  Future<void> write(ProEntitlement entitlement) async {
     _value = entitlement;
   }
 }

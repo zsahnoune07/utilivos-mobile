@@ -6,8 +6,8 @@ import 'package:utilivo_mobile/core/billing/models/billing_models.dart';
 import 'package:utilivo_mobile/core/config/app_config.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
-import 'package:utilivo_mobile/core/entitlement/models/premium_entitlement.dart';
-import 'package:utilivo_mobile/core/premium/premium_purchase_controller.dart';
+import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
+import 'package:utilivo_mobile/core/pro/pro_purchase_controller.dart';
 
 void main() {
   test('initialize loads billing products when store is available', () async {
@@ -15,7 +15,7 @@ void main() {
       available: true,
       products: const <BillingProduct>[
         BillingProduct(
-          id: 'utilivo_premium_one_time',
+          id: 'utilivo_pro_one_time',
           title: 'Utilivo Pro',
           description: 'Unlock Pro tools',
           price: '\$9.99',
@@ -27,7 +27,7 @@ void main() {
     );
     await entitlementController.bootstrap();
 
-    final controller = PremiumPurchaseController(
+    final controller = ProPurchaseController(
       config: _config(),
       billingGateway: gateway,
       entitlementController: entitlementController,
@@ -46,7 +46,7 @@ void main() {
       available: true,
       products: const <BillingProduct>[
         BillingProduct(
-          id: 'utilivo_premium_one_time',
+          id: 'utilivo_pro_one_time',
           title: 'Utilivo Pro',
           description: 'Unlock Pro tools',
           price: '\$9.99',
@@ -58,7 +58,7 @@ void main() {
     );
     await entitlementController.bootstrap();
 
-    final controller = PremiumPurchaseController(
+    final controller = ProPurchaseController(
       config: _config(),
       billingGateway: gateway,
       entitlementController: entitlementController,
@@ -69,16 +69,16 @@ void main() {
     gateway.emit(
       const BillingPurchaseUpdate(
         status: BillingPurchaseStatus.purchased,
-        productId: 'utilivo_premium_one_time',
+        productId: 'utilivo_pro_one_time',
         purchaseToken: 'purchase-token-1',
       ),
     );
     await Future<void>.delayed(const Duration(milliseconds: 1));
 
-    expect(entitlementController.hasPremiumAccess, true);
+    expect(entitlementController.hasProAccess, true);
     expect(
       entitlementController.entitlement.productId,
-      'utilivo_premium_one_time',
+      'utilivo_pro_one_time',
     );
     expect(
       controller.statusMessage,
@@ -91,7 +91,7 @@ void main() {
       available: true,
       products: const <BillingProduct>[
         BillingProduct(
-          id: 'utilivo_premium_subscription',
+          id: 'utilivo_pro_subscription',
           title: 'Utilivo Pro (monthly)',
           description: 'Monthly Pro access',
           price: '\$4.99',
@@ -103,7 +103,7 @@ void main() {
     );
     await entitlementController.bootstrap();
 
-    final controller = PremiumPurchaseController(
+    final controller = ProPurchaseController(
       config: _config(),
       billingGateway: gateway,
       entitlementController: entitlementController,
@@ -114,13 +114,13 @@ void main() {
     gateway.emit(
       const BillingPurchaseUpdate(
         status: BillingPurchaseStatus.restored,
-        productId: 'utilivo_premium_subscription',
+        productId: 'utilivo_pro_subscription',
         purchaseToken: 'restore-token-1',
       ),
     );
     await Future<void>.delayed(const Duration(milliseconds: 1));
 
-    expect(entitlementController.hasPremiumAccess, true);
+    expect(entitlementController.hasProAccess, true);
     expect(entitlementController.entitlement.entitlementType, 'subscription');
     expect(
       controller.statusMessage,
@@ -134,15 +134,15 @@ AppConfig _config() {
     appName: 'Utilivo',
     apiBaseUrl: 'https://api.example.test',
     androidPackageName: 'com.utilivo.utilivo_mobile',
-    premiumOneTimeProductId: 'utilivo_premium_one_time',
-    premiumSubscriptionProductId: 'utilivo_premium_subscription',
-    premiumSubscriptionMonthlyProductId: '',
-    premiumSubscriptionAnnualProductId: '',
+    proOneTimeProductId: 'utilivo_pro_one_time',
+    proSubscriptionProductId: 'utilivo_pro_subscription',
+    proSubscriptionMonthlyProductId: '',
+    proSubscriptionAnnualProductId: '',
   );
 }
 
 class _InMemoryEntitlementStore implements EntitlementStore {
-  PremiumEntitlement? _value;
+  ProEntitlement? _value;
 
   @override
   Future<void> clear() async {
@@ -150,12 +150,12 @@ class _InMemoryEntitlementStore implements EntitlementStore {
   }
 
   @override
-  Future<PremiumEntitlement?> read() async {
+  Future<ProEntitlement?> read() async {
     return _value;
   }
 
   @override
-  Future<void> write(PremiumEntitlement entitlement) async {
+  Future<void> write(ProEntitlement entitlement) async {
     _value = entitlement;
   }
 }

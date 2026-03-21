@@ -3,18 +3,18 @@ import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
 import 'package:utilivo_mobile/core/entitlement/entitlement_verification_api.dart';
 import 'package:utilivo_mobile/core/entitlement/models/entitlement_verification_result.dart';
-import 'package:utilivo_mobile/core/entitlement/models/premium_entitlement.dart';
+import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
 import 'package:utilivo_mobile/core/networking/network_exception.dart';
 
 void main() {
   test('bootstrap restores persisted entitlement', () async {
     final now = DateTime.now().toUtc();
     final store = _InMemoryEntitlementStore(
-      initial: PremiumEntitlement(
-        premiumActive: true,
+      initial: ProEntitlement(
+        proActive: true,
         updatedAt: now,
         entitlementType: 'one_time',
-        productId: 'utilivo_premium_one_time',
+        productId: 'utilivo_pro_one_time',
       ),
     );
     final controller = EntitlementController(store: store);
@@ -22,8 +22,8 @@ void main() {
     await controller.bootstrap();
 
     expect(controller.isReady, true);
-    expect(controller.hasPremiumAccess, true);
-    expect(controller.entitlement.productId, 'utilivo_premium_one_time');
+    expect(controller.hasProAccess, true);
+    expect(controller.entitlement.productId, 'utilivo_pro_one_time');
   });
 
   test(
@@ -34,7 +34,7 @@ void main() {
         store: store,
         verificationApi: _FakeVerificationApi((_) async {
           return EntitlementVerificationResult(
-            premiumActive: true,
+            proActive: true,
             entitlementType: 'one_time',
             assertionToken: 'assertion-token',
             assertionExpiresAt: DateTime.now().toUtc().add(
@@ -46,15 +46,15 @@ void main() {
       await controller.bootstrap();
 
       final outcome = await controller.activateFromBillingPurchase(
-        productId: 'utilivo_premium_one_time',
+        productId: 'utilivo_pro_one_time',
         purchaseToken: 'purchase-token-abc',
       );
 
       expect(outcome, BillingVerificationOutcome.activated);
-      expect(controller.hasPremiumAccess, true);
+      expect(controller.hasProAccess, true);
       expect(controller.activeAssertionToken, 'assertion-token');
       expect(controller.entitlement.purchaseToken, 'purchase-token-abc');
-      expect((await store.read())?.premiumActive, true);
+      expect((await store.read())?.proActive, true);
     },
   );
 
@@ -63,7 +63,7 @@ void main() {
       store: _InMemoryEntitlementStore(),
       verificationApi: _FakeVerificationApi((_) async {
         return const EntitlementVerificationResult(
-          premiumActive: false,
+          proActive: false,
           entitlementType: 'one_time',
         );
       }),
@@ -71,12 +71,12 @@ void main() {
     await controller.bootstrap();
 
     final outcome = await controller.activateFromBillingPurchase(
-      productId: 'utilivo_premium_one_time',
+      productId: 'utilivo_pro_one_time',
       purchaseToken: 'purchase-token-abc',
     );
 
     expect(outcome, BillingVerificationOutcome.rejected);
-    expect(controller.hasPremiumAccess, false);
+    expect(controller.hasProAccess, false);
   });
 
   test(
@@ -85,11 +85,11 @@ void main() {
       final now = DateTime.now().toUtc();
       final controller = EntitlementController(
         store: _InMemoryEntitlementStore(
-          initial: PremiumEntitlement(
-            premiumActive: true,
+          initial: ProEntitlement(
+            proActive: true,
             updatedAt: now,
             entitlementType: 'one_time',
-            productId: 'utilivo_premium_one_time',
+            productId: 'utilivo_pro_one_time',
             purchaseToken: 'purchase-token-abc',
             graceExpiresAt: now.add(const Duration(hours: 1)),
             lastVerificationAt: now,
@@ -106,7 +106,7 @@ void main() {
       await controller.bootstrap();
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(controller.hasPremiumAccess, true);
+      expect(controller.hasProAccess, true);
       expect(
         controller.entitlement.verificationSource,
         startsWith('offline_grace_'),
@@ -120,11 +120,11 @@ void main() {
       final now = DateTime.now().toUtc();
       final controller = EntitlementController(
         store: _InMemoryEntitlementStore(
-          initial: PremiumEntitlement(
-            premiumActive: true,
+          initial: ProEntitlement(
+            proActive: true,
             updatedAt: now,
             entitlementType: 'one_time',
-            productId: 'utilivo_premium_one_time',
+            productId: 'utilivo_pro_one_time',
             purchaseToken: 'purchase-token-abc',
             graceExpiresAt: now.subtract(const Duration(minutes: 1)),
             lastVerificationAt: now.subtract(const Duration(minutes: 10)),
@@ -141,8 +141,8 @@ void main() {
       await controller.bootstrap();
       await controller.backgroundReverify(reason: 'test');
 
-      expect(controller.hasPremiumAccess, false);
-      expect(controller.entitlement.premiumActive, false);
+      expect(controller.hasProAccess, false);
+      expect(controller.entitlement.proActive, false);
     },
   );
 
@@ -151,22 +151,22 @@ void main() {
     final controller = EntitlementController(store: store);
     await controller.bootstrap();
     await controller.activateFromBillingPurchase(
-      productId: 'utilivo_premium_one_time',
+      productId: 'utilivo_pro_one_time',
       purchaseToken: 'purchase-token-abc',
     );
 
     await controller.setInactive();
 
-    expect(controller.hasPremiumAccess, false);
-    expect((await store.read())?.premiumActive, false);
+    expect(controller.hasProAccess, false);
+    expect((await store.read())?.proActive, false);
   });
 }
 
 class _InMemoryEntitlementStore implements EntitlementStore {
   _InMemoryEntitlementStore({this.initial});
 
-  final PremiumEntitlement? initial;
-  PremiumEntitlement? _value;
+  final ProEntitlement? initial;
+  ProEntitlement? _value;
 
   @override
   Future<void> clear() async {
@@ -174,12 +174,12 @@ class _InMemoryEntitlementStore implements EntitlementStore {
   }
 
   @override
-  Future<PremiumEntitlement?> read() async {
+  Future<ProEntitlement?> read() async {
     return _value ?? initial;
   }
 
   @override
-  Future<void> write(PremiumEntitlement entitlement) async {
+  Future<void> write(ProEntitlement entitlement) async {
     _value = entitlement;
   }
 }

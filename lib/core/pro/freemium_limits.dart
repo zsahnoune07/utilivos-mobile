@@ -1,4 +1,4 @@
-/// Central caps for the free tier. Pro users bypass these via [EntitlementController.hasPremiumAccess].
+/// Central caps for the free tier. Pro users bypass these via [EntitlementController.hasProAccess].
 class FreemiumLimits {
   FreemiumLimits._();
 

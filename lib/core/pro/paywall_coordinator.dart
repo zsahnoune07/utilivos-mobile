@@ -4,28 +4,28 @@ import '../entitlement/entitlement_controller.dart';
 import 'paywall_models.dart';
 import 'paywall_offer_page.dart';
 import 'paywall_sheet.dart';
-import 'premium_analytics.dart';
-import 'premium_purchase_controller.dart';
+import '../pro/pro_analytics.dart';
+import '../pro/pro_purchase_controller.dart';
 
 /// Central entry to present the paywall from anywhere (no cold-start auto-show).
 class PaywallCoordinator {
   PaywallCoordinator({
-    required PremiumPurchaseController purchaseController,
+    required ProPurchaseController purchaseController,
     required EntitlementController entitlementController,
-    required PremiumAnalytics analytics,
+    required ProAnalytics analytics,
   }) : _purchase = purchaseController,
        _entitlement = entitlementController,
        _analytics = analytics;
 
-  final PremiumPurchaseController _purchase;
+  final ProPurchaseController _purchase;
   final EntitlementController _entitlement;
-  final PremiumAnalytics _analytics;
+  final ProAnalytics _analytics;
 
   Future<PaywallResult> show(
     BuildContext context,
     PaywallRequest request,
   ) async {
-    if (_entitlement.hasPremiumAccess) {
+    if (_entitlement.hasProAccess) {
       return PaywallResult.purchased;
     }
     _analytics.paywallShown(request);

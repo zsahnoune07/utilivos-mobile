@@ -19,7 +19,7 @@ class FreemiumFolderCreationPolicy implements FolderCreationPolicy {
 
   @override
   bool allowCreateFolder(int currentFolderCount) {
-    if (_entitlement.hasPremiumAccess) {
+    if (_entitlement.hasProAccess) {
       return true;
     }
     return currentFolderCount < FreemiumLimits.maxFolders;

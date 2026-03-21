@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'entitlement_store.dart';
-import 'models/premium_entitlement.dart';
+import 'models/pro_entitlement.dart';
 
 class SecureEntitlementStore implements EntitlementStore {
   SecureEntitlementStore({
@@ -11,13 +11,13 @@ class SecureEntitlementStore implements EntitlementStore {
     this.storageKey = _defaultStorageKey,
   }) : _storage = storage ?? const FlutterSecureStorage();
 
-  static const String _defaultStorageKey = 'utilivo_premium_entitlement';
+  static const String _defaultStorageKey = 'utilivo_pro_entitlement';
 
   final FlutterSecureStorage _storage;
   final String storageKey;
 
   @override
-  Future<PremiumEntitlement?> read() async {
+  Future<ProEntitlement?> read() async {
     final rawPayload = await _storage.read(key: storageKey);
     if (rawPayload == null || rawPayload.trim().isEmpty) {
       return null;
@@ -29,11 +29,11 @@ class SecureEntitlementStore implements EntitlementStore {
         'Stored entitlement payload must be an object.',
       );
     }
-    return PremiumEntitlement.fromJson(parsed);
+    return ProEntitlement.fromJson(parsed);
   }
 
   @override
-  Future<void> write(PremiumEntitlement entitlement) {
+  Future<void> write(ProEntitlement entitlement) {
     return _storage.write(
       key: storageKey,
       value: jsonEncode(entitlement.toJson()),

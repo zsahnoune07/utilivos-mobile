@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 
 import 'app.dart';
 import 'core/navigation/deep_link_parser.dart';
-import 'core/premium/free_tier_usage_store.dart';
+import 'core/pro/free_tier_usage_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

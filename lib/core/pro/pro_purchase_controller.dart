@@ -7,8 +7,8 @@ import '../billing/models/billing_models.dart';
 import '../config/app_config.dart';
 import '../entitlement/entitlement_controller.dart';
 
-class PremiumPurchaseController extends ChangeNotifier {
-  PremiumPurchaseController({
+class ProPurchaseController extends ChangeNotifier {
+  ProPurchaseController({
     required AppConfig config,
     required BillingGateway billingGateway,
     required EntitlementController entitlementController,
@@ -40,21 +40,21 @@ class PremiumPurchaseController extends ChangeNotifier {
   List<BillingProduct> get availableProducts => _availableProducts;
   bool get canPurchase =>
       _storeAvailable && !_isLoadingProducts && _availableProducts.isNotEmpty;
-  String get configuredOneTimeProductId => _config.premiumOneTimeProductId;
+  String get configuredOneTimeProductId => _config.proOneTimeProductId;
   String get configuredSubscriptionProductId =>
-      _config.premiumSubscriptionProductId;
+      _config.proSubscriptionProductId;
 
-  /// Falls back to legacy [AppConfig.premiumSubscriptionProductId] when annual id unset.
+  /// Falls back to legacy [AppConfig.proSubscriptionProductId] when annual id unset.
   String get resolvedAnnualProductId {
-    final explicit = _config.premiumSubscriptionAnnualProductId.trim();
+    final explicit = _config.proSubscriptionAnnualProductId.trim();
     if (explicit.isNotEmpty) {
       return explicit;
     }
-    return _config.premiumSubscriptionProductId.trim();
+    return _config.proSubscriptionProductId.trim();
   }
 
   String get resolvedMonthlyProductId =>
-      _config.premiumSubscriptionMonthlyProductId.trim();
+      _config.proSubscriptionMonthlyProductId.trim();
 
   /// Prefer annual → monthly → one-time for default selection in paywall.
   String? get defaultSelectedProductId {
@@ -66,7 +66,7 @@ class PremiumPurchaseController extends ChangeNotifier {
     if (monthly.isNotEmpty) {
       return monthly;
     }
-    return _config.premiumOneTimeProductId;
+    return _config.proOneTimeProductId;
   }
 
   Future<void> initialize() async {
@@ -92,13 +92,13 @@ class PremiumPurchaseController extends ChangeNotifier {
       }
 
       final productIds = <String>{
-        _config.premiumOneTimeProductId,
-        if (_config.premiumSubscriptionProductId.trim().isNotEmpty)
-          _config.premiumSubscriptionProductId.trim(),
-        if (_config.premiumSubscriptionMonthlyProductId.trim().isNotEmpty)
-          _config.premiumSubscriptionMonthlyProductId.trim(),
-        if (_config.premiumSubscriptionAnnualProductId.trim().isNotEmpty)
-          _config.premiumSubscriptionAnnualProductId.trim(),
+        _config.proOneTimeProductId,
+        if (_config.proSubscriptionProductId.trim().isNotEmpty)
+          _config.proSubscriptionProductId.trim(),
+        if (_config.proSubscriptionMonthlyProductId.trim().isNotEmpty)
+          _config.proSubscriptionMonthlyProductId.trim(),
+        if (_config.proSubscriptionAnnualProductId.trim().isNotEmpty)
+          _config.proSubscriptionAnnualProductId.trim(),
       };
 
       final products = await _billingGateway.queryProducts(productIds);
@@ -117,7 +117,7 @@ class PremiumPurchaseController extends ChangeNotifier {
     }
   }
 
-  Future<void> purchasePremium() async {
+  Future<void> purchasePro() async {
     final id = defaultSelectedProductId;
     if (id == null || id.isEmpty) {
       _errorMessage = 'No Pro product IDs are configured.';
@@ -182,8 +182,8 @@ class PremiumPurchaseController extends ChangeNotifier {
     }
   }
 
-  bool _isPremiumProductId(String productId) {
-    if (productId == _config.premiumOneTimeProductId) {
+  bool _isProProductId(String productId) {
+    if (productId == _config.proOneTimeProductId) {
       return true;
     }
     final monthly = resolvedMonthlyProductId;
@@ -194,12 +194,12 @@ class PremiumPurchaseController extends ChangeNotifier {
     if (annual.isNotEmpty && productId == annual) {
       return true;
     }
-    final legacy = _config.premiumSubscriptionProductId.trim();
+    final legacy = _config.proSubscriptionProductId.trim();
     return legacy.isNotEmpty && productId == legacy;
   }
 
   String _entitlementTypeForProduct(String productId) {
-    if (productId == _config.premiumOneTimeProductId) {
+    if (productId == _config.proOneTimeProductId) {
       return 'one_time';
     }
     return 'subscription';
@@ -212,7 +212,7 @@ class PremiumPurchaseController extends ChangeNotifier {
         break;
       case BillingPurchaseStatus.purchased:
       case BillingPurchaseStatus.restored:
-        if (_isPremiumProductId(update.productId)) {
+        if (_isProProductId(update.productId)) {
           final outcome = await _entitlementController
               .activateFromBillingPurchase(
                 productId: update.productId,
