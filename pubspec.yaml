@@ -38,9 +38,9 @@ dependencies:
   archive: ^4.0.7
   asn1lib: ^1.6.5
   cached_network_image: ^3.4.1
-  cryptography: ^2.7.0
+  cryptography: ^2.9.0
   cupertino_icons: ^1.0.8
-  crypto: ^3.0.6
+  crypto: ^3.0.7
   dio: ^5.9.2
   flutter_secure_storage: ^10.0.0
   flutter_svg: ^2.2.2
@@ -50,7 +50,7 @@ dependencies:
   path_provider: ^2.1.5
   intl: any
   shared_preferences: ^2.3.4
-  webview_flutter: ^4.13.0
+  webview_flutter: ^4.13.1
   webview_flutter_android: ^4.10.13
   image: ^4.8.0
   flutter_cache_manager: ^3.4.1
@@ -60,7 +60,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_launcher_icons: ^0.14.4
-  flutter_lints: ^3.0.0
+  flutter_lints: ^3.0.2
 
 flutter_launcher_icons:
   android: true

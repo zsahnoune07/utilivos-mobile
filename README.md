@@ -5,11 +5,13 @@ Flutter client for the Utilivo marketplace.
 ## Product Scope (Current)
 
 `utilivo-mobile` now follows the marketplace MVP direction in `PLAN.md`:
+
 - anonymous usage (no login/register/profile route in active app flow)
 - purchase-based Pro access
 - Home-first installed tools with online catalog browsing
 
 Implemented product behavior:
+
 - splash bootstrap initializes persistent anonymous device ID
 - `go_router` shell with tabs:
   - Home
@@ -120,6 +122,7 @@ flutter test
 ```
 
 CI (`.github/workflows/mobile.yml`) enforces:
+
 - format (`dart format --set-exit-if-changed`)
 - analyze
 - test
@@ -133,6 +136,7 @@ flutter run --profile --dart-define=API_BASE_URL=http://10.0.2.2:8080
 ```
 
 Validation checklist:
+
 - Open Home and Discover.
 - Scroll long lists continuously for at least 30 seconds.
 - Verify there are no obvious dropped-frame stalls during steady scroll.
@@ -143,6 +147,7 @@ Validation checklist:
 Route: `/discover/debug`
 
 Capabilities:
+
 - `/v1/health` smoke call
 - active API base URL display
 - anonymous device ID diagnostics/regeneration

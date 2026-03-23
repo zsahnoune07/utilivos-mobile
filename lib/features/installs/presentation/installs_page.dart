@@ -270,7 +270,7 @@ class _InstallsPageState extends State<InstallsPage> {
       child: Scaffold(
         appBar: AppBar(
           title: SvgPicture.asset(
-            'assets/wordmark.svg',
+            'assets/header.svg',
             height: 24,
             fit: BoxFit.contain,
             semanticsLabel: widget.appName,
