@@ -118,8 +118,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         return;
       }
 
-      final tier = preparedBundle.verifiedTier?.trim().toLowerCase() ?? '';
-      final preview = tier == 'pro' &&
+      final preview = CatalogPlugin.tierIsPro(preparedBundle.verifiedTier ?? '') &&
           !widget.entitlementController.hasProAccess;
       _previewMode = preview;
 
@@ -260,13 +259,13 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
   }
 
   Future<void> _assertBundleLaunchAllowed(DownloadedToolBundle bundle) async {
-    final tier = bundle.verifiedTier?.trim().toLowerCase();
-    if (tier == null || tier.isEmpty) {
+    final rawTier = bundle.verifiedTier?.trim();
+    if (rawTier == null || rawTier.isEmpty) {
       throw const _RuntimeLaunchException(
         'Bundle metadata is not verified. Reinstall this tool from Tool Library.',
       );
     }
-    if (tier != 'pro') {
+    if (!CatalogPlugin.tierIsPro(rawTier)) {
       return;
     }
     if (widget.entitlementController.hasProAccess) {
@@ -415,7 +414,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         if (!widget.proCapabilityService.canAddHomeScreenLaunchers) {
           await widget.paywallCoordinator.show(
             context,
-            PaywallRequest(
+            const PaywallRequest(
               trigger: PaywallTrigger.contextualFeature,
               triggerSource: 'home_shortcut',
               blockedFeatureId: 'home_shortcut',

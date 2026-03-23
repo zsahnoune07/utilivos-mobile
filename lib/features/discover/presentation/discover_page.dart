@@ -26,8 +26,8 @@ String _installErrorUserMessage(NetworkException error, CatalogPlugin plugin) {
   final m = error.message.toLowerCase();
   if (m.contains('entitlement') ||
       m.contains('pro') ||
-      m.contains('subscription') ||
-      m.contains('pro')) {
+      m.contains('premium') ||
+      m.contains('subscription')) {
     if (plugin.isPro && !plugin.proPreview) {
       return 'This Pro tool requires a subscription to install.';
     }
@@ -151,7 +151,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
         matches = true;
       }
       if (_selectedFilterTags.contains('pro') &&
-          (lowerPricing == 'pro' || lowerPricing == 'paid')) {
+          CatalogPlugin.tierIsPro(plugin.pricingType)) {
         matches = true;
       }
       return matches;
@@ -738,7 +738,10 @@ String _normalizeTier(String raw) {
   if (normalized == 'free') {
     return 'free';
   }
-  return 'pro';
+  if (CatalogPlugin.tierIsPro(raw)) {
+    return 'pro';
+  }
+  return 'free';
 }
 
 class _DiscoverHeader extends StatelessWidget {
@@ -984,11 +987,10 @@ class _PluginListTile extends StatelessWidget {
   final String? iconBaseUrl;
 
   static String _formatTier(String pricingType) {
-    final normalized = pricingType.trim().toLowerCase();
-    if (normalized == 'free') {
+    if (pricingType.trim().toLowerCase() == 'free') {
       return 'Free';
     }
-    if (normalized == 'pro' || normalized == 'paid') {
+    if (CatalogPlugin.tierIsPro(pricingType)) {
       return 'Pro';
     }
     return '';

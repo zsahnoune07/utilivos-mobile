@@ -21,6 +21,7 @@ import 'package:utilivo_mobile/core/pro/pro_capability_service.dart';
 import 'package:utilivo_mobile/core/networking/api_client.dart';
 import 'package:utilivo_mobile/core/pro/pro_purchase_controller.dart';
 import 'package:utilivo_mobile/features/discover/data/catalog_api.dart';
+import 'package:utilivo_mobile/features/discover/data/models/catalog_models.dart';
 import 'package:utilivo_mobile/features/discover/presentation/plugin_detail_page.dart';
 import 'package:utilivo_mobile/features/downloads/application/tool_bundle_download_service.dart';
 import 'package:utilivo_mobile/features/downloads/data/download_api.dart';
@@ -63,6 +64,25 @@ void main() {
         find.widgetWithText(OutlinedButton, 'Open Tool'),
       );
       expect(openToolButton.onPressed, isNull);
+    },
+  );
+
+  testWidgets(
+    'API pricing_type premium shows Go Pro when locked (no preview)',
+    (WidgetTester tester) async {
+      final harness = await _PluginDetailHarness.create(
+        pricingType: 'premium',
+        entitlementActive: false,
+        initializeBilling: false,
+        proPreview: false,
+      );
+      addTearDown(harness.dispose);
+
+      await tester.pumpWidget(harness.widget);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Go Pro'), findsOneWidget);
+      expect(find.text('Install'), findsNothing);
     },
   );
 
@@ -186,9 +206,7 @@ class _PluginDetailHarness {
             'CategoryName': 'Productivity',
             'PricingType': pricingType,
             'ShortDescription': 'Short description',
-            if (pricingType.toLowerCase() == 'pro' ||
-                pricingType.toLowerCase() == 'paid')
-              'pro_preview': proPreview,
+            if (CatalogPlugin.tierIsPro(pricingType)) 'pro_preview': proPreview,
           },
         }, 200);
       }

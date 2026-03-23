@@ -114,3 +114,84 @@ class AppCardSkeletonList extends StatelessWidget {
     );
   }
 }
+
+/// Matches [InstalledToolCard] grids on Home: 3 columns, same spacing and aspect ratio.
+class AppHomeToolGridSkeleton extends StatelessWidget {
+  const AppHomeToolGridSkeleton({this.cells = 9, super.key});
+
+  final int cells;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.86,
+      ),
+      itemCount: cells,
+      itemBuilder: (BuildContext context, int index) {
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: scheme.outlineVariant,
+              width: 0.8,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (BuildContext context, BoxConstraints c) {
+                      final side = c.maxWidth < c.maxHeight
+                          ? c.maxWidth
+                          : c.maxHeight;
+                      return Center(
+                        child: AppSkeletonBox(
+                          width: side,
+                          height: side,
+                          borderRadius: 12,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                LayoutBuilder(
+                  builder: (BuildContext context, BoxConstraints c) {
+                    final w = c.maxWidth;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        AppSkeletonBox(
+                          width: w * 0.88,
+                          height: 10,
+                          borderRadius: 4,
+                        ),
+                        const SizedBox(height: 6),
+                        AppSkeletonBox(
+                          width: w * 0.55,
+                          height: 9,
+                          borderRadius: 4,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

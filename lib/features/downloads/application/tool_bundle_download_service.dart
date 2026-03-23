@@ -67,7 +67,6 @@ class ToolBundleDownloadService {
   final BundleFileDownloader? _downloadFile;
   final BundleBaseDirectoryProvider? _baseDirectoryProvider;
   List<DownloadedToolBundle>? _cachedBundles;
-  static const _supportedTierValues = <String>{'free', 'pro'};
 
   Future<DownloadedToolBundle> downloadBundle({
     required String pluginSlug,
@@ -677,12 +676,15 @@ class ToolBundleDownloadService {
     if (normalized == null || normalized.isEmpty) {
       return 'free';
     }
-    if (!_supportedTierValues.contains(normalized)) {
-      throw ToolBundleFormatException(
-        'Unsupported pricing tier "$normalized".',
-      );
+    if (normalized == 'free') {
+      return 'free';
     }
-    return normalized;
+    if (normalized == 'pro' || normalized == 'premium' || normalized == 'paid') {
+      return 'pro';
+    }
+    throw ToolBundleFormatException(
+      'Unsupported pricing tier "$normalized".',
+    );
   }
 
   Future<DateTime?> _verifyDownloadGrantSignature({
@@ -709,7 +711,8 @@ class ToolBundleDownloadService {
       }
       return null;
     }
-    final tier = _normalizeTier(grantTier: payload.tier);
+    final normalizedPayloadTier = _normalizeTier(grantTier: payload.tier);
+    final normalizedGrantTier = _normalizeTier(grantTier: grant.tier);
     if (payload.slug != pluginSlug ||
         payload.version != version ||
         payload.bundleSha256.toLowerCase() != calculatedSha256.toLowerCase()) {
@@ -717,7 +720,7 @@ class ToolBundleDownloadService {
         'Bundle signature payload does not match download metadata.',
       );
     }
-    if (payload.tier != tier) {
+    if (normalizedPayloadTier != normalizedGrantTier) {
       throw const ToolBundleFormatException(
         'Bundle tier metadata is inconsistent.',
       );

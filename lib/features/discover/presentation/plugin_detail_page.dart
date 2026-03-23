@@ -684,11 +684,10 @@ class _PluginDetailLoadingView extends StatelessWidget {
 }
 
 String _displayTier(String pricingType) {
-  final normalized = pricingType.trim().toLowerCase();
-  if (normalized == 'free') {
+  if (pricingType.trim().toLowerCase() == 'free') {
     return 'Free';
   }
-  if (normalized == 'pro' || normalized == 'paid') {
+  if (CatalogPlugin.tierIsPro(pricingType)) {
     return 'Pro';
   }
   return 'Free';

@@ -46,7 +46,7 @@ class FreeTierUsageStore {
 
   int get remainingFreeStorageActionsToday {
     final used = storageActionsToday;
-    final cap = FreemiumLimits.maxStorageActionsPerDay;
+    const cap = FreemiumLimits.maxStorageActionsPerDay;
     final left = cap - used;
     return left < 0 ? 0 : left;
   }
@@ -97,7 +97,7 @@ class FreeTierUsageStore {
     if (last == null) {
       return true;
     }
-    final cooldown = Duration(hours: FreemiumLimits.softPaywallCooldownHours);
+    const cooldown = Duration(hours: FreemiumLimits.softPaywallCooldownHours);
     return DateTime.now().toUtc().isAfter(last.add(cooldown));
   }
 

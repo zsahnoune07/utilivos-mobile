@@ -485,7 +485,9 @@ class InstalledToolsController extends ChangeNotifier {
     if (normalized == 'free') {
       return 'free';
     }
-    if (normalized == 'pro' || normalized == 'paid') {
+    if (normalized == 'pro' ||
+        normalized == 'paid' ||
+        normalized == 'premium') {
       return 'pro';
     }
     return null;

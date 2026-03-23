@@ -26,41 +26,41 @@ class AppConfig {
   final String? localToolBundleVersion;
 
   factory AppConfig.fromEnvironment() {
-    final appName = const String.fromEnvironment(
+    const appName = String.fromEnvironment(
       'APP_NAME',
       defaultValue: 'Utilivo',
     );
-    final configuredBaseUrl = const String.fromEnvironment(
+    const configuredBaseUrl = String.fromEnvironment(
       'API_BASE_URL',
       defaultValue: 'http://10.0.2.2:8080',
     );
-    final androidPackageName = const String.fromEnvironment(
+    const androidPackageName = String.fromEnvironment(
       'ANDROID_PACKAGE_NAME',
       defaultValue: 'com.utilivo.utilivo_mobile',
     );
-    final proOneTimeProductId = const String.fromEnvironment(
+    const proOneTimeProductId = String.fromEnvironment(
       'PREMIUM_ONE_TIME_PRODUCT_ID',
       defaultValue: 'utilivo_pro_one_time',
     );
-    final proSubscriptionProductId = const String.fromEnvironment(
+    const proSubscriptionProductId = String.fromEnvironment(
       'PREMIUM_SUBSCRIPTION_PRODUCT_ID',
       defaultValue: 'utilivo_pro_subscription',
     );
-    final proSubscriptionMonthlyProductId = const String.fromEnvironment(
+    const proSubscriptionMonthlyProductId = String.fromEnvironment(
       'PREMIUM_SUBSCRIPTION_MONTHLY_PRODUCT_ID',
       defaultValue: '',
     );
-    final proSubscriptionAnnualProductId = const String.fromEnvironment(
+    const proSubscriptionAnnualProductId = String.fromEnvironment(
       'PREMIUM_SUBSCRIPTION_ANNUAL_PRODUCT_ID',
       defaultValue: '',
     );
-    final localToolBundlePath = const String.fromEnvironment(
+    const localToolBundlePath = String.fromEnvironment(
       'LOCAL_TOOL_BUNDLE_PATH',
     );
-    final localToolBundleSlug = const String.fromEnvironment(
+    const localToolBundleSlug = String.fromEnvironment(
       'LOCAL_TOOL_BUNDLE_SLUG',
     );
-    final localToolBundleVersion = const String.fromEnvironment(
+    const localToolBundleVersion = String.fromEnvironment(
       'LOCAL_TOOL_BUNDLE_VERSION',
     );
 

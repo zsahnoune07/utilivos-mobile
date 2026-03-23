@@ -63,13 +63,18 @@ class CatalogPlugin {
   final String? categoryColor;
 
   /// When this tool is Pro-tier ([isPro]), free users may install/run preview builds only if the API
-  /// sets `pro_preview` / `allows_free_preview_install` to true.
+  /// sets `pro_preview` / `premium_preview` / `allows_free_preview_install` to true.
   final bool proPreview;
 
-  bool get isPro {
+  /// API may use `pro`, `paid`, or `premium` for the paid catalog tier (product copy: Pro).
+  static bool tierIsPro(String pricingType) {
     final normalized = pricingType.trim().toLowerCase();
-    return normalized == 'pro' || normalized == 'paid';
+    return normalized == 'pro' ||
+        normalized == 'paid' ||
+        normalized == 'premium';
   }
+
+  bool get isPro => tierIsPro(pricingType);
 
   /// Install/download from catalog without an active subscription.
   bool canFreeUserAttemptInstall(bool hasProAccess) {
@@ -90,6 +95,8 @@ class CatalogPlugin {
     final previewFromApi = _readOptionalBool(json, const <String>[
       'pro_preview',
       'ProPreview',
+      'premium_preview',
+      'PremiumPreview',
       'allows_free_preview_install',
       'AllowsFreePreviewInstall',
     ]);

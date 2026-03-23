@@ -244,6 +244,52 @@ void main() {
     },
   );
 
+  test(
+    'downloadBundle rejects premium-tier grants without signature metadata',
+    () async {
+      final tmpDir = await Directory.systemTemp.createTemp(
+        'utilivo-download-test-',
+      );
+      addTearDown(() async {
+        if (await tmpDir.exists()) {
+          await tmpDir.delete(recursive: true);
+        }
+      });
+
+      final store = _InMemoryDownloadedToolBundleStore();
+      final bundleBytes = _buildBundleArchiveBytes(
+        pluginSlug: 'tool-premium',
+        pluginName: 'Tool Premium',
+        version: '1.0.0',
+      );
+      final service = ToolBundleDownloadService(
+        dio: Dio(),
+        store: store,
+        baseDirectoryProvider: () async => tmpDir,
+        downloadFile:
+            (
+              Uri uri,
+              String savePath,
+              void Function(int received, int total)? onReceiveProgress,
+            ) async {
+              await File(savePath).writeAsBytes(bundleBytes, flush: true);
+            },
+      );
+
+      await expectLater(
+        () => service.downloadBundle(
+          pluginSlug: 'tool-premium',
+          grant: const PluginDownloadGrant(
+            url: 'https://example.test/bundle',
+            version: '1.0.0',
+            tier: 'premium',
+          ),
+        ),
+        throwsA(isA<ToolBundleFormatException>()),
+      );
+    },
+  );
+
   test('verifyBundleIntegrity detects tampered bundle archive', () async {
     final tmpDir = await Directory.systemTemp.createTemp(
       'utilivo-download-test-',

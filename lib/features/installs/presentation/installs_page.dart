@@ -15,6 +15,7 @@ import '../../../core/networking/network_exception.dart';
 import '../../../shared/widgets/app_buttons.dart';
 import '../../../shared/widgets/app_skeletons.dart';
 import '../../../shared/widgets/app_state_views.dart';
+import '../../discover/data/models/catalog_models.dart';
 import '../../downloads/application/tool_bundle_download_service.dart';
 import '../../downloads/data/download_api.dart';
 import '../application/folder_quota_exception.dart';
@@ -270,7 +271,7 @@ class _InstallsPageState extends State<InstallsPage> {
       child: Scaffold(
         appBar: AppBar(
           title: SvgPicture.asset(
-            'assets/header.svg',
+            'assets/wordmark.svg',
             height: 24,
             fit: BoxFit.contain,
             semanticsLabel: widget.appName,
@@ -351,10 +352,12 @@ class _InstallsPageState extends State<InstallsPage> {
       return CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: <Widget>[
-          const SliverPadding(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 24),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             sliver: SliverToBoxAdapter(
-              child: AppCardSkeletonList(items: 5, lines: 2),
+              child: AppHomeToolGridSkeleton(
+                cells: MediaQuery.sizeOf(context).width >= 600 ? 12 : 9,
+              ),
             ),
           ),
         ],
@@ -633,7 +636,7 @@ class _InstallsPageState extends State<InstallsPage> {
     );
     try {
       String? assertionToken;
-      final isPro = install.pricingTier == 'pro';
+      final isPro = CatalogPlugin.tierIsPro(install.pricingTier ?? '');
       if (isPro) {
         assertionToken = widget.entitlementController.activeAssertionToken;
         if (assertionToken == null || assertionToken.trim().isEmpty) {
@@ -1127,7 +1130,7 @@ class _FolderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconSize = 28.0;
+    const iconSize = 28.0;
     final color = FolderUiCatalog.colorFor(folder.colorKey);
     final titleStyle = Theme.of(
       context,
