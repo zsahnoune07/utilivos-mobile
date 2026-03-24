@@ -13,6 +13,7 @@ import 'folder_quota_exception.dart';
 import '../../downloads/application/tool_bundle_download_service.dart';
 import '../../downloads/data/models/downloaded_tool_bundle.dart';
 import '../data/installed_tools_store.dart';
+import '../data/installs_sync_meta_store.dart';
 import '../data/installs_organization_store.dart';
 import '../data/installs_api.dart';
 import '../data/models/install_models.dart';
@@ -26,6 +27,7 @@ class InstalledToolsController extends ChangeNotifier {
     required CatalogApi catalogApi,
     required InstalledToolsStore store,
     required InstallsOrganizationStore organizationStore,
+    InstallsSyncMetaStore? syncMetaStore,
     ToolBundleDownloadService? toolBundleDownloadService,
     PinningPolicy pinningPolicy = const UnlimitedPinningPolicy(),
     FolderCreationPolicy folderCreationPolicy =
@@ -34,6 +36,7 @@ class InstalledToolsController extends ChangeNotifier {
        _catalogApi = catalogApi,
        _store = store,
        _organizationStore = organizationStore,
+       _syncMetaStore = syncMetaStore ?? const NoopInstallsSyncMetaStore(),
        _toolBundleDownloadService = toolBundleDownloadService,
        _pinningPolicy = pinningPolicy,
        _folderCreationPolicy = folderCreationPolicy;
@@ -46,15 +49,19 @@ class InstalledToolsController extends ChangeNotifier {
   final CatalogApi _catalogApi;
   final InstalledToolsStore _store;
   final InstallsOrganizationStore _organizationStore;
+  final InstallsSyncMetaStore _syncMetaStore;
   final ToolBundleDownloadService? _toolBundleDownloadService;
   final PinningPolicy _pinningPolicy;
   final FolderCreationPolicy _folderCreationPolicy;
+
+  bool _disposed = false;
 
   bool _bootstrapStarted = false;
   InstalledToolsState _state = InstalledToolsState.initializing;
   List<DeviceInstallRecord> _installedTools = const <DeviceInstallRecord>[];
   bool _isSyncing = false;
   bool _isCheckingUpdates = false;
+  bool _isFirstRunOffline = false;
   String? _statusMessage;
   String? _errorMessage;
   DateTime? _lastSyncedAt;
@@ -64,6 +71,7 @@ class InstalledToolsController extends ChangeNotifier {
   InstalledToolsState get state => _state;
   bool get isSyncing => _isSyncing;
   bool get isCheckingUpdates => _isCheckingUpdates;
+  bool get isFirstRunOffline => _isFirstRunOffline;
   bool get isBusy => _isSyncing || _isCheckingUpdates;
   String? get statusMessage => _statusMessage;
   String? get errorMessage => _errorMessage;
@@ -74,6 +82,19 @@ class InstalledToolsController extends ChangeNotifier {
   List<ToolFolder> get folders => _sortedFolders(_folders);
 
   List<DeviceInstallRecord> get installedTools => _sortedTools(_installedTools);
+
+  void _notify() {
+    if (_disposed) {
+      return;
+    }
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 
   HomeGroupedInstalls get groupedHomeData {
     final pinnedTools = _sortByMode(
@@ -134,11 +155,13 @@ class InstalledToolsController extends ChangeNotifier {
     _state = InstalledToolsState.initializing;
     _statusMessage = null;
     _errorMessage = null;
-    notifyListeners();
+    _isFirstRunOffline = false;
+    _notify();
 
     try {
       final organization = await _organizationStore.read();
       final cached = await _store.read();
+      _lastSyncedAt = await _syncMetaStore.readLastSyncedAt();
       final hydrated = await _hydrateLocalBundleMetadata(cached);
       _folders = organization.folders;
       _homeSortMode = organization.homeSortMode;
@@ -161,12 +184,12 @@ class InstalledToolsController extends ChangeNotifier {
       _homeSortMode = HomeSortMode.defaultManual;
       _state = InstalledToolsState.failed;
       _errorMessage = 'Failed to load installed tools cache: $error';
-      notifyListeners();
+      _notify();
       return;
     }
 
-    notifyListeners();
-    unawaited(syncFromRepository());
+    _notify();
+    unawaited(syncFromRepository(trigger: 'launch'));
   }
 
   Future<void> retryBootstrap() async {
@@ -174,37 +197,73 @@ class InstalledToolsController extends ChangeNotifier {
     await bootstrap();
   }
 
-  Future<void> syncFromRepository() async {
+  Future<void> syncFromRepository({String trigger = 'manual'}) async {
     if (_isSyncing) {
       return;
     }
 
+    developer.log(
+      'Starting installed-tools sync.',
+      name: 'InstalledToolsController',
+      error: 'trigger=$trigger localCount=${_installedTools.length}',
+    );
     _isSyncing = true;
     _errorMessage = null;
-    notifyListeners();
+    _isFirstRunOffline = false;
+    _notify();
 
     try {
       final remoteInstalls = await _installsApi.listInstalls();
+      final slugsBeforeSync = <String>{
+        for (final t in _installedTools) t.pluginSlug,
+      };
       _installedTools = _mergeRemoteWithCached(remoteInstalls, _installedTools);
-      _installedTools = await _hydrateCatalogMetadata(_installedTools);
+      final newRemoteSlugs = <String>{
+        for (final t in _installedTools)
+          if (!slugsBeforeSync.contains(t.pluginSlug)) t.pluginSlug,
+      };
+      _installedTools = await _hydrateCatalogMetadata(
+        _installedTools,
+        forceRefreshSlugs: newRemoteSlugs,
+      );
       final hydrated = await _hydrateLocalBundleMetadata(_installedTools);
       _installedTools = _reconcileFolderAssignments(hydrated.installs);
       _lastSyncedAt = DateTime.now().toUtc();
       _state = InstalledToolsState.ready;
+      _isFirstRunOffline = false;
       _statusMessage = remoteInstalls.isEmpty
           ? 'No installed tools found for this device yet.'
           : 'Installed tools synced from online repository.';
+      developer.log(
+        'Installed-tools sync succeeded.',
+        name: 'InstalledToolsController',
+        error:
+            'trigger=$trigger remoteCount=${remoteInstalls.length} localCount=${_installedTools.length}',
+      );
       await _persistState();
-      notifyListeners();
+      await _syncMetaStore.writeLastSyncedAt(_lastSyncedAt!);
+      _notify();
     } on NetworkException {
       if (_installedTools.isEmpty) {
         _state = InstalledToolsState.failed;
+        _isFirstRunOffline = true;
         _errorMessage =
             'Could not reach online repository to load installed tools.';
+        developer.log(
+          'Installed-tools sync failed with offline first-run state.',
+          name: 'InstalledToolsController',
+          error: 'trigger=$trigger',
+        );
       } else {
         _state = InstalledToolsState.ready;
+        _isFirstRunOffline = false;
         _statusMessage =
             'Offline mode: showing installed tools from local cache.';
+        developer.log(
+          'Installed-tools sync offline fallback used.',
+          name: 'InstalledToolsController',
+          error: 'trigger=$trigger localCount=${_installedTools.length}',
+        );
       }
     } catch (error) {
       developer.log(
@@ -214,26 +273,28 @@ class InstalledToolsController extends ChangeNotifier {
       );
       if (_installedTools.isEmpty) {
         _state = InstalledToolsState.failed;
+        _isFirstRunOffline = false;
         _errorMessage = 'Unexpected installed-tools sync error: $error';
       } else {
         _state = InstalledToolsState.ready;
+        _isFirstRunOffline = false;
         _statusMessage =
             'Unable to refresh right now. Showing cached installed tools.';
       }
     } finally {
       _isSyncing = false;
-      notifyListeners();
+      _notify();
     }
     unawaited(checkForUpdates());
   }
 
   Future<void> checkForUpdates() async {
-    if (_isCheckingUpdates || _installedTools.isEmpty) {
+    if (_disposed || _isCheckingUpdates || _installedTools.isEmpty) {
       return;
     }
 
     _isCheckingUpdates = true;
-    notifyListeners();
+    _notify();
 
     try {
       final now = DateTime.now().toUtc();
@@ -251,7 +312,7 @@ class InstalledToolsController extends ChangeNotifier {
       await _store.write(_installedTools);
     } finally {
       _isCheckingUpdates = false;
-      notifyListeners();
+      _notify();
     }
   }
 
@@ -266,7 +327,7 @@ class InstalledToolsController extends ChangeNotifier {
         ? 'No installed tools.'
         : 'Tool removed from this device.';
     await _persistState();
-    notifyListeners();
+    _notify();
     try {
       await _toolBundleDownloadService?.deleteBundle(install.pluginSlug);
     } catch (_) {
@@ -295,7 +356,7 @@ class InstalledToolsController extends ChangeNotifier {
         })
         .toList(growable: false);
     await _persistState();
-    notifyListeners();
+    _notify();
     return true;
   }
 
@@ -341,7 +402,7 @@ class InstalledToolsController extends ChangeNotifier {
     _statusMessage = 'Installed tools updated locally.';
     _installedTools = _reconcileFolderAssignments(_installedTools);
     await _persistState();
-    notifyListeners();
+    _notify();
 
     unawaited(checkForUpdates());
   }
@@ -350,18 +411,16 @@ class InstalledToolsController extends ChangeNotifier {
     List<DeviceInstallRecord> remoteInstalls,
     List<DeviceInstallRecord> cachedInstalls,
   ) {
-    if (cachedInstalls.isEmpty) {
-      return remoteInstalls;
-    }
-
-    final remoteBySlug = <String, DeviceInstallRecord>{
-      for (final install in remoteInstalls) install.pluginSlug: install,
+    final cachedBySlug = <String, DeviceInstallRecord>{
+      for (final install in cachedInstalls) install.pluginSlug: install,
     };
-
+    final mergedSlugs = <String>{};
     final merged = <DeviceInstallRecord>[];
-    for (final cached in cachedInstalls) {
-      final remote = remoteBySlug[cached.pluginSlug];
-      if (remote != null) {
+
+    for (final remote in remoteInstalls) {
+      final slug = remote.pluginSlug;
+      final cached = cachedBySlug[slug];
+      if (cached != null) {
         merged.add(
           remote.copyWith(
             latestAvailableVersion: cached.latestAvailableVersion,
@@ -376,27 +435,43 @@ class InstalledToolsController extends ChangeNotifier {
             cardAccentColor: cached.cardAccentColor ?? remote.cardAccentColor,
             pricingTier: cached.pricingTier ?? remote.pricingTier,
             pinned: cached.pinned,
+            folderId: cached.folderId,
+            lastLaunchedAt: cached.lastLaunchedAt,
           ),
         );
       } else {
-        merged.add(cached);
+        merged.add(remote);
       }
+      mergedSlugs.add(slug);
+    }
+
+    for (final cached in cachedInstalls) {
+      if (mergedSlugs.contains(cached.pluginSlug)) {
+        continue;
+      }
+      merged.add(cached);
     }
 
     return merged;
   }
 
   Future<List<DeviceInstallRecord>> _hydrateCatalogMetadata(
-    List<DeviceInstallRecord> installs,
-  ) async {
+    List<DeviceInstallRecord> installs, {
+    Set<String> forceRefreshSlugs = const <String>{},
+  }) async {
     final updatedInstalls = <DeviceInstallRecord>[];
     for (final install in installs) {
-      if (!_needsCatalogMetadata(install)) {
+      final forceRefresh = forceRefreshSlugs.contains(install.pluginSlug);
+      final shouldFetch = forceRefresh || _needsCatalogMetadata(install);
+      if (!shouldFetch) {
         updatedInstalls.add(install);
         continue;
       }
       try {
-        final plugin = await _catalogApi.getPluginBySlug(install.pluginSlug);
+        final plugin = await _catalogApi.getPluginBySlug(
+          install.pluginSlug,
+          forceRefresh: forceRefresh,
+        );
         updatedInstalls.add(
           install.copyWith(
             pluginName: plugin.name,
@@ -560,7 +635,7 @@ class InstalledToolsController extends ChangeNotifier {
     _statusMessage = 'Added $count test tools.';
     _installedTools = _reconcileFolderAssignments(_installedTools);
     await _persistState();
-    notifyListeners();
+    _notify();
   }
 
   Future<void> setHomeSortMode(HomeSortMode mode) async {
@@ -569,7 +644,7 @@ class InstalledToolsController extends ChangeNotifier {
     }
     _homeSortMode = mode;
     await _persistState();
-    notifyListeners();
+    _notify();
   }
 
   ToolFolder? folderById(String folderId) {
@@ -651,7 +726,7 @@ class InstalledToolsController extends ChangeNotifier {
     );
     _folders = <ToolFolder>[..._folders, folder];
     await _persistState();
-    notifyListeners();
+    _notify();
     return folder;
   }
 
@@ -693,7 +768,7 @@ class InstalledToolsController extends ChangeNotifier {
         })
         .toList(growable: false);
     await _persistState();
-    notifyListeners();
+    _notify();
   }
 
   Future<void> deleteFolder(String folderId) async {
@@ -709,7 +784,7 @@ class InstalledToolsController extends ChangeNotifier {
         })
         .toList(growable: false);
     await _persistState();
-    notifyListeners();
+    _notify();
   }
 
   Future<void> assignToolToFolder({
@@ -728,7 +803,7 @@ class InstalledToolsController extends ChangeNotifier {
         })
         .toList(growable: false);
     await _persistState();
-    notifyListeners();
+    _notify();
   }
 
   Future<void> removeToolFromFolder({required String pluginSlug}) async {
@@ -741,7 +816,7 @@ class InstalledToolsController extends ChangeNotifier {
         })
         .toList(growable: false);
     await _persistState();
-    notifyListeners();
+    _notify();
   }
 
   Future<void> markToolLaunched(String pluginSlug) async {
@@ -760,7 +835,7 @@ class InstalledToolsController extends ChangeNotifier {
       return;
     }
     await _persistState();
-    notifyListeners();
+    _notify();
   }
 
   List<ToolFolder> _sortedFolders(List<ToolFolder> folders) {

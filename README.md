@@ -1,6 +1,6 @@
 # utilivo-mobile
 
-Flutter client for the Utilivo marketplace.
+Flutter client for the Utilivo marketplace. **Ships for Android and iOS only** (not web or desktop).
 
 ## Product Scope (Current)
 
@@ -18,7 +18,7 @@ Implemented product behavior:
   - Browse
   - Settings
 - Home installed-tools integration:
-  - secure offline cache of installed tools
+  - local Drift/SQLite persistence for installed tools
   - `GET /v1/installs` sync when online
   - update checks with `GET /v1/plugins/:slug/versions`
   - tap installed tool card to launch directly
@@ -47,12 +47,12 @@ Implemented product behavior:
   - downloaded bundle metadata persistence (archive path/hash/version + manifest/entry paths)
 - Plugin runtime integration:
   - dedicated runtime route: `/runtime/:slug`
-  - local web container via `webview_flutter`
+  - in-app WebView (`webview_flutter`) for plugin UI
   - runtime loads plugin `manifest.json` entry file from extracted bundle
   - install flow prepares runtime bundle and auto-launches when ready
   - runtime launch is local/offline once bundle is prepared (no network call required to run)
 - Pro purchase and entitlement integration:
-  - Google Play billing gateway integration via `in_app_purchase`
+  - store billing (Google Play / App Store) via `in_app_purchase`
   - upgrade flow (one-time SKU by default)
   - restore purchases flow
   - server verification via `POST /v1/entitlements/verify`
@@ -70,13 +70,14 @@ Implemented product behavior:
 
 - Routing: `go_router` (implemented)
 - HTTP: `dio` (implemented)
-- Secure storage: `flutter_secure_storage` (implemented)
+- Secure storage: `flutter_secure_storage` for tokens/secrets (implemented)
+- Local data: Drift/SQLite for catalog cache, installed tools list, and sync metadata (implemented)
 - Anonymous device identity: secure-store + `X-Device-ID` header interceptor (implemented)
 - Billing: `in_app_purchase` (implemented)
 - Local entitlement persistence: secure-store backed controller (implemented)
-- Local catalog cache: secure-store backed TTL/stale fallback (implemented)
+- Local catalog cache: Drift-backed TTL/stale fallback (implemented)
 - Image caching: `cached_network_image` with skeleton placeholders (implemented)
-- State management: currently `ChangeNotifier` + local widget state; Riverpod adoption remains planned
+- State management: `ChangeNotifier` for feature controllers; `flutter_riverpod` for app-wide dependencies and install streams
 
 ## Development
 
@@ -129,7 +130,7 @@ CI (`.github/workflows/mobile.yml`) enforces:
 
 ## Performance Profiling
 
-Use profile mode on an Android test device:
+Use profile mode on a physical Android or iOS device:
 
 ```bash
 flutter run --profile --dart-define=API_BASE_URL=http://10.0.2.2:8080

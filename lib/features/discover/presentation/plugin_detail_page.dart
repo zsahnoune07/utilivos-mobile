@@ -106,7 +106,10 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
     });
 
     try {
-      final pluginFuture = widget.catalogApi.getPluginBySlug(widget.slug);
+      final pluginFuture = widget.catalogApi.getPluginBySlug(
+        widget.slug,
+        forceRefresh: true,
+      );
       final versionsFuture = widget.catalogApi.listPluginVersions(widget.slug);
       final results = await Future.wait<Object>(<Future<Object>>[
         pluginFuture,
@@ -478,8 +481,7 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
   Widget _buildContent(BuildContext context, CatalogPlugin plugin) {
     final latestVersion = _versions.isEmpty ? null : _versions.first.version;
     final hasProAccess = widget.entitlementController.hasProAccess;
-    final hardProLock =
-        plugin.isPro && !hasProAccess && !plugin.proPreview;
+    final hardProLock = plugin.isPro && !hasProAccess && !plugin.proPreview;
     final previewInstallable =
         plugin.isPro && !hasProAccess && plugin.proPreview;
     final purchaseController = widget.proPurchaseController;
@@ -512,9 +514,8 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
                       Expanded(
                         child: Text(
                           plugin.name,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ),
                       if (plugin.isPro) ...<Widget>[
@@ -562,13 +563,13 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
             title: hasProAccess
                 ? 'Pro active'
                 : previewInstallable
-                    ? 'Pro tool · Preview install'
-                    : 'Pro required',
+                ? 'Pro tool · Preview install'
+                : 'Pro required',
             subtitle: hasProAccess
                 ? 'Full access to Pro tools and workflows.'
                 : previewInstallable
-                    ? 'Install and explore; upgrade for full output, exports, and saved sessions.'
-                    : 'Subscribe to install and unlock the full tool.',
+                ? 'Install and explore; upgrade for full output, exports, and saved sessions.'
+                : 'Subscribe to install and unlock the full tool.',
           ),
         ],
         const SizedBox(height: 16),
@@ -578,17 +579,16 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
               : (isInstalled ? 'Installed' : 'Install'),
           onPressed: hardProLock
               ? () => widget.paywallCoordinator.show(
-                    context,
-                    const PaywallRequest(
-                      trigger: PaywallTrigger.contextualFeature,
-                      triggerSource: 'plugin_detail_install',
-                      contextMessage:
-                          'Unlock full Pro tools, saved workflows, and unlimited organization.',
-                    ),
-                  )
+                  context,
+                  const PaywallRequest(
+                    trigger: PaywallTrigger.contextualFeature,
+                    triggerSource: 'plugin_detail_install',
+                    contextMessage:
+                        'Unlock full Pro tools, saved workflows, and unlimited organization.',
+                  ),
+                )
               : (isInstalled ? null : _trackInstall),
-          isLoading:
-              hardProLock ? false : _isInstalling,
+          isLoading: hardProLock ? false : _isInstalling,
         ),
         if (hardProLock) ...<Widget>[
           const SizedBox(height: 8),

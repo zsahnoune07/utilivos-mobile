@@ -679,7 +679,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     if (webViewController == null) {
       return const AppErrorView(
         title: 'Runtime not ready',
-        message: 'Web runtime is not initialized.',
+        message: 'The tool viewer is not initialized.',
       );
     }
 

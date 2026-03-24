@@ -401,10 +401,13 @@ class _InMemoryEntitlementStore implements EntitlementStore {
 
 class _InMemoryInstalledToolsStore implements InstalledToolsStore {
   List<DeviceInstallRecord> _value = const <DeviceInstallRecord>[];
+  final StreamController<List<DeviceInstallRecord>> _watch =
+      StreamController<List<DeviceInstallRecord>>.broadcast();
 
   @override
   Future<void> clear() async {
     _value = const <DeviceInstallRecord>[];
+    _watch.add(List<DeviceInstallRecord>.unmodifiable(_value));
   }
 
   @override
@@ -415,6 +418,13 @@ class _InMemoryInstalledToolsStore implements InstalledToolsStore {
   @override
   Future<void> write(List<DeviceInstallRecord> installs) async {
     _value = installs;
+    _watch.add(List<DeviceInstallRecord>.unmodifiable(_value));
+  }
+
+  @override
+  Stream<List<DeviceInstallRecord>> watch() async* {
+    yield List<DeviceInstallRecord>.unmodifiable(_value);
+    yield* _watch.stream;
   }
 }
 

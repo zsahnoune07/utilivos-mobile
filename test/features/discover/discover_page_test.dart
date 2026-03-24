@@ -450,6 +450,8 @@ class _InMemoryInstalledToolsStore implements InstalledToolsStore {
     : _data = initial ?? <DeviceInstallRecord>[];
 
   List<DeviceInstallRecord> _data;
+  final StreamController<List<DeviceInstallRecord>> _watch =
+      StreamController<List<DeviceInstallRecord>>.broadcast();
 
   @override
   Future<List<DeviceInstallRecord>> read() async => _data;
@@ -457,11 +459,19 @@ class _InMemoryInstalledToolsStore implements InstalledToolsStore {
   @override
   Future<void> write(List<DeviceInstallRecord> installs) async {
     _data = installs;
+    _watch.add(List<DeviceInstallRecord>.unmodifiable(_data));
   }
 
   @override
   Future<void> clear() async {
     _data = <DeviceInstallRecord>[];
+    _watch.add(List<DeviceInstallRecord>.unmodifiable(_data));
+  }
+
+  @override
+  Stream<List<DeviceInstallRecord>> watch() async* {
+    yield List<DeviceInstallRecord>.unmodifiable(_data);
+    yield* _watch.stream;
   }
 }
 

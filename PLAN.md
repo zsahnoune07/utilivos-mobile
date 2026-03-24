@@ -2,7 +2,7 @@
 
 This plan is written so each phase can be delivered end-to-end with Codex. Milestones are concrete, testable, and sized for iterative shipping.
 
-Scope: utilivo-mobile is the Flutter client for the Utilivo marketplace. The app has no login, no account creation, and no user profile flows. Pro access is a global store entitlement (one-time or subscription) that unlocks the full Pro tool catalog.
+Scope: utilivo-mobile is the Flutter client for the Utilivo marketplace. **Release targets are Android and iOS only** (no web or desktop). The app has no login, no account creation, and no user profile flows. Pro access is a global store entitlement (one-time or subscription) that unlocks the full Pro tool catalog.
 
 ---
 
@@ -12,7 +12,7 @@ Observed structure includes:
 - `lib/app.dart`, `lib/main.dart`
 - `lib/core/theme/app_theme.dart`
 - `lib/features/home/presentation/home_page.dart`
-- Android, iOS, macOS, Windows, Linux, Web folders
+- `android/` and `ios/` host projects (mobile-only; no web or desktop folders)
 
 Goal: deliver a feature-based Flutter app with Home-first installed tools, online catalog browsing for new tools, Pro purchase gating, secure bundle downloads, offline resilience, and release readiness.
 
@@ -154,9 +154,9 @@ Suggested Codex prompt
 
 ## Phase 4: Purchase and entitlement
 
-### Milestone 4.1: Google Play Billing integration
+### Milestone 4.1: Store billing integration (Android / iOS)
 Tasks
-- Integrate `in_app_purchase` for Android billing.
+- Integrate `in_app_purchase` for Google Play and App Store billing.
 - Configure Pro product IDs:
   - one-time purchase SKU (MVP default)
   - optional subscription SKU placeholder (extension)
@@ -164,7 +164,7 @@ Tasks
 - Build `Restore purchases` flow.
 
 Acceptance
-- Test purchase path works in sandbox.
+- Test purchase path works in sandbox (Play / App Store).
 - Restore path can recover previously purchased Pro.
 
 ### Milestone 4.2: Local entitlement persistence and UI gating
@@ -178,7 +178,7 @@ Acceptance
 - Successful purchase updates UI without requiring app restart.
 
 Suggested Codex prompt
-"Implement Phase 4 for utilivo-mobile: integrate Google Play Billing with Go Pro and Restore flows, persist entitlement state in secure storage, and gate Pro tool UI until entitlement is active."
+"Implement Phase 4 for utilivo-mobile: integrate store billing (Google Play and App Store) with Go Pro and Restore flows, persist entitlement state in secure storage, and gate Pro tool UI until entitlement is active."
 
 ---
 
@@ -245,7 +245,7 @@ Tasks
   - `/runtime/:slug`
 - Extract downloaded `.utilivo.zip` bundles locally.
 - Parse `manifest.json` and resolve local `entry` file path.
-- Launch plugin UI inside an in-app web container from local files.
+- Launch plugin UI inside an in-app WebView from local files.
 - Add run CTA from Home installed-tools cards.
 - After install succeeds, prepare runtime bundle and auto-launch when ready.
 

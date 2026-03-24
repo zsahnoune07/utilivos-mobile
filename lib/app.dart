@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/bootstrap/app_bootstrap_controller.dart';
 import 'core/di/app_dependencies.dart';
+import 'core/persistence/app_database.dart';
+import 'core/riverpod/app_providers.dart';
 import 'core/navigation/app_router.dart';
 import 'core/navigation/app_routes.dart';
 import 'core/navigation/deep_link_parser.dart';
@@ -19,15 +22,21 @@ class UtilivoApp extends StatefulWidget {
     super.key,
     this.dependencies,
     this.freeTierUsageStore,
+    this.appDatabase,
     this.initialLocation,
     this.initialDeepLinkRoute,
   }) : assert(
-          dependencies != null || freeTierUsageStore != null,
-          'Provide dependencies or freeTierUsageStore',
-        );
+         dependencies != null ||
+             (freeTierUsageStore != null && appDatabase != null),
+         'Provide dependencies or (freeTierUsageStore and appDatabase)',
+       );
 
   final AppDependencies? dependencies;
   final FreeTierUsageStore? freeTierUsageStore;
+
+  /// Drift database for catalog, installs, and sync metadata (required with [freeTierUsageStore]).
+  final AppDatabase? appDatabase;
+
   final String? initialLocation;
   final String? initialDeepLinkRoute;
 
@@ -36,9 +45,11 @@ class UtilivoApp extends StatefulWidget {
 }
 
 class _UtilivoAppState extends State<UtilivoApp> {
-  late final AppDependencies _dependencies = widget.dependencies ??
+  late final AppDependencies _dependencies =
+      widget.dependencies ??
       AppDependencies.create(
         freeTierUsageStore: widget.freeTierUsageStore!,
+        appDatabase: widget.appDatabase,
       );
   late final bool _ownsDependencies = widget.dependencies == null;
   late final AppBootstrapController _bootstrapController =
@@ -53,6 +64,7 @@ class _UtilivoAppState extends State<UtilivoApp> {
   );
 
   StreamSubscription<Uri>? _appLinkSubscription;
+  DateTime? _lastResumeSyncAt;
 
   String _resolveInitialRouterLocation() {
     if (widget.initialLocation != null) {
@@ -90,9 +102,23 @@ class _UtilivoAppState extends State<UtilivoApp> {
   }
 
   late final WidgetsBindingObserver _lifecycleObserver =
-      _UtilivoLifecycleObserver(
-        onResumed: () => _dependencies.entitlementController.onAppResumed(),
-      );
+      _UtilivoLifecycleObserver(onResumed: _onAppResumed);
+
+  void _onAppResumed() {
+    _dependencies.entitlementController.onAppResumed();
+    final now = DateTime.now().toUtc();
+    final lastSyncAt = _lastResumeSyncAt;
+    if (lastSyncAt != null &&
+        now.difference(lastSyncAt) < const Duration(seconds: 45)) {
+      return;
+    }
+    _lastResumeSyncAt = now;
+    unawaited(
+      _dependencies.installedToolsController.syncFromRepository(
+        trigger: 'resume',
+      ),
+    );
+  }
 
   Future<void> _seedLocalToolBundleIfConfigured() async {
     final localBundlePath = _dependencies.config.localToolBundlePath;
@@ -153,7 +179,7 @@ class _UtilivoAppState extends State<UtilivoApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
+    final Widget app = MaterialApp.router(
       title: _dependencies.config.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
@@ -166,6 +192,12 @@ class _UtilivoAppState extends State<UtilivoApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const <Locale>[Locale('en')],
+    );
+    return ProviderScope(
+      overrides: <Override>[
+        appDependenciesProvider.overrideWithValue(_dependencies),
+      ],
+      child: app,
     );
   }
 }

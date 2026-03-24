@@ -10,6 +10,7 @@ import '../entitlement/entitlement_store.dart';
 import '../entitlement/entitlement_verification_api.dart';
 import '../entitlement/secure_entitlement_store.dart';
 import '../config/app_config.dart';
+import '../persistence/app_database.dart';
 import '../networking/api_client.dart';
 import '../networking/interceptors/device_id_interceptor.dart';
 import '../networking/interceptors/request_id_interceptor.dart';
@@ -23,16 +24,18 @@ import '../pro/pro_purchase_controller.dart';
 import '../pro/tool_session_store.dart';
 import '../../features/discover/data/catalog_api.dart';
 import '../../features/discover/data/catalog_cache_store.dart';
-import '../../features/discover/data/secure_catalog_cache_store.dart';
+import '../../features/discover/data/drift_catalog_cache_store.dart';
 import '../../features/downloads/application/tool_bundle_download_service.dart';
 import '../../features/downloads/data/download_api.dart';
 import '../../features/downloads/data/downloaded_tool_bundle_store.dart';
 import '../../features/home/data/health_api.dart';
 import '../../features/installs/application/installed_tools_controller.dart';
+import '../../features/installs/data/drift_installed_tools_store.dart';
 import '../../features/installs/data/installed_tools_store.dart';
+import '../../features/installs/data/drift_installs_sync_meta_store.dart';
 import '../../features/installs/data/installs_api.dart';
 import '../../features/installs/data/installs_organization_store.dart';
-import '../../features/installs/data/secure_installed_tools_store.dart';
+import '../../features/installs/data/installs_sync_meta_store.dart';
 import '../../features/installs/data/secure_installs_organization_store.dart';
 import '../../features/downloads/data/secure_downloaded_tool_bundle_store.dart';
 
@@ -50,11 +53,13 @@ class AppDependencies {
     required this.paywallCoordinator,
     required this.toolSessionStore,
     required this.installedToolsController,
+    required this.installedToolsStore,
     required this.healthApi,
     required this.catalogApi,
     required this.downloadApi,
     required this.toolBundleDownloadService,
     required this.installsApi,
+    required this.appDatabase,
   });
 
   final AppConfig config;
@@ -69,17 +74,23 @@ class AppDependencies {
   final PaywallCoordinator paywallCoordinator;
   final ToolSessionStore toolSessionStore;
   final InstalledToolsController installedToolsController;
+  final InstalledToolsStore installedToolsStore;
   final HealthApi healthApi;
   final CatalogApi catalogApi;
   final DownloadApi downloadApi;
   final ToolBundleDownloadService toolBundleDownloadService;
   final InstallsApi installsApi;
 
+  /// Drift database (persistent on device; tests may inject [AppDatabase.memory]). [dispose] closes it.
+  final AppDatabase appDatabase;
+
   factory AppDependencies.create({
     AppConfig? config,
     DeviceIdStore? deviceIdStore,
     EntitlementStore? entitlementStore,
     CatalogCacheStore? catalogCacheStore,
+    AppDatabase? appDatabase,
+    InstallsSyncMetaStore? installsSyncMetaStore,
     InstalledToolsStore? installedToolsStore,
     InstallsOrganizationStore? installsOrganizationStore,
     DownloadedToolBundleStore? downloadedToolBundleStore,
@@ -145,8 +156,9 @@ class AppDependencies {
     );
 
     final healthApi = HealthApi(apiClient);
-    final resolvedCatalogCacheStore =
-        catalogCacheStore ?? SecureCatalogCacheStore();
+    final AppDatabase resolvedDb = appDatabase ?? AppDatabase.memory();
+    final CatalogCacheStore resolvedCatalogCacheStore =
+        catalogCacheStore ?? DriftCatalogCacheStore(resolvedDb);
     final catalogApi = CatalogApi(
       apiClient,
       cacheStore: resolvedCatalogCacheStore,
@@ -159,15 +171,18 @@ class AppDependencies {
       store: resolvedDownloadedToolBundleStore,
     );
     final installsApi = InstallsApi(apiClient);
-    final resolvedInstalledToolsStore =
-        installedToolsStore ?? SecureInstalledToolsStore();
+    final InstalledToolsStore resolvedInstalledToolsStore =
+        installedToolsStore ?? DriftInstalledToolsStore(resolvedDb);
     final resolvedInstallsOrganizationStore =
         installsOrganizationStore ?? SecureInstallsOrganizationStore();
+    final InstallsSyncMetaStore resolvedInstallsSyncMetaStore =
+        installsSyncMetaStore ?? DriftInstallsSyncMetaStore(resolvedDb);
     final installedToolsController = InstalledToolsController(
       installsApi: installsApi,
       catalogApi: catalogApi,
       store: resolvedInstalledToolsStore,
       organizationStore: resolvedInstallsOrganizationStore,
+      syncMetaStore: resolvedInstallsSyncMetaStore,
       toolBundleDownloadService: toolBundleDownloadService,
       pinningPolicy: FreemiumPinningPolicy(entitlementController),
       folderCreationPolicy: FreemiumFolderCreationPolicy(entitlementController),
@@ -186,11 +201,13 @@ class AppDependencies {
       paywallCoordinator: paywallCoordinator,
       toolSessionStore: toolSessionStore,
       installedToolsController: installedToolsController,
+      installedToolsStore: resolvedInstalledToolsStore,
       healthApi: healthApi,
       catalogApi: catalogApi,
       downloadApi: downloadApi,
       toolBundleDownloadService: toolBundleDownloadService,
       installsApi: installsApi,
+      appDatabase: resolvedDb,
     );
   }
 
@@ -200,5 +217,6 @@ class AppDependencies {
     proPurchaseController.dispose();
     entitlementController.dispose();
     dio.close(force: true);
+    appDatabase.close();
   }
 }

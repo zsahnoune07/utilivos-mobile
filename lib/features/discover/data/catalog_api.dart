@@ -43,10 +43,13 @@ class CatalogApi {
   final CatalogNowProvider _nowProvider;
   Future<void> _cacheWriteQueue = Future<void>.value();
 
-  Future<List<CatalogCategory>> listCategories() async {
+  Future<List<CatalogCategory>> listCategories({
+    bool forceRefresh = false,
+  }) async {
     final cachedSnapshot = await _readCacheSnapshot();
     final cachedCategories = cachedSnapshot.categories;
-    if (cachedCategories != null &&
+    if (!forceRefresh &&
+        cachedCategories != null &&
         _cachePolicy.isFresh(cachedCategories.cachedAt, now: _now())) {
       return cachedCategories.items;
     }
@@ -81,6 +84,7 @@ class CatalogApi {
     String? search,
     String? cursor,
     int limit = 20,
+    bool forceRefresh = false,
   }) async {
     final cacheKey = _pluginPageCacheKey(
       category: category,
@@ -90,7 +94,8 @@ class CatalogApi {
     );
     final cachedSnapshot = await _readCacheSnapshot();
     final cachedPage = cachedSnapshot.pluginPages[cacheKey];
-    if (cachedPage != null &&
+    if (!forceRefresh &&
+        cachedPage != null &&
         _cachePolicy.isFresh(cachedPage.cachedAt, now: _now())) {
       return CursorPage<CatalogPlugin>(
         items: cachedPage.items,
@@ -117,12 +122,30 @@ class CatalogApi {
         final updatedPages = Map<String, CachedPluginPage>.from(
           snapshot.pluginPages,
         );
+        final now = _now();
         updatedPages[cacheKey] = CachedPluginPage(
           items: page.items,
           nextCursor: page.nextCursor,
-          cachedAt: _now(),
+          cachedAt: now,
         );
-        return snapshot.copyWith(pluginPages: updatedPages);
+        final updatedDetails = Map<String, CachedPluginDetail>.from(
+          snapshot.pluginDetails,
+        );
+        for (final plugin in page.items) {
+          final key = plugin.slug.trim().toLowerCase();
+          if (key.isEmpty) {
+            continue;
+          }
+          final previous = updatedDetails[key]?.plugin;
+          updatedDetails[key] = CachedPluginDetail(
+            plugin: _mergeListRowIntoCachedDetail(plugin, previous),
+            cachedAt: now,
+          );
+        }
+        return snapshot.copyWith(
+          pluginPages: updatedPages,
+          pluginDetails: updatedDetails,
+        );
       });
       return page;
     } on NetworkException catch (error) {
@@ -141,7 +164,10 @@ class CatalogApi {
     }
   }
 
-  Future<CatalogPlugin> getPluginBySlug(String slug) async {
+  Future<CatalogPlugin> getPluginBySlug(
+    String slug, {
+    bool forceRefresh = false,
+  }) async {
     final rawSlug = slug.trim();
     if (rawSlug.isEmpty) {
       throw const NetworkException(
@@ -152,7 +178,8 @@ class CatalogApi {
     final normalizedSlug = rawSlug.toLowerCase();
     final cachedSnapshot = await _readCacheSnapshot();
     final cachedPlugin = cachedSnapshot.pluginDetails[normalizedSlug];
-    if (cachedPlugin != null &&
+    if (!forceRefresh &&
+        cachedPlugin != null &&
         _cachePolicy.isFresh(cachedPlugin.cachedAt, now: _now())) {
       return cachedPlugin.plugin;
     }
@@ -323,6 +350,31 @@ class CatalogApi {
   }
 
   DateTime _now() => _nowProvider().toUtc();
+
+  /// Merges a list-row [incoming] into any existing detail cache so we do not
+  /// drop fields that the list endpoint omits (e.g. long description).
+  CatalogPlugin _mergeListRowIntoCachedDetail(
+    CatalogPlugin incoming,
+    CatalogPlugin? previous,
+  ) {
+    if (previous == null) {
+      return incoming;
+    }
+    return CatalogPlugin(
+      id: incoming.id,
+      slug: incoming.slug,
+      name: incoming.name,
+      categorySlug: incoming.categorySlug,
+      categoryName: incoming.categoryName,
+      pricingType: incoming.pricingType,
+      shortDescription: incoming.shortDescription ?? previous.shortDescription,
+      longDescription: incoming.longDescription ?? previous.longDescription,
+      currentVersionId: incoming.currentVersionId ?? previous.currentVersionId,
+      thumbnailUrl: incoming.thumbnailUrl ?? previous.thumbnailUrl,
+      categoryColor: incoming.categoryColor ?? previous.categoryColor,
+      proPreview: incoming.proPreview || previous.proPreview,
+    );
+  }
 
   String _pluginPageCacheKey({
     String? category,

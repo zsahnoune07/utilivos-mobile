@@ -304,7 +304,8 @@ class _InstallsPageState extends State<InstallsPage> {
                 children: <Widget>[
                   Positioned.fill(
                     child: RefreshIndicator(
-                      onRefresh: controller.syncFromRepository,
+                      onRefresh: () =>
+                          controller.syncFromRepository(trigger: 'pull'),
                       child: _buildBody(
                         context,
                         controller,
@@ -365,6 +366,46 @@ class _InstallsPageState extends State<InstallsPage> {
     }
 
     if (viewState == AppViewState.error) {
+      if (controller.isFirstRunOffline) {
+        return CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: <Widget>[
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const AppEmptyView(
+                        title: 'No tools installed',
+                        message:
+                            'You need an internet connection to install tools',
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Once installed, tools work offline',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      AppPrimaryButton(
+                        label: 'Retry',
+                        onPressed: () =>
+                            controller.syncFromRepository(trigger: 'retry'),
+                        expand: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      }
       return CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: <Widget>[
@@ -458,6 +499,15 @@ class _InstallsPageState extends State<InstallsPage> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
       children: <Widget>[
+        if (controller.isSyncing) ...<Widget>[
+          Text(
+            'Updating tools...',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         _HomeHeaderRow(
           selectedSortMode: controller.homeSortMode,
           onSortSelected: (mode) async {
@@ -803,8 +853,8 @@ class _InstallsPageState extends State<InstallsPage> {
       folder: folder,
       validateFolderName: (name) =>
           controller.hasFolderWithName(name, excludeFolderId: folder?.id)
-              ? 'A folder with this name already exists.'
-              : null,
+          ? 'A folder with this name already exists.'
+          : null,
     );
     _dismissSearchFocus();
     if (result == null) {

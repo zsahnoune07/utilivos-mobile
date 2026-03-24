@@ -11,6 +11,7 @@ import 'package:utilivo_mobile/features/downloads/data/downloaded_tool_bundle_st
 import 'package:utilivo_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
 import 'package:utilivo_mobile/features/installs/application/installed_tools_controller.dart';
 import 'package:utilivo_mobile/features/installs/data/installed_tools_store.dart';
+import 'package:utilivo_mobile/features/installs/data/installs_sync_meta_store.dart';
 import 'package:utilivo_mobile/features/installs/data/installs_api.dart';
 import 'package:utilivo_mobile/features/installs/data/installs_organization_store.dart';
 import 'package:utilivo_mobile/features/installs/data/models/install_models.dart';
@@ -62,6 +63,117 @@ void main() {
       final tool = controller.installedTools.first;
       expect(tool.latestAvailableVersion, '1.1.0');
       expect(tool.updateAvailable, true);
+    },
+  );
+
+  test(
+    'sync adds installs that exist only on the server while preserving local fields',
+    () async {
+      final store = _InMemoryInstalledToolsStore(
+        initial: <DeviceInstallRecord>[
+          _installRecord(
+            version: '1.0.0',
+          ).copyWith(pinned: true, folderId: 'folder_1'),
+        ],
+      );
+      final syncMeta = _InMemoryInstallsSyncMetaStore();
+      final folderNow = DateTime.parse('2026-03-04T09:00:00Z').toUtc();
+      final organizationStore = _InMemoryInstallsOrganizationStore(
+        initial: InstallsOrganizationState(
+          folders: <ToolFolder>[
+            ToolFolder(
+              id: 'folder_1',
+              name: 'Test',
+              iconKey: 'folder',
+              colorKey: 'purple',
+              createdAt: folderNow,
+              updatedAt: folderNow,
+            ),
+          ],
+          homeSortMode: HomeSortMode.defaultManual,
+        ),
+      );
+      final controller = _createController(
+        store: store,
+        syncMetaStore: syncMeta,
+        organizationStore: organizationStore,
+        responder: (RequestOptions options) async {
+          if (options.path == '/v1/installs') {
+            return _jsonResponse(<String, dynamic>{
+              'data': <String, dynamic>{
+                'items': <Map<String, dynamic>>[
+                  _installJson(version: '1.0.0'),
+                  <String, dynamic>{
+                    'ID': 'install_2',
+                    'DeviceID': 'device_1',
+                    'PluginID': 'plugin_2',
+                    'PluginSlug': 'tool-beta',
+                    'InstalledVersionID': 'version_b1',
+                    'InstalledVersion': '1.0.0',
+                    'Source': 'marketplace',
+                    'InstalledAt': '2026-03-05T09:00:00Z',
+                    'UpdatedAt': '2026-03-05T09:00:00Z',
+                  },
+                ],
+              },
+            }, 200);
+          }
+          if (options.path == '/v1/plugins/tool-alpha') {
+            return _jsonResponse(<String, dynamic>{
+              'data': <String, dynamic>{
+                'id': 'plugin_1',
+                'slug': 'tool-alpha',
+                'name': 'Tool Alpha',
+                'category_slug': 'utilities',
+                'category_name': 'Utilities',
+                'pricing_type': 'free',
+              },
+            }, 200);
+          }
+          if (options.path == '/v1/plugins/tool-beta') {
+            return _jsonResponse(<String, dynamic>{
+              'data': <String, dynamic>{
+                'id': 'plugin_2',
+                'slug': 'tool-beta',
+                'name': 'Tool Beta',
+                'category_slug': 'utilities',
+                'category_name': 'Utilities',
+                'pricing_type': 'free',
+              },
+            }, 200);
+          }
+          if (options.path == '/v1/plugins/tool-alpha/versions' ||
+              options.path == '/v1/plugins/tool-beta/versions') {
+            return _jsonResponse(<String, dynamic>{
+              'data': <String, dynamic>{
+                'items': <Map<String, dynamic>>[
+                  <String, dynamic>{'ID': 'version_1', 'Version': '1.0.0'},
+                ],
+              },
+            }, 200);
+          }
+          return _jsonResponse(<String, dynamic>{
+            'error': <String, dynamic>{
+              'code': 'not_found',
+              'message': 'not found',
+            },
+          }, 404);
+        },
+      );
+
+      await controller.bootstrap();
+      await _waitForSettled(controller);
+
+      final slugs = controller.installedTools
+          .map((DeviceInstallRecord t) => t.pluginSlug)
+          .toSet();
+      expect(slugs, containsAll(<String>['tool-alpha', 'tool-beta']));
+      final alpha = controller.installedTools.firstWhere(
+        (DeviceInstallRecord t) => t.pluginSlug == 'tool-alpha',
+      );
+      expect(alpha.pinned, true);
+      expect(alpha.folderId, 'folder_1');
+      expect(syncMeta.lastWritten, isNotNull);
     },
   );
 
@@ -586,6 +698,7 @@ void main() {
 InstalledToolsController _createController({
   required InstalledToolsStore store,
   InstallsOrganizationStore? organizationStore,
+  InstallsSyncMetaStore? syncMetaStore,
   required Future<ResponseBody> Function(RequestOptions options) responder,
   ToolBundleDownloadService? toolBundleDownloadService,
 }) {
@@ -599,6 +712,7 @@ InstalledToolsController _createController({
     store: store,
     organizationStore:
         organizationStore ?? _InMemoryInstallsOrganizationStore(),
+    syncMetaStore: syncMetaStore,
     toolBundleDownloadService: toolBundleDownloadService,
   );
 }
@@ -650,15 +764,30 @@ ResponseBody _jsonResponse(Map<String, dynamic> body, int statusCode) {
   );
 }
 
+class _InMemoryInstallsSyncMetaStore implements InstallsSyncMetaStore {
+  DateTime? lastWritten;
+
+  @override
+  Future<DateTime?> readLastSyncedAt() async => lastWritten;
+
+  @override
+  Future<void> writeLastSyncedAt(DateTime at) async {
+    lastWritten = at;
+  }
+}
+
 class _InMemoryInstalledToolsStore implements InstalledToolsStore {
   _InMemoryInstalledToolsStore({List<DeviceInstallRecord>? initial})
     : _value = initial ?? const <DeviceInstallRecord>[];
 
   List<DeviceInstallRecord> _value;
+  final StreamController<List<DeviceInstallRecord>> _watch =
+      StreamController<List<DeviceInstallRecord>>.broadcast();
 
   @override
   Future<void> clear() async {
     _value = const <DeviceInstallRecord>[];
+    _watch.add(List<DeviceInstallRecord>.unmodifiable(_value));
   }
 
   @override
@@ -669,6 +798,13 @@ class _InMemoryInstalledToolsStore implements InstalledToolsStore {
   @override
   Future<void> write(List<DeviceInstallRecord> installs) async {
     _value = installs;
+    _watch.add(List<DeviceInstallRecord>.unmodifiable(_value));
+  }
+
+  @override
+  Stream<List<DeviceInstallRecord>> watch() async* {
+    yield List<DeviceInstallRecord>.unmodifiable(_value);
+    yield* _watch.stream;
   }
 }
 
