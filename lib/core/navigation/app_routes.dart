@@ -12,6 +12,7 @@ class AppRoutes {
   // Backward-compatible alias for older deep links.
   static const installs = '/installs';
   static const settings = '/settings';
+  static const widgetConfigure = '/widget-config';
 
   static String discoverPluginDetail(String slug) {
     return '$discoverPluginDetailPrefix/$slug';
@@ -21,6 +22,8 @@ class AppRoutes {
     String slug, {
     String? toolName,
     bool restoreSession = false,
+    String? widgetInstanceId,
+    String? sessionId,
   }) {
     final params = <String, String>{};
     if (toolName != null && toolName.trim().isNotEmpty) {
@@ -28,6 +31,14 @@ class AppRoutes {
     }
     if (restoreSession) {
       params['restore'] = '1';
+    }
+    final wid = widgetInstanceId?.trim();
+    if (wid != null && wid.isNotEmpty) {
+      params['widget'] = wid;
+    }
+    final sid = sessionId?.trim();
+    if (sid != null && sid.isNotEmpty) {
+      params['session'] = sid;
     }
     return Uri(
       path: '$pluginRuntimePrefix/$slug',

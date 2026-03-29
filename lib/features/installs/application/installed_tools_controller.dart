@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/networking/network_exception.dart';
+import '../../../core/versioning/plugin_version_compare.dart';
 import '../../../core/pro/folder_creation_policy.dart';
 import '../../../core/pro/freemium_limits.dart';
 import '../../../core/pro/pinning_policy.dart';
@@ -12,7 +13,9 @@ import '../../discover/data/catalog_api.dart';
 import 'folder_quota_exception.dart';
 import '../../downloads/application/tool_bundle_download_service.dart';
 import '../../downloads/data/models/downloaded_tool_bundle.dart';
+import '../data/installed_tools_read_result.dart';
 import '../data/installed_tools_store.dart';
+import '../data/local_install_removals_store.dart';
 import '../data/installs_sync_meta_store.dart';
 import '../data/installs_organization_store.dart';
 import '../data/installs_api.dart';
@@ -21,6 +24,20 @@ import '../data/models/installs_organization_models.dart';
 
 enum InstalledToolsState { initializing, ready, failed }
 
+/// Home tab (Installs) presentation phase for empty/error/loading orchestration.
+enum HomeInstallsPresentationPhase { loading, content, emptyLibrary, recoverableLoadFailure }
+
+/// Why [HomeInstallsPresentationPhase.recoverableLoadFailure] is shown.
+enum HomeInstallsLoadFailureKind { offline, bootstrap, sync, corruptLocalData }
+
+/// Result of [InstalledToolsController.prepareToolLaunch] before navigating to runtime.
+enum ToolLaunchPrepared {
+  ok,
+  notInstalled,
+  missingBundle,
+  mandatoryUpdateRequired,
+}
+
 class InstalledToolsController extends ChangeNotifier {
   InstalledToolsController({
     required InstallsApi installsApi,
@@ -28,6 +45,7 @@ class InstalledToolsController extends ChangeNotifier {
     required InstalledToolsStore store,
     required InstallsOrganizationStore organizationStore,
     InstallsSyncMetaStore? syncMetaStore,
+    LocalInstallRemovalsStore? removalsStore,
     ToolBundleDownloadService? toolBundleDownloadService,
     PinningPolicy pinningPolicy = const UnlimitedPinningPolicy(),
     FolderCreationPolicy folderCreationPolicy =
@@ -37,6 +55,7 @@ class InstalledToolsController extends ChangeNotifier {
        _store = store,
        _organizationStore = organizationStore,
        _syncMetaStore = syncMetaStore ?? const NoopInstallsSyncMetaStore(),
+       _removalsStore = removalsStore ?? const NoopLocalInstallRemovalsStore(),
        _toolBundleDownloadService = toolBundleDownloadService,
        _pinningPolicy = pinningPolicy,
        _folderCreationPolicy = folderCreationPolicy;
@@ -50,6 +69,7 @@ class InstalledToolsController extends ChangeNotifier {
   final InstalledToolsStore _store;
   final InstallsOrganizationStore _organizationStore;
   final InstallsSyncMetaStore _syncMetaStore;
+  final LocalInstallRemovalsStore _removalsStore;
   final ToolBundleDownloadService? _toolBundleDownloadService;
   final PinningPolicy _pinningPolicy;
   final FolderCreationPolicy _folderCreationPolicy;
@@ -67,6 +87,11 @@ class InstalledToolsController extends ChangeNotifier {
   DateTime? _lastSyncedAt;
   List<ToolFolder> _folders = const <ToolFolder>[];
   HomeSortMode _homeSortMode = HomeSortMode.defaultManual;
+  Set<String> _removedInstallSlugs = <String>{};
+
+  bool _initialRepositorySyncSettled = false;
+  bool _bootstrapFailed = false;
+  int _skippedInvalidRowsOnLastStoreRead = 0;
 
   InstalledToolsState get state => _state;
   bool get isSyncing => _isSyncing;
@@ -82,6 +107,45 @@ class InstalledToolsController extends ChangeNotifier {
   List<ToolFolder> get folders => _sortedFolders(_folders);
 
   List<DeviceInstallRecord> get installedTools => _sortedTools(_installedTools);
+
+  /// Single source of truth for Installs home body state (loading / content / empty / error).
+  HomeInstallsPresentationPhase get homePresentationPhase {
+    if (_installedTools.isNotEmpty) {
+      return HomeInstallsPresentationPhase.content;
+    }
+    if (_state == InstalledToolsState.initializing) {
+      return HomeInstallsPresentationPhase.loading;
+    }
+    if (!_initialRepositorySyncSettled) {
+      return HomeInstallsPresentationPhase.loading;
+    }
+    if (_state == InstalledToolsState.failed) {
+      return HomeInstallsPresentationPhase.recoverableLoadFailure;
+    }
+    if (_skippedInvalidRowsOnLastStoreRead > 0) {
+      return HomeInstallsPresentationPhase.recoverableLoadFailure;
+    }
+    return HomeInstallsPresentationPhase.emptyLibrary;
+  }
+
+  /// Meaningful when [homePresentationPhase] is [HomeInstallsPresentationPhase.recoverableLoadFailure].
+  HomeInstallsLoadFailureKind get homeLoadFailureKind {
+    if (_skippedInvalidRowsOnLastStoreRead > 0 &&
+        _state == InstalledToolsState.ready &&
+        _installedTools.isEmpty) {
+      return HomeInstallsLoadFailureKind.corruptLocalData;
+    }
+    if (_state == InstalledToolsState.failed) {
+      if (_isFirstRunOffline) {
+        return HomeInstallsLoadFailureKind.offline;
+      }
+      if (_bootstrapFailed) {
+        return HomeInstallsLoadFailureKind.bootstrap;
+      }
+      return HomeInstallsLoadFailureKind.sync;
+    }
+    return HomeInstallsLoadFailureKind.sync;
+  }
 
   void _notify() {
     if (_disposed) {
@@ -156,11 +220,15 @@ class InstalledToolsController extends ChangeNotifier {
     _statusMessage = null;
     _errorMessage = null;
     _isFirstRunOffline = false;
+    _bootstrapFailed = false;
     _notify();
 
     try {
       final organization = await _organizationStore.read();
-      final cached = await _store.read();
+      final InstalledToolsStoreReadResult readResult = await _store.read();
+      final cached = readResult.installs;
+      _skippedInvalidRowsOnLastStoreRead = readResult.skippedInvalidRowCount;
+      _removedInstallSlugs = await _removalsStore.read();
       _lastSyncedAt = await _syncMetaStore.readLastSyncedAt();
       final hydrated = await _hydrateLocalBundleMetadata(cached);
       _folders = organization.folders;
@@ -170,6 +238,7 @@ class InstalledToolsController extends ChangeNotifier {
         await _persistState();
       }
       _state = InstalledToolsState.ready;
+      _initialRepositorySyncSettled = _installedTools.isNotEmpty;
       _statusMessage = _installedTools.isEmpty
           ? 'No installed tools found yet.'
           : 'Loaded installed tools from device cache.';
@@ -183,6 +252,8 @@ class InstalledToolsController extends ChangeNotifier {
       _folders = const <ToolFolder>[];
       _homeSortMode = HomeSortMode.defaultManual;
       _state = InstalledToolsState.failed;
+      _bootstrapFailed = true;
+      _initialRepositorySyncSettled = true;
       _errorMessage = 'Failed to load installed tools cache: $error';
       _notify();
       return;
@@ -195,6 +266,23 @@ class InstalledToolsController extends ChangeNotifier {
   Future<void> retryBootstrap() async {
     _bootstrapStarted = false;
     await bootstrap();
+  }
+
+  /// Single preferred retry for the Installs home recoverable failure states.
+  Future<void> retryHomeLoad() async {
+    switch (homeLoadFailureKind) {
+      case HomeInstallsLoadFailureKind.corruptLocalData:
+        await _store.clear();
+        await retryBootstrap();
+        return;
+      case HomeInstallsLoadFailureKind.bootstrap:
+        await retryBootstrap();
+        return;
+      case HomeInstallsLoadFailureKind.offline:
+      case HomeInstallsLoadFailureKind.sync:
+        await syncFromRepository(trigger: 'retry');
+        return;
+    }
   }
 
   Future<void> syncFromRepository({String trigger = 'manual'}) async {
@@ -283,6 +371,7 @@ class InstalledToolsController extends ChangeNotifier {
       }
     } finally {
       _isSyncing = false;
+      _initialRepositorySyncSettled = true;
       _notify();
     }
     unawaited(checkForUpdates());
@@ -317,8 +406,14 @@ class InstalledToolsController extends ChangeNotifier {
   }
 
   Future<void> removeInstall(DeviceInstallRecord install) async {
+    _removedInstallSlugs.add(_normalizeInstallSlug(install.pluginSlug));
+    await _persistRemovals();
     _installedTools = _installedTools
-        .where((DeviceInstallRecord t) => t.pluginSlug != install.pluginSlug)
+        .where(
+          (DeviceInstallRecord t) =>
+              _normalizeInstallSlug(t.pluginSlug) !=
+              _normalizeInstallSlug(install.pluginSlug),
+        )
         .toList(growable: false);
     _installedTools = _reconcileFolderAssignments(_installedTools);
     _state = InstalledToolsState.ready;
@@ -364,14 +459,18 @@ class InstalledToolsController extends ChangeNotifier {
       _installedTools.where((DeviceInstallRecord t) => t.pinned).length;
 
   Future<void> recordInstall(DeviceInstallRecord installation) async {
+    _removedInstallSlugs.remove(_normalizeInstallSlug(installation.pluginSlug));
+    await _persistRemovals();
     final existingIndex = _installedTools.indexWhere(
       (DeviceInstallRecord current) =>
-          current.pluginSlug == installation.pluginSlug,
+          _normalizeInstallSlug(current.pluginSlug) ==
+          _normalizeInstallSlug(installation.pluginSlug),
     );
 
     final existing = existingIndex >= 0 ? _installedTools[existingIndex] : null;
     final normalized = installation.copyWith(
       updateAvailable: false,
+      updateMandatory: false,
       latestAvailableVersion:
           installation.installedVersion ?? installation.latestAvailableVersion,
       lastUpdateCheckAt: DateTime.now().toUtc(),
@@ -381,6 +480,8 @@ class InstalledToolsController extends ChangeNotifier {
           installation.pluginDescription ?? existing?.pluginDescription,
       categoryColor: installation.categoryColor ?? existing?.categoryColor,
       iconPath: installation.iconPath ?? existing?.iconPath,
+      catalogThumbnailUrl:
+          installation.catalogThumbnailUrl ?? existing?.catalogThumbnailUrl,
       cardAccentColor:
           installation.cardAccentColor ?? existing?.cardAccentColor,
       pricingTier: installation.pricingTier ?? existing?.pricingTier,
@@ -412,13 +513,17 @@ class InstalledToolsController extends ChangeNotifier {
     List<DeviceInstallRecord> cachedInstalls,
   ) {
     final cachedBySlug = <String, DeviceInstallRecord>{
-      for (final install in cachedInstalls) install.pluginSlug: install,
+      for (final install in cachedInstalls)
+        _normalizeInstallSlug(install.pluginSlug): install,
     };
     final mergedSlugs = <String>{};
     final merged = <DeviceInstallRecord>[];
 
     for (final remote in remoteInstalls) {
-      final slug = remote.pluginSlug;
+      final slug = _normalizeInstallSlug(remote.pluginSlug);
+      if (_removedInstallSlugs.contains(slug)) {
+        continue;
+      }
       final cached = cachedBySlug[slug];
       if (cached != null) {
         merged.add(
@@ -432,6 +537,8 @@ class InstalledToolsController extends ChangeNotifier {
                 cached.pluginDescription ?? remote.pluginDescription,
             categoryColor: cached.categoryColor ?? remote.categoryColor,
             iconPath: cached.iconPath ?? remote.iconPath,
+            catalogThumbnailUrl:
+                cached.catalogThumbnailUrl ?? remote.catalogThumbnailUrl,
             cardAccentColor: cached.cardAccentColor ?? remote.cardAccentColor,
             pricingTier: cached.pricingTier ?? remote.pricingTier,
             pinned: cached.pinned,
@@ -446,13 +553,49 @@ class InstalledToolsController extends ChangeNotifier {
     }
 
     for (final cached in cachedInstalls) {
-      if (mergedSlugs.contains(cached.pluginSlug)) {
+      final slug = _normalizeInstallSlug(cached.pluginSlug);
+      if (mergedSlugs.contains(slug)) {
+        continue;
+      }
+      if (_removedInstallSlugs.contains(slug)) {
         continue;
       }
       merged.add(cached);
     }
 
     return merged;
+  }
+
+  Future<void> _persistRemovals() async {
+    await _removalsStore.write(_removedInstallSlugs);
+  }
+
+  /// Validates install list + local bundle before opening the tool runtime.
+  Future<ToolLaunchPrepared> prepareToolLaunch(String pluginSlug) async {
+    final normalized = _normalizeInstallSlug(pluginSlug);
+    DeviceInstallRecord? record;
+    for (final t in _installedTools) {
+      if (_normalizeInstallSlug(t.pluginSlug) == normalized) {
+        record = t;
+        break;
+      }
+    }
+    if (record == null) {
+      return ToolLaunchPrepared.notInstalled;
+    }
+    if (record.updateMandatory && record.updateAvailable) {
+      return ToolLaunchPrepared.mandatoryUpdateRequired;
+    }
+    final service = _toolBundleDownloadService;
+    if (service == null) {
+      return ToolLaunchPrepared.ok;
+    }
+    final bundle = await service.findRunnableBundle(pluginSlug);
+    if (bundle == null) {
+      await removeInstall(record);
+      return ToolLaunchPrepared.missingBundle;
+    }
+    return ToolLaunchPrepared.ok;
   }
 
   Future<List<DeviceInstallRecord>> _hydrateCatalogMetadata(
@@ -472,6 +615,7 @@ class InstalledToolsController extends ChangeNotifier {
           install.pluginSlug,
           forceRefresh: forceRefresh,
         );
+        final iconRef = plugin.catalogListIconRef.trim();
         updatedInstalls.add(
           install.copyWith(
             pluginName: plugin.name,
@@ -480,6 +624,9 @@ class InstalledToolsController extends ChangeNotifier {
             pluginDescription:
                 plugin.longDescription ?? plugin.shortDescription,
             pricingTier: _normalizeTier(plugin.pricingType),
+            catalogThumbnailUrl: iconRef.isNotEmpty
+                ? iconRef
+                : install.catalogThumbnailUrl,
           ),
         );
       } on NetworkException {
@@ -501,7 +648,8 @@ class InstalledToolsController extends ChangeNotifier {
         (install.categoryName?.trim().isEmpty ?? true) ||
         (install.categoryColor?.trim().isEmpty ?? true) ||
         (install.pluginDescription?.trim().isEmpty ?? true) ||
-        (install.pricingTier?.trim().isEmpty ?? true);
+        (install.pricingTier?.trim().isEmpty ?? true) ||
+        (install.catalogThumbnailUrl?.trim().isEmpty ?? true);
   }
 
   Future<_InstallHydrationResult> _hydrateLocalBundleMetadata(
@@ -947,13 +1095,16 @@ class InstalledToolsController extends ChangeNotifier {
         install.pluginSlug,
         forceRefresh: true,
       );
-      final latestVersion = versions.isEmpty ? null : versions.first.version;
+      final latest = versions.isEmpty ? null : versions.first;
+      final latestVersion = latest?.version;
+      final hasUpdate = isPluginUpdateAvailable(
+        installedVersion: install.installedVersion,
+        latestVersion: latestVersion,
+      );
       return install.copyWith(
         latestAvailableVersion: latestVersion,
-        updateAvailable: _isUpdateAvailable(
-          installedVersion: install.installedVersion,
-          latestVersion: latestVersion,
-        ),
+        updateAvailable: hasUpdate,
+        updateMandatory: hasUpdate && (latest?.updateMandatory ?? false),
         lastUpdateCheckAt: checkedAt,
       );
     } on NetworkException {
@@ -963,61 +1114,9 @@ class InstalledToolsController extends ChangeNotifier {
     }
   }
 
-  bool _isUpdateAvailable({
-    required String? installedVersion,
-    required String? latestVersion,
-  }) {
-    if (installedVersion == null || latestVersion == null) {
-      return false;
-    }
-
-    final installed = installedVersion.trim();
-    final latest = latestVersion.trim();
-    if (installed.isEmpty || latest.isEmpty || installed == latest) {
-      return false;
-    }
-
-    final installedParts = _parseVersionParts(installed);
-    final latestParts = _parseVersionParts(latest);
-    if (installedParts == null || latestParts == null) {
-      return latest != installed;
-    }
-
-    final maxLength = installedParts.length > latestParts.length
-        ? installedParts.length
-        : latestParts.length;
-    for (var i = 0; i < maxLength; i++) {
-      final installedPart = i < installedParts.length ? installedParts[i] : 0;
-      final latestPart = i < latestParts.length ? latestParts[i] : 0;
-      if (latestPart > installedPart) {
-        return true;
-      }
-      if (latestPart < installedPart) {
-        return false;
-      }
-    }
-
-    return false;
-  }
-
-  List<int>? _parseVersionParts(String value) {
-    final parts = value.split('.');
-    if (parts.isEmpty) {
-      return null;
-    }
-
-    final parsed = <int>[];
-    final leadingDigitsPattern = RegExp(r'^\d+');
-    for (final rawPart in parts) {
-      final match = leadingDigitsPattern.firstMatch(rawPart.trim());
-      if (match == null) {
-        return null;
-      }
-      parsed.add(int.parse(match.group(0)!));
-    }
-    return parsed;
-  }
 }
+
+String _normalizeInstallSlug(String slug) => slug.trim().toLowerCase();
 
 class _InstallHydrationResult {
   const _InstallHydrationResult({

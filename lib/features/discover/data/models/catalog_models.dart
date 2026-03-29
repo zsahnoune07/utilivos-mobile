@@ -1,3 +1,7 @@
+import 'package:flutter/foundation.dart';
+
+const bool _enableCatalogIconDebugLogs = true;
+
 class CatalogCategory {
   const CatalogCategory({
     required this.id,
@@ -46,6 +50,7 @@ class CatalogPlugin {
     this.longDescription,
     this.currentVersionId,
     this.thumbnailUrl,
+    this.iconUrl,
     this.categoryColor,
     this.proPreview = false,
   });
@@ -60,6 +65,7 @@ class CatalogPlugin {
   final String? longDescription;
   final String? currentVersionId;
   final String? thumbnailUrl;
+  final String? iconUrl;
   final String? categoryColor;
 
   /// When this tool is Pro-tier ([isPro]), free users may install/run preview builds only if the API
@@ -75,6 +81,49 @@ class CatalogPlugin {
   }
 
   bool get isPro => tierIsPro(pricingType);
+
+  /// Image URL or relative path for Tool Library / detail headers.
+  ///
+  /// Priority:
+  /// 1) [thumbnailUrl] (future-ready dedicated thumbnail variant)
+  /// 2) [iconUrl] (current CDN icon source)
+  /// Otherwise falls back to the catalog icon route (`/v1/plugins/{slug}/icon`),
+  /// matching the server when `icon_url` is unset so browse lists still load icons.
+  String get catalogIconRef {
+    final thumb = thumbnailUrl?.trim();
+    if (thumb != null && thumb.isNotEmpty) {
+      return thumb;
+    }
+    final icon = iconUrl?.trim();
+    if (icon != null && icon.isNotEmpty) {
+      return icon;
+    }
+    final s = slug.trim();
+    if (s.isEmpty) {
+      return '';
+    }
+    return '/v1/plugins/${Uri.encodeComponent(s)}/icon';
+  }
+
+  /// Square list-row icon: prefer [iconUrl], then the catalog icon route, then [thumbnailUrl].
+  ///
+  /// Use in Tool Library rows where letterboxed thumbnails look padded; [catalogIconRef] still
+  /// prefers thumbnail for hero/detail contexts.
+  String get catalogListIconRef {
+    final icon = iconUrl?.trim();
+    if (icon != null && icon.isNotEmpty) {
+      return icon;
+    }
+    final s = slug.trim();
+    if (s.isNotEmpty) {
+      return '/v1/plugins/${Uri.encodeComponent(s)}/icon';
+    }
+    final thumb = thumbnailUrl?.trim();
+    if (thumb != null && thumb.isNotEmpty) {
+      return thumb;
+    }
+    return '';
+  }
 
   /// Install/download from catalog without an active subscription.
   bool canFreeUserAttemptInstall(bool hasProAccess) {
@@ -100,6 +149,28 @@ class CatalogPlugin {
       'allows_free_preview_install',
       'AllowsFreePreviewInstall',
     ]);
+    final parsedThumbnail = _readOptionalString(json, const <String>[
+      'thumbnail_url',
+      'ThumbnailUrl',
+      'image_url',
+      'ImageUrl',
+      'logo_url',
+      'LogoUrl',
+    ]);
+    final parsedIconUrl = _readOptionalString(json, const <String>[
+      'icon_url',
+      'IconUrl',
+    ]);
+
+    if (kDebugMode && _enableCatalogIconDebugLogs) {
+      debugPrint(
+        '[CatalogPlugin.fromJson] '
+        'slug=${json['slug']} thumbnail_url=${json['thumbnail_url']} '
+        'icon_url=${json['icon_url']} parsedThumbnail=$parsedThumbnail '
+        'parsedIconUrl=$parsedIconUrl',
+      );
+    }
+
     return CatalogPlugin(
       id: _readRequiredString(json, const <String>['id', 'ID']),
       slug: _readRequiredString(json, const <String>['slug', 'Slug']),
@@ -125,16 +196,8 @@ class CatalogPlugin {
         'current_version_id',
         'CurrentVersionID',
       ]),
-      thumbnailUrl: _readOptionalString(json, const <String>[
-        'thumbnail_url',
-        'ThumbnailUrl',
-        'image_url',
-        'ImageUrl',
-        'logo_url',
-        'LogoUrl',
-        'icon_url',
-        'IconUrl',
-      ]),
+      thumbnailUrl: parsedThumbnail,
+      iconUrl: parsedIconUrl,
       categoryColor: _readOptionalString(json, const <String>[
         'category_color',
         'CategoryColor',
@@ -155,6 +218,7 @@ class CatalogPlugin {
       'long_description': longDescription,
       'current_version_id': currentVersionId,
       'thumbnail_url': thumbnailUrl,
+      'icon_url': iconUrl,
       'category_color': categoryColor,
       'pro_preview': proPreview,
     };
@@ -166,11 +230,13 @@ class PluginVersionSummary {
     required this.id,
     required this.version,
     this.changelog,
+    this.updateMandatory = false,
   });
 
   final String id;
   final String version;
   final String? changelog;
+  final bool updateMandatory;
 
   factory PluginVersionSummary.fromJson(Map<String, dynamic> json) {
     return PluginVersionSummary(
@@ -180,6 +246,12 @@ class PluginVersionSummary {
         'changelog',
         'Changelog',
       ]),
+      updateMandatory:
+          _readOptionalBool(json, const <String>[
+            'update_mandatory',
+            'UpdateMandatory',
+          ]) ??
+          false,
     );
   }
 
@@ -188,6 +260,7 @@ class PluginVersionSummary {
       'id': id,
       'version': version,
       'changelog': changelog,
+      'update_mandatory': updateMandatory,
     };
   }
 }
@@ -207,7 +280,10 @@ String? _readOptionalString(Map<String, dynamic> json, List<String> keys) {
     final value = json[key];
     if (value is String) {
       final trimmed = value.trim();
-      return trimmed.isEmpty ? null : value;
+      if (trimmed.isEmpty) {
+        continue;
+      }
+      return value;
     }
   }
   return null;

@@ -6,10 +6,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/entitlement/entitlement_controller.dart';
+import '../../../core/search/recent_search_store.dart';
 import '../../../core/navigation/app_routes.dart';
 import '../../../core/pro/pro_capability_service.dart';
 import '../../../core/networking/network_exception.dart';
 import '../../../core/networking/models/cursor_page.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/app_buttons.dart';
 import '../../../shared/widgets/app_skeletons.dart';
 import '../../../shared/widgets/app_state_views.dart';
@@ -17,6 +19,7 @@ import '../../../shared/widgets/tool_thumbnail.dart';
 import '../../downloads/application/tool_bundle_download_service.dart';
 import '../../downloads/data/download_api.dart';
 import '../../installs/application/installed_tools_controller.dart';
+import '../../installs/presentation/folder_detail_page.dart';
 import '../../installs/data/installs_api.dart';
 import '../../installs/data/models/install_models.dart';
 import '../data/catalog_api.dart';
@@ -91,15 +94,22 @@ enum _PluginInstallState { idle, installing, installed }
 class _DiscoverPageState extends State<DiscoverPage>
     with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   Timer? _searchDebounce;
   AppViewState _viewState = AppViewState.loading;
   List<CatalogCategory> _categories = const <CatalogCategory>[];
-  List<CatalogPlugin> _plugins = const <CatalogPlugin>[];
+  List<CatalogPlugin> _browsePlugins = const <CatalogPlugin>[];
+  List<CatalogPlugin> _searchPlugins = const <CatalogPlugin>[];
   String? _selectedCategory;
   final Set<String> _selectedFilterTags = <String>{};
-  String? _nextCursor;
+  String? _browseNextCursor;
+  String? _searchNextCursor;
   String _errorMessage = 'Unable to load catalog.';
   bool _isLoadingMore = false;
+  bool _searchLoading = false;
+  int _searchRequestGeneration = 0;
+  List<DiscoverSearchHistoryEntry> _discoverRecentHistory =
+      <DiscoverSearchHistoryEntry>[];
   bool _disposed = false;
   int _queryGeneration = 0;
   bool _hasLoadedInitial = false;
@@ -116,6 +126,78 @@ class _DiscoverPageState extends State<DiscoverPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.installedToolsController.bootstrap();
+    _searchFocusNode.addListener(_onDiscoverSearchFocusChanged);
+    _searchController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  void _onDiscoverSearchFocusChanged() {
+    if (_searchFocusNode.hasFocus) {
+      unawaited(_reloadDiscoverRecentQueries());
+      final q = _searchController.text.trim();
+      if (q.isEmpty) {
+        setState(() {
+          _searchPlugins = const <CatalogPlugin>[];
+          _searchNextCursor = null;
+          _searchLoading = false;
+        });
+      } else {
+        _searchDebounce?.cancel();
+        _searchDebounce = Timer(
+          const Duration(milliseconds: 350),
+          () => _reloadSearchPlugins(forceRefresh: true),
+        );
+      }
+    } else {
+      _searchDebounce?.cancel();
+      setState(() {
+        _searchLoading = false;
+      });
+    }
+    setState(() {});
+  }
+
+  Future<void> _reloadDiscoverRecentQueries() async {
+    final store = await RecentSearchStore.open();
+    if (!mounted || _disposed) {
+      return;
+    }
+    setState(() {
+      _discoverRecentHistory = store.loadDiscoverSync();
+    });
+  }
+
+  Future<void> _persistDiscoverSearchSubmission(String raw) async {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+    final store = await RecentSearchStore.open();
+    await store.addDiscoverQuery(trimmed);
+    await _reloadDiscoverRecentQueries();
+  }
+
+  Future<void> _persistDiscoverToolHistoryEntry({
+    required String slug,
+    required String name,
+  }) async {
+    final store = await RecentSearchStore.open();
+    await store.addDiscoverTool(slug: slug, name: name);
+    await _reloadDiscoverRecentQueries();
+  }
+
+  Future<void> _openDiscoverHistoryTool(
+    BuildContext context,
+    DiscoverSearchHistoryTool item,
+  ) async {
+    await _persistDiscoverToolHistoryEntry(slug: item.slug, name: item.name);
+    if (!context.mounted) {
+      return;
+    }
+    context.push(AppRoutes.discoverPluginDetail(item.slug));
   }
 
   @override
@@ -137,6 +219,8 @@ class _DiscoverPageState extends State<DiscoverPage>
     _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
     _searchDebounce?.cancel();
+    _searchFocusNode.removeListener(_onDiscoverSearchFocusChanged);
+    _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -152,8 +236,8 @@ class _DiscoverPageState extends State<DiscoverPage>
       return;
     }
     _lastResumeRefreshAt = now;
-    if (_viewState == AppViewState.content && _plugins.isNotEmpty) {
-      unawaited(_reloadPlugins(forceRefresh: true));
+    if (_viewState == AppViewState.content && _browsePlugins.isNotEmpty) {
+      unawaited(_reloadBrowsePlugins(forceRefresh: true));
     } else {
       unawaited(_loadInitial(forceRefresh: true));
     }
@@ -163,11 +247,19 @@ class _DiscoverPageState extends State<DiscoverPage>
     return _installStates[slug] ?? _PluginInstallState.idle;
   }
 
-  List<CatalogPlugin> _filteredPluginsForActiveFilters() {
-    if (_selectedFilterTags.isEmpty) {
-      return _plugins;
+  List<CatalogPlugin> _sourcePluginsForFilters() {
+    if (_searchFocusNode.hasFocus) {
+      return _searchPlugins;
     }
-    return _plugins.where((CatalogPlugin plugin) {
+    return _browsePlugins;
+  }
+
+  List<CatalogPlugin> _filteredPluginsForActiveFilters() {
+    final source = _sourcePluginsForFilters();
+    if (_selectedFilterTags.isEmpty) {
+      return source;
+    }
+    return source.where((CatalogPlugin plugin) {
       final lowerPricing = plugin.pricingType.toLowerCase();
       bool matches = false;
       if (_selectedFilterTags.contains('free') && lowerPricing == 'free') {
@@ -213,17 +305,42 @@ class _DiscoverPageState extends State<DiscoverPage>
     });
 
     try {
+      final prepared =
+          await widget.installedToolsController.prepareToolLaunch(plugin.slug);
+      if (!mounted) {
+        return;
+      }
+      switch (prepared) {
+        case ToolLaunchPrepared.notInstalled:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('This tool is no longer installed.')),
+          );
+          return;
+        case ToolLaunchPrepared.missingBundle:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Tool files were removed. Reinstall from the Tool Library.',
+              ),
+            ),
+          );
+          return;
+        case ToolLaunchPrepared.mandatoryUpdateRequired:
+          await showMandatoryUpdateRequiredDialog(context, plugin.slug);
+          return;
+        case ToolLaunchPrepared.ok:
+          break;
+      }
       await widget.installedToolsController.markToolLaunched(plugin.slug);
       unawaited(widget.proCapabilityService.recordToolEngagement(plugin.slug));
       if (!mounted) {
         return;
       }
-      final restore = widget.proCapabilityService.canRestoreSession;
       await context.push(
         AppRoutes.pluginRuntime(
           plugin.slug,
           toolName: plugin.name,
-          restoreSession: restore,
+          restoreSession: false,
         ),
       );
     } finally {
@@ -361,7 +478,8 @@ class _DiscoverPageState extends State<DiscoverPage>
     setState(() {
       _viewState = AppViewState.loading;
       _errorMessage = 'Loading catalog...';
-      _nextCursor = null;
+      _browseNextCursor = null;
+      _searchNextCursor = null;
     });
 
     final requestToken = ++_queryGeneration;
@@ -372,7 +490,7 @@ class _DiscoverPageState extends State<DiscoverPage>
       );
       final pluginsFuture = widget.catalogApi.listPlugins(
         category: _selectedCategory,
-        search: _searchController.text.trim(),
+        search: null,
         forceRefresh: forceRefresh,
       );
 
@@ -391,12 +509,22 @@ class _DiscoverPageState extends State<DiscoverPage>
 
       setState(() {
         _categories = categories;
-        _plugins = plugins;
-        _nextCursor = nextCursor;
-        _viewState = _plugins.isEmpty
+        _browsePlugins = plugins;
+        _browseNextCursor = nextCursor;
+        _viewState = _browsePlugins.isEmpty
             ? AppViewState.empty
             : AppViewState.content;
       });
+      final pendingSearch = _searchController.text.trim();
+      if (pendingSearch.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _disposed) {
+            return;
+          }
+          _searchFocusNode.requestFocus();
+          unawaited(_reloadSearchPlugins(forceRefresh: true));
+        });
+      }
     } on NetworkException catch (error) {
       developer.log(
         'Catalog initial load failed.',
@@ -426,11 +554,11 @@ class _DiscoverPageState extends State<DiscoverPage>
     }
   }
 
-  Future<void> _reloadPlugins({bool forceRefresh = false}) async {
+  Future<void> _reloadBrowsePlugins({bool forceRefresh = false}) async {
     final softReload =
         forceRefresh &&
         _viewState == AppViewState.content &&
-        _plugins.isNotEmpty;
+        _browsePlugins.isNotEmpty;
 
     if (softReload) {
       setState(() {
@@ -440,7 +568,7 @@ class _DiscoverPageState extends State<DiscoverPage>
       setState(() {
         _viewState = AppViewState.loading;
         _errorMessage = 'Loading catalog...';
-        _nextCursor = null;
+        _browseNextCursor = null;
       });
     }
 
@@ -449,7 +577,7 @@ class _DiscoverPageState extends State<DiscoverPage>
     try {
       final page = await widget.catalogApi.listPlugins(
         category: _selectedCategory,
-        search: _searchController.text.trim(),
+        search: null,
         forceRefresh: forceRefresh,
       );
       if (!mounted || _disposed || requestToken != _queryGeneration) {
@@ -457,9 +585,9 @@ class _DiscoverPageState extends State<DiscoverPage>
       }
 
       setState(() {
-        _plugins = page.items;
-        _nextCursor = page.nextCursor;
-        _viewState = _plugins.isEmpty
+        _browsePlugins = page.items;
+        _browseNextCursor = page.nextCursor;
+        _viewState = _browsePlugins.isEmpty
             ? AppViewState.empty
             : AppViewState.content;
       });
@@ -507,8 +635,66 @@ class _DiscoverPageState extends State<DiscoverPage>
     }
   }
 
+  Future<void> _reloadSearchPlugins({bool forceRefresh = false}) async {
+    if (!_searchFocusNode.hasFocus) {
+      return;
+    }
+    final q = _searchController.text.trim();
+    if (q.isEmpty) {
+      setState(() {
+        _searchPlugins = const <CatalogPlugin>[];
+        _searchNextCursor = null;
+        _searchLoading = false;
+      });
+      return;
+    }
+
+    final requestToken = ++_searchRequestGeneration;
+    setState(() {
+      _searchLoading = true;
+    });
+
+    try {
+      final page = await widget.catalogApi.listPlugins(
+        category: _selectedCategory,
+        search: q,
+        forceRefresh: forceRefresh,
+      );
+      if (!mounted || _disposed || requestToken != _searchRequestGeneration) {
+        return;
+      }
+      setState(() {
+        _searchPlugins = page.items;
+        _searchNextCursor = page.nextCursor;
+        _searchLoading = false;
+      });
+    } on NetworkException catch (error) {
+      if (!mounted || _disposed || requestToken != _searchRequestGeneration) {
+        return;
+      }
+      setState(() {
+        _searchLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Search failed: ${error.message}')),
+      );
+    } catch (_) {
+      if (!mounted || _disposed || requestToken != _searchRequestGeneration) {
+        return;
+      }
+      setState(() {
+        _searchLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Search failed unexpectedly.')),
+      );
+    }
+  }
+
   Future<void> _loadMore() async {
-    final nextCursor = _nextCursor;
+    final isSearch =
+        _searchFocusNode.hasFocus && _searchController.text.trim().isNotEmpty;
+    final nextCursor = isSearch ? _searchNextCursor : _browseNextCursor;
     if (_isLoadingMore || nextCursor == null || nextCursor.trim().isEmpty) {
       return;
     }
@@ -520,15 +706,20 @@ class _DiscoverPageState extends State<DiscoverPage>
     try {
       final page = await widget.catalogApi.listPlugins(
         category: _selectedCategory,
-        search: _searchController.text.trim(),
+        search: isSearch ? _searchController.text.trim() : null,
         cursor: nextCursor,
       );
       if (!mounted || _disposed) {
         return;
       }
       setState(() {
-        _plugins = <CatalogPlugin>[..._plugins, ...page.items];
-        _nextCursor = page.nextCursor;
+        if (isSearch) {
+          _searchPlugins = <CatalogPlugin>[..._searchPlugins, ...page.items];
+          _searchNextCursor = page.nextCursor;
+        } else {
+          _browsePlugins = <CatalogPlugin>[..._browsePlugins, ...page.items];
+          _browseNextCursor = page.nextCursor;
+        }
       });
     } on NetworkException catch (error) {
       developer.log(
@@ -565,17 +756,24 @@ class _DiscoverPageState extends State<DiscoverPage>
     }
   }
 
-  void _onSearchSubmitted(String _) {
+  void _onSearchSubmitted(String value) {
     _searchDebounce?.cancel();
-    _reloadPlugins(forceRefresh: true);
+    unawaited(_persistDiscoverSearchSubmission(value));
+    if (_searchFocusNode.hasFocus) {
+      unawaited(_reloadSearchPlugins(forceRefresh: true));
+    } else {
+      unawaited(_reloadBrowsePlugins(forceRefresh: true));
+    }
   }
 
   void _onSearchChanged(String _) {
-    setState(() {});
+    if (!_searchFocusNode.hasFocus) {
+      return;
+    }
     _searchDebounce?.cancel();
     _searchDebounce = Timer(
       const Duration(milliseconds: 350),
-      () => _reloadPlugins(forceRefresh: true),
+      () => _reloadSearchPlugins(forceRefresh: true),
     );
   }
 
@@ -583,7 +781,10 @@ class _DiscoverPageState extends State<DiscoverPage>
     setState(() {
       _selectedCategory = slug;
     });
-    _reloadPlugins(forceRefresh: true);
+    unawaited(_reloadBrowsePlugins(forceRefresh: true));
+    if (_searchFocusNode.hasFocus && _searchController.text.trim().isNotEmpty) {
+      unawaited(_reloadSearchPlugins(forceRefresh: true));
+    }
   }
 
   void _toggleFilterTag(String tag) {
@@ -645,6 +846,7 @@ class _DiscoverPageState extends State<DiscoverPage>
             widget.entitlementController,
             widget.installedToolsController,
             widget.proCapabilityService,
+            _searchFocusNode,
           ]),
           builder: (BuildContext context, Widget? child) {
             final hasProAccess = widget.entitlementController.hasProAccess;
@@ -662,12 +864,17 @@ class _DiscoverPageState extends State<DiscoverPage>
                         selectedCategory: _selectedCategory,
                         selectedFilterTags: _selectedFilterTags,
                         searchController: _searchController,
+                        searchFocusNode: _searchFocusNode,
+                        iconBaseUrl: widget.config.apiBaseUrl,
                         onCategorySelected: _onCategorySelected,
                         onSearchChanged: _onSearchChanged,
                         onSearchSubmitted: _onSearchSubmitted,
                         onClearSearch: () {
                           _searchController.clear();
-                          _reloadPlugins(forceRefresh: true);
+                          unawaited(_reloadBrowsePlugins(forceRefresh: true));
+                          if (_searchFocusNode.hasFocus) {
+                            unawaited(_reloadSearchPlugins(forceRefresh: true));
+                          }
                         },
                         onToggleFilterTag: _toggleFilterTag,
                       ),
@@ -681,9 +888,6 @@ class _DiscoverPageState extends State<DiscoverPage>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: <Widget>[
-                            if (_isCatalogReloading)
-                              const LinearProgressIndicator(minHeight: 2),
-                            if (_isCatalogReloading) const SizedBox(height: 6),
                             Text(
                               _isCatalogReloading
                                   ? 'Updating catalog...'
@@ -728,28 +932,21 @@ class _DiscoverPageState extends State<DiscoverPage>
   }
 
   List<Widget> _buildCatalogSlivers(BuildContext context, bool hasProAccess) {
-    final filteredPlugins = _viewState == AppViewState.content
-        ? _filteredPluginsForActiveFilters()
-        : const <CatalogPlugin>[];
-    return switch (_viewState) {
-      AppViewState.loading => <Widget>[
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('en'));
+    if (_viewState == AppViewState.loading) {
+      return <Widget>[
         const SliverPadding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           sliver: SliverToBoxAdapter(
             child: AppCardSkeletonList(items: 6, lines: 2),
           ),
         ),
-      ],
-      AppViewState.empty => <Widget>[
-        const SliverFillRemaining(
-          hasScrollBody: false,
-          child: AppEmptyView(
-            title: 'No tools found',
-            message: 'Try a different category or search term to find tools.',
-          ),
-        ),
-      ],
-      AppViewState.error => <Widget>[
+      ];
+    }
+    if (_viewState == AppViewState.error) {
+      return <Widget>[
         SliverFillRemaining(
           hasScrollBody: false,
           child: AppErrorView(
@@ -758,58 +955,239 @@ class _DiscoverPageState extends State<DiscoverPage>
             onRetry: _loadInitial,
           ),
         ),
-      ],
-      AppViewState.content => <Widget>[
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          sliver: SliverList.builder(
-            itemCount: filteredPlugins.length,
-            itemBuilder: (BuildContext context, int index) {
-              final plugin = filteredPlugins[index];
-              final installedRecord = _installedRecordFor(plugin.slug);
-              final isInstalled = _isAlreadyInstalled(plugin.slug);
-              final hasUpdate = _hasUpdateAvailable(plugin.slug);
-              final installState = _installStateFor(plugin.slug);
-              final isLaunching = _isLaunching(plugin.slug);
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: index == filteredPlugins.length - 1 ? 0 : 10,
-                ),
-                child: RepaintBoundary(
-                  child: _PluginListTile(
-                    plugin: plugin,
-                    hasProAccess: hasProAccess,
-                    isInstalled: isInstalled,
-                    hasUpdate: hasUpdate,
-                    isLaunching: isLaunching,
-                    installState: installState,
-                    localIconPath: installedRecord?.iconPath,
-                    iconBaseUrl: widget.config.apiBaseUrl,
-                    onOpen: () => context.push(
-                      AppRoutes.discoverPluginDetail(plugin.slug),
-                    ),
-                    onInstall: () => _installPlugin(plugin),
-                    onRun: () => _openInstalledTool(plugin),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        if (_nextCursor != null)
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      ];
+    }
+
+    if (_searchFocusNode.hasFocus) {
+      final query = _searchController.text.trim();
+      if (query.isEmpty) {
+        return _buildDiscoverSearchIdleSlivers(context, l10n);
+      }
+      if (_searchLoading && _searchPlugins.isEmpty) {
+        return <Widget>[
+          const SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverToBoxAdapter(
-              child: AppPrimaryButton(
-                label: 'Load More',
-                onPressed: _isLoadingMore ? null : _loadMore,
-                isLoading: _isLoadingMore,
-                expand: true,
-              ),
+              child: AppCardSkeletonList(items: 4, lines: 2),
             ),
           ),
-      ],
-    };
+        ];
+      }
+      final filtered = _filteredPluginsForActiveFilters();
+      if (filtered.isEmpty) {
+        return <Widget>[
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: AppEmptyView(
+              title: l10n.catalogSearchEmptyTitle,
+              message: l10n.catalogSearchEmptyMessage,
+            ),
+          ),
+        ];
+      }
+      return _buildPluginListSlivers(
+        context,
+        hasProAccess,
+        filtered,
+        _searchNextCursor,
+        true,
+      );
+    }
+
+    if (_browsePlugins.isEmpty) {
+      return <Widget>[
+        const SliverFillRemaining(
+          hasScrollBody: false,
+          child: AppEmptyView(
+            title: 'No tools found',
+            message: 'Try a different category or search term to find tools.',
+          ),
+        ),
+      ];
+    }
+
+    final filteredBrowse = _filteredPluginsForActiveFilters();
+    return _buildPluginListSlivers(
+      context,
+      hasProAccess,
+      filteredBrowse,
+      _browseNextCursor,
+      false,
+    );
+  }
+
+  List<Widget> _buildDiscoverSearchIdleSlivers(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return <Widget>[
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Icon(Icons.search_rounded, size: 44, color: colorScheme.outline),
+              const SizedBox(height: 16),
+              Text(
+                l10n.searchStartTypingTitle,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.searchStartTypingMessage,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (_discoverRecentHistory.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 24),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        l10n.recentSearchesSection,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final store = await RecentSearchStore.open();
+                        await store.clearDiscover();
+                        await _reloadDiscoverRecentQueries();
+                      },
+                      child: Text(l10n.clearSearchHistory),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                ..._discoverRecentHistory.map((
+                  DiscoverSearchHistoryEntry item,
+                ) {
+                  if (item is DiscoverSearchHistoryQuery) {
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        Icons.history,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      title: Text(item.text),
+                      onTap: () {
+                        _searchController.text = item.text;
+                        _searchController.selection = TextSelection.collapsed(
+                          offset: item.text.length,
+                        );
+                        unawaited(_persistDiscoverSearchSubmission(item.text));
+                        unawaited(_reloadSearchPlugins(forceRefresh: true));
+                      },
+                    );
+                  }
+                  final tool = item as DiscoverSearchHistoryTool;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: ToolThumbnail(
+                      imageUrl:
+                          '/v1/plugins/${Uri.encodeComponent(tool.slug)}/icon',
+                      baseUrl: widget.config.apiBaseUrl,
+                      size: 40,
+                      borderRadius: 10,
+                      fallbackIcon: Icons.extension_outlined,
+                    ),
+                    title: Text(tool.name),
+                    onTap: () {
+                      unawaited(_openDiscoverHistoryTool(context, tool));
+                    },
+                  );
+                }),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildPluginListSlivers(
+    BuildContext context,
+    bool hasProAccess,
+    List<CatalogPlugin> filteredPlugins,
+    String? nextCursor,
+    bool isSearchResults,
+  ) {
+    return <Widget>[
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverList.builder(
+          itemCount: filteredPlugins.length,
+          itemBuilder: (BuildContext context, int index) {
+            final plugin = filteredPlugins[index];
+            final installedRecord = _installedRecordFor(plugin.slug);
+            final isInstalled = _isAlreadyInstalled(plugin.slug);
+            final hasUpdate = _hasUpdateAvailable(plugin.slug);
+            final installState = _installStateFor(plugin.slug);
+            final isLaunching = _isLaunching(plugin.slug);
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: index == filteredPlugins.length - 1 ? 0 : 10,
+              ),
+              child: RepaintBoundary(
+                child: _PluginListTile(
+                  plugin: plugin,
+                  hasProAccess: hasProAccess,
+                  isInstalled: isInstalled,
+                  hasUpdate: hasUpdate,
+                  isLaunching: isLaunching,
+                  installState: installState,
+                  localIconPath: installedRecord?.iconPath,
+                  iconBaseUrl: widget.config.apiBaseUrl,
+                  onOpen: () {
+                    if (isSearchResults) {
+                      unawaited(
+                        _persistDiscoverToolHistoryEntry(
+                          slug: plugin.slug,
+                          name: plugin.name,
+                        ),
+                      );
+                    }
+                    context.push(AppRoutes.discoverPluginDetail(plugin.slug));
+                  },
+                  onInstall: () => _installPlugin(plugin),
+                  onRun: () {
+                    if (isSearchResults) {
+                      unawaited(
+                        _persistDiscoverToolHistoryEntry(
+                          slug: plugin.slug,
+                          name: plugin.name,
+                        ),
+                      );
+                    }
+                    unawaited(_openInstalledTool(plugin));
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+      if (nextCursor != null)
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          sliver: SliverToBoxAdapter(
+            child: AppPrimaryButton(
+              label: AppLocalizations.of(context)!.loadMore,
+              onPressed: _isLoadingMore ? null : _loadMore,
+              isLoading: _isLoadingMore,
+              expand: true,
+            ),
+          ),
+        ),
+    ];
   }
 }
 
@@ -830,6 +1208,8 @@ class _DiscoverHeader extends StatelessWidget {
     required this.selectedCategory,
     required this.selectedFilterTags,
     required this.searchController,
+    required this.searchFocusNode,
+    required this.iconBaseUrl,
     required this.onCategorySelected,
     required this.onSearchChanged,
     required this.onSearchSubmitted,
@@ -841,6 +1221,8 @@ class _DiscoverHeader extends StatelessWidget {
   final String? selectedCategory;
   final Set<String> selectedFilterTags;
   final TextEditingController searchController;
+  final FocusNode searchFocusNode;
+  final String? iconBaseUrl;
   final ValueChanged<String?> onCategorySelected;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<String> onSearchSubmitted;
@@ -857,10 +1239,11 @@ class _DiscoverHeader extends StatelessWidget {
         const SizedBox(height: 10),
         TextField(
           controller: searchController,
+          focusNode: searchFocusNode,
+          textCapitalization: TextCapitalization.none,
           textInputAction: TextInputAction.search,
           onChanged: onSearchChanged,
           onSubmitted: onSearchSubmitted,
-          onTapOutside: (_) => FocusScope.of(context).unfocus(),
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.search),
             hintText: 'Search tools',
@@ -892,6 +1275,7 @@ class _DiscoverHeader extends StatelessWidget {
           categories: categories,
           selectedCategory: selectedCategory,
           selectedFilterTags: selectedFilterTags,
+          iconBaseUrl: iconBaseUrl,
           onCategorySelected: onCategorySelected,
           onToggleFilterTag: onToggleFilterTag,
         ),
@@ -905,6 +1289,7 @@ class _DiscoverFilterRow extends StatelessWidget {
     required this.categories,
     required this.selectedCategory,
     required this.selectedFilterTags,
+    required this.iconBaseUrl,
     required this.onCategorySelected,
     required this.onToggleFilterTag,
   });
@@ -912,6 +1297,7 @@ class _DiscoverFilterRow extends StatelessWidget {
   final List<CatalogCategory> categories;
   final String? selectedCategory;
   final Set<String> selectedFilterTags;
+  final String? iconBaseUrl;
   final ValueChanged<String?> onCategorySelected;
   final ValueChanged<String> onToggleFilterTag;
 
@@ -962,6 +1348,8 @@ class _DiscoverFilterRow extends StatelessWidget {
                     onTap: () => onCategorySelected(category.slug),
                     colorScheme: colorScheme,
                     accentColor: _categoryAccent(category),
+                    categoryIconUrl: category.icon?.trim(),
+                    iconBaseUrl: iconBaseUrl,
                   ),
                 ),
             ],
@@ -979,6 +1367,8 @@ class _DiscoverFilterPill extends StatelessWidget {
     required this.onTap,
     required this.colorScheme,
     this.accentColor,
+    this.categoryIconUrl,
+    this.iconBaseUrl,
   });
 
   final String label;
@@ -986,6 +1376,8 @@ class _DiscoverFilterPill extends StatelessWidget {
   final VoidCallback onTap;
   final ColorScheme colorScheme;
   final Color? accentColor;
+  final String? categoryIconUrl;
+  final String? iconBaseUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -1018,6 +1410,9 @@ class _DiscoverFilterPill extends StatelessWidget {
           : colorScheme.onSurfaceVariant;
     }
 
+    final iconRef = categoryIconUrl;
+    final showCategoryIcon = iconRef != null && iconRef.isNotEmpty;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1027,12 +1422,27 @@ class _DiscoverFilterPill extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: borderColor),
         ),
-        child: Text(
-          label,
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: textColor,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (showCategoryIcon) ...<Widget>[
+              ToolThumbnail(
+                imageUrl: iconRef,
+                baseUrl: iconBaseUrl,
+                size: 20,
+                borderRadius: 6,
+                fallbackIcon: Icons.category_outlined,
+              ),
+              const SizedBox(width: 8),
+            ],
+            Text(
+              label,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: textColor,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1080,6 +1490,11 @@ class _PluginListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final iconFrameColor = colorScheme.surfaceContainerHigh;
+    final iconRef = plugin.catalogListIconRef.trim();
+    final localRef = localIconPath?.trim();
+    final hasCustomIcon =
+        iconRef.isNotEmpty || (localRef != null && localRef.isNotEmpty);
     final isLocked = plugin.isPro && !hasProAccess && !plugin.proPreview;
     final alreadyInstalled =
         (isInstalled || installState == _PluginInstallState.installed) &&
@@ -1099,13 +1514,32 @@ class _PluginListTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            ToolThumbnail(
-              imageUrl: plugin.thumbnailUrl,
-              localPath: localIconPath,
-              baseUrl: iconBaseUrl,
-              fallbackIcon: Icons.extension,
-              size: 52,
-              borderRadius: 12,
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: iconFrameColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              clipBehavior: Clip.antiAlias,
+              alignment: Alignment.center,
+              child: hasCustomIcon
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: ToolThumbnail(
+                        imageUrl: plugin.catalogListIconRef,
+                        localPath: localIconPath,
+                        baseUrl: iconBaseUrl,
+                        debugToolSlug: plugin.slug,
+                        debugThumbnailUrl: plugin.thumbnailUrl,
+                        debugIconUrl: plugin.iconUrl,
+                        fallbackIcon: Icons.extension,
+                        size: 52,
+                        borderRadius: 12,
+                        transparentFallback: true,
+                      ),
+                    )
+                  : Icon(Icons.extension, color: colorScheme.primary, size: 24),
             ),
             const SizedBox(width: 14),
             Expanded(

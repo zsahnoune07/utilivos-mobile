@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../../../core/persistence/app_database.dart';
 import 'install_tool_row_status.dart';
+import 'installed_tools_read_result.dart';
 import 'installed_tools_store.dart';
 import 'models/install_models.dart';
 
@@ -14,7 +15,7 @@ class DriftInstalledToolsStore implements InstalledToolsStore {
   final AppDatabase _db;
 
   @override
-  Future<List<DeviceInstallRecord>> read() async {
+  Future<InstalledToolsStoreReadResult> read() async {
     final rows = await _db.select(_db.installedTools).get();
     rows.sort((InstalledToolRow a, InstalledToolRow b) {
       final t = a.installedAt.compareTo(b.installedAt);
@@ -24,13 +25,19 @@ class DriftInstalledToolsStore implements InstalledToolsStore {
       return a.toolId.compareTo(b.toolId);
     });
     final out = <DeviceInstallRecord>[];
+    var skipped = 0;
     for (final row in rows) {
       final record = _tryRecordFromRow(row);
       if (record != null) {
         out.add(record);
+      } else {
+        skipped++;
       }
     }
-    return out;
+    return InstalledToolsStoreReadResult(
+      installs: out,
+      skippedInvalidRowCount: skipped,
+    );
   }
 
   @override
@@ -54,22 +61,22 @@ class DriftInstalledToolsStore implements InstalledToolsStore {
         .select(_db.installedTools)
         .watch()
         .map((List<InstalledToolRow> rows) {
-          rows.sort((InstalledToolRow a, InstalledToolRow b) {
-            final t = a.installedAt.compareTo(b.installedAt);
-            if (t != 0) {
-              return t;
-            }
-            return a.toolId.compareTo(b.toolId);
-          });
-          final out = <DeviceInstallRecord>[];
-          for (final row in rows) {
-            final record = _tryRecordFromRow(row);
-            if (record != null) {
-              out.add(record);
-            }
-          }
-          return out;
-        });
+                rows.sort((InstalledToolRow a, InstalledToolRow b) {
+                  final t = a.installedAt.compareTo(b.installedAt);
+                  if (t != 0) {
+                    return t;
+                  }
+                  return a.toolId.compareTo(b.toolId);
+                });
+                final out = <DeviceInstallRecord>[];
+                for (final row in rows) {
+                  final record = _tryRecordFromRow(row);
+                  if (record != null) {
+                    out.add(record);
+                  }
+                }
+                return out;
+              });
   }
 
   static DeviceInstallRecord? _tryRecordFromRow(InstalledToolRow row) {

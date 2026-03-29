@@ -7,6 +7,7 @@ import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,15 +29,30 @@ import 'package:utilivo_mobile/features/downloads/data/download_api.dart';
 import 'package:utilivo_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
 import 'package:utilivo_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
 import 'package:utilivo_mobile/features/installs/application/installed_tools_controller.dart';
+import 'package:utilivo_mobile/features/installs/data/installed_tools_read_result.dart';
 import 'package:utilivo_mobile/features/installs/data/installed_tools_store.dart';
 import 'package:utilivo_mobile/features/installs/data/installs_api.dart';
 import 'package:utilivo_mobile/features/installs/data/installs_organization_store.dart';
 import 'package:utilivo_mobile/features/installs/data/models/install_models.dart';
 import 'package:utilivo_mobile/features/installs/data/models/installs_organization_models.dart';
+import 'package:utilivo_mobile/l10n/app_localizations.dart';
 
 const String _kSlug = 'json-toolkit';
 const String _kPluginName = 'JSON Toolkit';
 const String _kVersion = '1.0.0';
+
+Widget _discoverTestMaterialApp(GoRouter router) {
+  return MaterialApp.router(
+    routerConfig: router,
+    localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
+      AppLocalizations.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+    ],
+    supportedLocales: AppLocalizations.supportedLocales,
+  );
+}
 
 void main() {
   testWidgets('not installed tool shows Install action', (
@@ -45,7 +61,7 @@ void main() {
     final harness = await _DiscoverHarness.create();
     addTearDown(harness.dispose);
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: harness.router));
+    await tester.pumpWidget(_discoverTestMaterialApp(harness.router));
     await _pumpUntilVisible(tester, find.text('JSON Toolkit'));
 
     expect(find.text('JSON Toolkit'), findsOneWidget);
@@ -59,7 +75,7 @@ void main() {
     final harness = await _DiscoverHarness.create(initiallyInstalled: true);
     addTearDown(harness.dispose);
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: harness.router));
+    await tester.pumpWidget(_discoverTestMaterialApp(harness.router));
     await _pumpUntilVisible(tester, find.text('JSON Toolkit'));
 
     expect(find.text('JSON Toolkit'), findsOneWidget);
@@ -74,7 +90,7 @@ void main() {
     final harness = await _DiscoverHarness.create(initiallyInstalled: true);
     addTearDown(harness.dispose);
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: harness.router));
+    await tester.pumpWidget(_discoverTestMaterialApp(harness.router));
     await _pumpUntilVisible(tester, find.text('JSON Toolkit'));
 
     await tester.tap(find.byTooltip('Run'));
@@ -89,7 +105,7 @@ void main() {
     final harness = await _DiscoverHarness.create();
     addTearDown(harness.dispose);
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: harness.router));
+    await tester.pumpWidget(_discoverTestMaterialApp(harness.router));
     await _pumpUntilVisible(tester, find.text('JSON Toolkit'));
 
     expect(find.byTooltip('Install'), findsOneWidget);
@@ -115,7 +131,7 @@ void main() {
     final harness = await _DiscoverHarness.create(initiallyInstalled: true);
     addTearDown(harness.dispose);
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: harness.router));
+    await tester.pumpWidget(_discoverTestMaterialApp(harness.router));
     await _pumpUntilVisible(tester, find.text('JSON Toolkit'));
 
     await tester.tap(find.byTooltip('Run'));
@@ -454,7 +470,8 @@ class _InMemoryInstalledToolsStore implements InstalledToolsStore {
       StreamController<List<DeviceInstallRecord>>.broadcast();
 
   @override
-  Future<List<DeviceInstallRecord>> read() async => _data;
+  Future<InstalledToolsStoreReadResult> read() async =>
+      InstalledToolsStoreReadResult(installs: _data);
 
   @override
   Future<void> write(List<DeviceInstallRecord> installs) async {

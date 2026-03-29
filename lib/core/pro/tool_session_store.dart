@@ -78,4 +78,22 @@ class ToolSessionStore {
       }
     } catch (_) {}
   }
+
+  /// Deletes the legacy per-slug JSON snapshot if it exists, ignoring Pro checks.
+  ///
+  /// Used when starting an ephemeral tool launch so a previous disk
+  /// autosave cannot leak into the next launch.
+  Future<void> removeLegacyDiskSnapshotIfExists(String pluginSlug) async {
+    final slug = pluginSlug.trim();
+    if (slug.isEmpty) {
+      return;
+    }
+    try {
+      final dir = await _sessionDir();
+      final file = File(p.join(dir.path, _fileName(slug)));
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
+  }
 }

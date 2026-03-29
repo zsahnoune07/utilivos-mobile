@@ -22,6 +22,12 @@ import '../pro/pro_analytics.dart';
 import '../pro/pro_capability_service.dart';
 import '../pro/pro_purchase_controller.dart';
 import '../pro/tool_session_store.dart';
+import '../sessions/drift_ephemeral_runtime_state_repository.dart';
+import '../sessions/drift_tool_session_repository.dart';
+import '../sessions/drift_tool_widget_repository.dart';
+import '../sessions/runtime_state_scope_service.dart';
+import '../sessions/tool_session_service.dart';
+import '../sessions/tool_widget_service.dart';
 import '../../features/discover/data/catalog_api.dart';
 import '../../features/discover/data/catalog_cache_store.dart';
 import '../../features/discover/data/drift_catalog_cache_store.dart';
@@ -31,6 +37,7 @@ import '../../features/downloads/data/downloaded_tool_bundle_store.dart';
 import '../../features/home/data/health_api.dart';
 import '../../features/installs/application/installed_tools_controller.dart';
 import '../../features/installs/data/drift_installed_tools_store.dart';
+import '../../features/installs/data/drift_local_install_removals_store.dart';
 import '../../features/installs/data/installed_tools_store.dart';
 import '../../features/installs/data/drift_installs_sync_meta_store.dart';
 import '../../features/installs/data/installs_api.dart';
@@ -60,6 +67,9 @@ class AppDependencies {
     required this.toolBundleDownloadService,
     required this.installsApi,
     required this.appDatabase,
+    required this.toolSessionService,
+    required this.runtimeStateScopeService,
+    required this.toolWidgetService,
   });
 
   final AppConfig config;
@@ -83,6 +93,15 @@ class AppDependencies {
 
   /// Drift database (persistent on device; tests may inject [AppDatabase.memory]). [dispose] closes it.
   final AppDatabase appDatabase;
+
+  /// Named tool sessions (Drift). UI and bridge wiring land in later phases.
+  final ToolSessionService toolSessionService;
+
+  /// Ephemeral per-launch state + cleanup helpers.
+  final RuntimeStateScopeService runtimeStateScopeService;
+
+  /// Home widget metadata (platform integration in Phase 4).
+  final ToolWidgetService toolWidgetService;
 
   factory AppDependencies.create({
     AppConfig? config,
@@ -177,16 +196,27 @@ class AppDependencies {
         installsOrganizationStore ?? SecureInstallsOrganizationStore();
     final InstallsSyncMetaStore resolvedInstallsSyncMetaStore =
         installsSyncMetaStore ?? DriftInstallsSyncMetaStore(resolvedDb);
+    final localInstallRemovalsStore =
+        DriftLocalInstallRemovalsStore(resolvedDb);
     final installedToolsController = InstalledToolsController(
       installsApi: installsApi,
       catalogApi: catalogApi,
       store: resolvedInstalledToolsStore,
       organizationStore: resolvedInstallsOrganizationStore,
       syncMetaStore: resolvedInstallsSyncMetaStore,
+      removalsStore: localInstallRemovalsStore,
       toolBundleDownloadService: toolBundleDownloadService,
       pinningPolicy: FreemiumPinningPolicy(entitlementController),
       folderCreationPolicy: FreemiumFolderCreationPolicy(entitlementController),
     );
+
+    final toolSessionService =
+        ToolSessionService(DriftToolSessionRepository(resolvedDb));
+    final runtimeStateScopeService = RuntimeStateScopeService(
+      DriftEphemeralRuntimeStateRepository(resolvedDb),
+    );
+    final toolWidgetService =
+        ToolWidgetService(DriftToolWidgetRepository(resolvedDb));
 
     return AppDependencies._(
       config: resolvedConfig,
@@ -208,6 +238,9 @@ class AppDependencies {
       toolBundleDownloadService: toolBundleDownloadService,
       installsApi: installsApi,
       appDatabase: resolvedDb,
+      toolSessionService: toolSessionService,
+      runtimeStateScopeService: runtimeStateScopeService,
+      toolWidgetService: toolWidgetService,
     );
   }
 

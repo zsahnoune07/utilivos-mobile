@@ -65,6 +65,7 @@ Future<FolderEditorResult?> showFolderEditorModal(
                       TextFormField(
                         controller: nameController,
                         focusNode: nameFocusNode,
+                        textCapitalization: TextCapitalization.words,
                         textInputAction: TextInputAction.done,
                         maxLength: 16,
                         maxLengthEnforcement: MaxLengthEnforcement.enforced,

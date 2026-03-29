@@ -12,7 +12,17 @@ String? parseAppDeepLink(Uri? uri) {
       return null;
     }
     final restore = uri.queryParameters['restore'] == '1';
-    return AppRoutes.pluginRuntime(slug, restoreSession: restore);
+    final widget = uri.queryParameters['widget']?.trim();
+    final session = uri.queryParameters['session']?.trim();
+    final toolName = uri.queryParameters['name']?.trim();
+    return AppRoutes.pluginRuntime(
+      slug,
+      toolName: toolName != null && toolName.isNotEmpty ? toolName : null,
+      restoreSession: restore,
+      widgetInstanceId:
+          widget != null && widget.isNotEmpty ? widget : null,
+      sessionId: session != null && session.isNotEmpty ? session : null,
+    );
   }
   if (uri.scheme == 'https' &&
       (uri.host == 'app.utilivo.com' || uri.host == 'www.app.utilivo.com')) {
@@ -23,7 +33,17 @@ String? parseAppDeepLink(Uri? uri) {
         return null;
       }
       final restore = uri.queryParameters['restore'] == '1';
-      return AppRoutes.pluginRuntime(slug, restoreSession: restore);
+      final widget = uri.queryParameters['widget']?.trim();
+      final session = uri.queryParameters['session']?.trim();
+      final toolName = uri.queryParameters['name']?.trim();
+      return AppRoutes.pluginRuntime(
+        slug,
+        toolName: toolName != null && toolName.isNotEmpty ? toolName : null,
+        restoreSession: restore,
+        widgetInstanceId:
+            widget != null && widget.isNotEmpty ? widget : null,
+        sessionId: session != null && session.isNotEmpty ? session : null,
+      );
     }
   }
   return null;

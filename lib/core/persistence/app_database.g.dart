@@ -1839,6 +1839,2066 @@ class InstalledToolsCompanion extends UpdateCompanion<InstalledToolRow> {
   }
 }
 
+class $ToolSessionsTable extends ToolSessions
+    with TableInfo<$ToolSessionsTable, ToolSessionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ToolSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _toolIdMeta = const VerificationMeta('toolId');
+  @override
+  late final GeneratedColumn<String> toolId = GeneratedColumn<String>(
+    'tool_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _toolSlugMeta = const VerificationMeta(
+    'toolSlug',
+  );
+  @override
+  late final GeneratedColumn<String> toolSlug = GeneratedColumn<String>(
+    'tool_slug',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _installIdMeta = const VerificationMeta(
+    'installId',
+  );
+  @override
+  late final GeneratedColumn<String> installId = GeneratedColumn<String>(
+    'install_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _toolVersionMeta = const VerificationMeta(
+    'toolVersion',
+  );
+  @override
+  late final GeneratedColumn<String> toolVersion = GeneratedColumn<String>(
+    'tool_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stateJsonMeta = const VerificationMeta(
+    'stateJson',
+  );
+  @override
+  late final GeneratedColumn<String> stateJson = GeneratedColumn<String>(
+    'state_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stateSchemaVersionMeta =
+      const VerificationMeta('stateSchemaVersion');
+  @override
+  late final GeneratedColumn<int> stateSchemaVersion = GeneratedColumn<int>(
+    'state_schema_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _toolManifestVersionMeta =
+      const VerificationMeta('toolManifestVersion');
+  @override
+  late final GeneratedColumn<String> toolManifestVersion =
+      GeneratedColumn<String>(
+        'tool_manifest_version',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastOpenedAtMeta = const VerificationMeta(
+    'lastOpenedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastOpenedAt = GeneratedColumn<DateTime>(
+    'last_opened_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isFavoriteMeta = const VerificationMeta(
+    'isFavorite',
+  );
+  @override
+  late final GeneratedColumn<bool> isFavorite = GeneratedColumn<bool>(
+    'is_favorite',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_favorite" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _previewTextMeta = const VerificationMeta(
+    'previewText',
+  );
+  @override
+  late final GeneratedColumn<String> previewText = GeneratedColumn<String>(
+    'preview_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stateSizeBytesMeta = const VerificationMeta(
+    'stateSizeBytes',
+  );
+  @override
+  late final GeneratedColumn<int> stateSizeBytes = GeneratedColumn<int>(
+    'state_size_bytes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    toolId,
+    toolSlug,
+    installId,
+    toolVersion,
+    name,
+    stateJson,
+    stateSchemaVersion,
+    toolManifestVersion,
+    createdAt,
+    updatedAt,
+    lastOpenedAt,
+    isFavorite,
+    previewText,
+    stateSizeBytes,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'tool_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ToolSessionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('tool_id')) {
+      context.handle(
+        _toolIdMeta,
+        toolId.isAcceptableOrUnknown(data['tool_id']!, _toolIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_toolIdMeta);
+    }
+    if (data.containsKey('tool_slug')) {
+      context.handle(
+        _toolSlugMeta,
+        toolSlug.isAcceptableOrUnknown(data['tool_slug']!, _toolSlugMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_toolSlugMeta);
+    }
+    if (data.containsKey('install_id')) {
+      context.handle(
+        _installIdMeta,
+        installId.isAcceptableOrUnknown(data['install_id']!, _installIdMeta),
+      );
+    }
+    if (data.containsKey('tool_version')) {
+      context.handle(
+        _toolVersionMeta,
+        toolVersion.isAcceptableOrUnknown(
+          data['tool_version']!,
+          _toolVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('state_json')) {
+      context.handle(
+        _stateJsonMeta,
+        stateJson.isAcceptableOrUnknown(data['state_json']!, _stateJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stateJsonMeta);
+    }
+    if (data.containsKey('state_schema_version')) {
+      context.handle(
+        _stateSchemaVersionMeta,
+        stateSchemaVersion.isAcceptableOrUnknown(
+          data['state_schema_version']!,
+          _stateSchemaVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tool_manifest_version')) {
+      context.handle(
+        _toolManifestVersionMeta,
+        toolManifestVersion.isAcceptableOrUnknown(
+          data['tool_manifest_version']!,
+          _toolManifestVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('last_opened_at')) {
+      context.handle(
+        _lastOpenedAtMeta,
+        lastOpenedAt.isAcceptableOrUnknown(
+          data['last_opened_at']!,
+          _lastOpenedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_favorite')) {
+      context.handle(
+        _isFavoriteMeta,
+        isFavorite.isAcceptableOrUnknown(data['is_favorite']!, _isFavoriteMeta),
+      );
+    }
+    if (data.containsKey('preview_text')) {
+      context.handle(
+        _previewTextMeta,
+        previewText.isAcceptableOrUnknown(
+          data['preview_text']!,
+          _previewTextMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state_size_bytes')) {
+      context.handle(
+        _stateSizeBytesMeta,
+        stateSizeBytes.isAcceptableOrUnknown(
+          data['state_size_bytes']!,
+          _stateSizeBytesMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {toolId, name},
+  ];
+  @override
+  ToolSessionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ToolSessionRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      toolId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tool_id'],
+      )!,
+      toolSlug: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tool_slug'],
+      )!,
+      installId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}install_id'],
+      ),
+      toolVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tool_version'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      stateJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state_json'],
+      )!,
+      stateSchemaVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}state_schema_version'],
+      )!,
+      toolManifestVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tool_manifest_version'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      lastOpenedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_opened_at'],
+      ),
+      isFavorite: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_favorite'],
+      )!,
+      previewText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}preview_text'],
+      ),
+      stateSizeBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}state_size_bytes'],
+      ),
+    );
+  }
+
+  @override
+  $ToolSessionsTable createAlias(String alias) {
+    return $ToolSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class ToolSessionRow extends DataClass implements Insertable<ToolSessionRow> {
+  final String id;
+  final String toolId;
+  final String toolSlug;
+  final String? installId;
+  final String? toolVersion;
+  final String name;
+  final String stateJson;
+  final int stateSchemaVersion;
+  final String? toolManifestVersion;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? lastOpenedAt;
+  final bool isFavorite;
+  final String? previewText;
+  final int? stateSizeBytes;
+  const ToolSessionRow({
+    required this.id,
+    required this.toolId,
+    required this.toolSlug,
+    this.installId,
+    this.toolVersion,
+    required this.name,
+    required this.stateJson,
+    required this.stateSchemaVersion,
+    this.toolManifestVersion,
+    required this.createdAt,
+    required this.updatedAt,
+    this.lastOpenedAt,
+    required this.isFavorite,
+    this.previewText,
+    this.stateSizeBytes,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['tool_id'] = Variable<String>(toolId);
+    map['tool_slug'] = Variable<String>(toolSlug);
+    if (!nullToAbsent || installId != null) {
+      map['install_id'] = Variable<String>(installId);
+    }
+    if (!nullToAbsent || toolVersion != null) {
+      map['tool_version'] = Variable<String>(toolVersion);
+    }
+    map['name'] = Variable<String>(name);
+    map['state_json'] = Variable<String>(stateJson);
+    map['state_schema_version'] = Variable<int>(stateSchemaVersion);
+    if (!nullToAbsent || toolManifestVersion != null) {
+      map['tool_manifest_version'] = Variable<String>(toolManifestVersion);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || lastOpenedAt != null) {
+      map['last_opened_at'] = Variable<DateTime>(lastOpenedAt);
+    }
+    map['is_favorite'] = Variable<bool>(isFavorite);
+    if (!nullToAbsent || previewText != null) {
+      map['preview_text'] = Variable<String>(previewText);
+    }
+    if (!nullToAbsent || stateSizeBytes != null) {
+      map['state_size_bytes'] = Variable<int>(stateSizeBytes);
+    }
+    return map;
+  }
+
+  ToolSessionsCompanion toCompanion(bool nullToAbsent) {
+    return ToolSessionsCompanion(
+      id: Value(id),
+      toolId: Value(toolId),
+      toolSlug: Value(toolSlug),
+      installId: installId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(installId),
+      toolVersion: toolVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toolVersion),
+      name: Value(name),
+      stateJson: Value(stateJson),
+      stateSchemaVersion: Value(stateSchemaVersion),
+      toolManifestVersion: toolManifestVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toolManifestVersion),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      lastOpenedAt: lastOpenedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastOpenedAt),
+      isFavorite: Value(isFavorite),
+      previewText: previewText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(previewText),
+      stateSizeBytes: stateSizeBytes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stateSizeBytes),
+    );
+  }
+
+  factory ToolSessionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ToolSessionRow(
+      id: serializer.fromJson<String>(json['id']),
+      toolId: serializer.fromJson<String>(json['toolId']),
+      toolSlug: serializer.fromJson<String>(json['toolSlug']),
+      installId: serializer.fromJson<String?>(json['installId']),
+      toolVersion: serializer.fromJson<String?>(json['toolVersion']),
+      name: serializer.fromJson<String>(json['name']),
+      stateJson: serializer.fromJson<String>(json['stateJson']),
+      stateSchemaVersion: serializer.fromJson<int>(json['stateSchemaVersion']),
+      toolManifestVersion: serializer.fromJson<String?>(
+        json['toolManifestVersion'],
+      ),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      lastOpenedAt: serializer.fromJson<DateTime?>(json['lastOpenedAt']),
+      isFavorite: serializer.fromJson<bool>(json['isFavorite']),
+      previewText: serializer.fromJson<String?>(json['previewText']),
+      stateSizeBytes: serializer.fromJson<int?>(json['stateSizeBytes']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'toolId': serializer.toJson<String>(toolId),
+      'toolSlug': serializer.toJson<String>(toolSlug),
+      'installId': serializer.toJson<String?>(installId),
+      'toolVersion': serializer.toJson<String?>(toolVersion),
+      'name': serializer.toJson<String>(name),
+      'stateJson': serializer.toJson<String>(stateJson),
+      'stateSchemaVersion': serializer.toJson<int>(stateSchemaVersion),
+      'toolManifestVersion': serializer.toJson<String?>(toolManifestVersion),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'lastOpenedAt': serializer.toJson<DateTime?>(lastOpenedAt),
+      'isFavorite': serializer.toJson<bool>(isFavorite),
+      'previewText': serializer.toJson<String?>(previewText),
+      'stateSizeBytes': serializer.toJson<int?>(stateSizeBytes),
+    };
+  }
+
+  ToolSessionRow copyWith({
+    String? id,
+    String? toolId,
+    String? toolSlug,
+    Value<String?> installId = const Value.absent(),
+    Value<String?> toolVersion = const Value.absent(),
+    String? name,
+    String? stateJson,
+    int? stateSchemaVersion,
+    Value<String?> toolManifestVersion = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> lastOpenedAt = const Value.absent(),
+    bool? isFavorite,
+    Value<String?> previewText = const Value.absent(),
+    Value<int?> stateSizeBytes = const Value.absent(),
+  }) => ToolSessionRow(
+    id: id ?? this.id,
+    toolId: toolId ?? this.toolId,
+    toolSlug: toolSlug ?? this.toolSlug,
+    installId: installId.present ? installId.value : this.installId,
+    toolVersion: toolVersion.present ? toolVersion.value : this.toolVersion,
+    name: name ?? this.name,
+    stateJson: stateJson ?? this.stateJson,
+    stateSchemaVersion: stateSchemaVersion ?? this.stateSchemaVersion,
+    toolManifestVersion: toolManifestVersion.present
+        ? toolManifestVersion.value
+        : this.toolManifestVersion,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    lastOpenedAt: lastOpenedAt.present ? lastOpenedAt.value : this.lastOpenedAt,
+    isFavorite: isFavorite ?? this.isFavorite,
+    previewText: previewText.present ? previewText.value : this.previewText,
+    stateSizeBytes: stateSizeBytes.present
+        ? stateSizeBytes.value
+        : this.stateSizeBytes,
+  );
+  ToolSessionRow copyWithCompanion(ToolSessionsCompanion data) {
+    return ToolSessionRow(
+      id: data.id.present ? data.id.value : this.id,
+      toolId: data.toolId.present ? data.toolId.value : this.toolId,
+      toolSlug: data.toolSlug.present ? data.toolSlug.value : this.toolSlug,
+      installId: data.installId.present ? data.installId.value : this.installId,
+      toolVersion: data.toolVersion.present
+          ? data.toolVersion.value
+          : this.toolVersion,
+      name: data.name.present ? data.name.value : this.name,
+      stateJson: data.stateJson.present ? data.stateJson.value : this.stateJson,
+      stateSchemaVersion: data.stateSchemaVersion.present
+          ? data.stateSchemaVersion.value
+          : this.stateSchemaVersion,
+      toolManifestVersion: data.toolManifestVersion.present
+          ? data.toolManifestVersion.value
+          : this.toolManifestVersion,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      lastOpenedAt: data.lastOpenedAt.present
+          ? data.lastOpenedAt.value
+          : this.lastOpenedAt,
+      isFavorite: data.isFavorite.present
+          ? data.isFavorite.value
+          : this.isFavorite,
+      previewText: data.previewText.present
+          ? data.previewText.value
+          : this.previewText,
+      stateSizeBytes: data.stateSizeBytes.present
+          ? data.stateSizeBytes.value
+          : this.stateSizeBytes,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ToolSessionRow(')
+          ..write('id: $id, ')
+          ..write('toolId: $toolId, ')
+          ..write('toolSlug: $toolSlug, ')
+          ..write('installId: $installId, ')
+          ..write('toolVersion: $toolVersion, ')
+          ..write('name: $name, ')
+          ..write('stateJson: $stateJson, ')
+          ..write('stateSchemaVersion: $stateSchemaVersion, ')
+          ..write('toolManifestVersion: $toolManifestVersion, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('lastOpenedAt: $lastOpenedAt, ')
+          ..write('isFavorite: $isFavorite, ')
+          ..write('previewText: $previewText, ')
+          ..write('stateSizeBytes: $stateSizeBytes')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    toolId,
+    toolSlug,
+    installId,
+    toolVersion,
+    name,
+    stateJson,
+    stateSchemaVersion,
+    toolManifestVersion,
+    createdAt,
+    updatedAt,
+    lastOpenedAt,
+    isFavorite,
+    previewText,
+    stateSizeBytes,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ToolSessionRow &&
+          other.id == this.id &&
+          other.toolId == this.toolId &&
+          other.toolSlug == this.toolSlug &&
+          other.installId == this.installId &&
+          other.toolVersion == this.toolVersion &&
+          other.name == this.name &&
+          other.stateJson == this.stateJson &&
+          other.stateSchemaVersion == this.stateSchemaVersion &&
+          other.toolManifestVersion == this.toolManifestVersion &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.lastOpenedAt == this.lastOpenedAt &&
+          other.isFavorite == this.isFavorite &&
+          other.previewText == this.previewText &&
+          other.stateSizeBytes == this.stateSizeBytes);
+}
+
+class ToolSessionsCompanion extends UpdateCompanion<ToolSessionRow> {
+  final Value<String> id;
+  final Value<String> toolId;
+  final Value<String> toolSlug;
+  final Value<String?> installId;
+  final Value<String?> toolVersion;
+  final Value<String> name;
+  final Value<String> stateJson;
+  final Value<int> stateSchemaVersion;
+  final Value<String?> toolManifestVersion;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> lastOpenedAt;
+  final Value<bool> isFavorite;
+  final Value<String?> previewText;
+  final Value<int?> stateSizeBytes;
+  final Value<int> rowid;
+  const ToolSessionsCompanion({
+    this.id = const Value.absent(),
+    this.toolId = const Value.absent(),
+    this.toolSlug = const Value.absent(),
+    this.installId = const Value.absent(),
+    this.toolVersion = const Value.absent(),
+    this.name = const Value.absent(),
+    this.stateJson = const Value.absent(),
+    this.stateSchemaVersion = const Value.absent(),
+    this.toolManifestVersion = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.lastOpenedAt = const Value.absent(),
+    this.isFavorite = const Value.absent(),
+    this.previewText = const Value.absent(),
+    this.stateSizeBytes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ToolSessionsCompanion.insert({
+    required String id,
+    required String toolId,
+    required String toolSlug,
+    this.installId = const Value.absent(),
+    this.toolVersion = const Value.absent(),
+    required String name,
+    required String stateJson,
+    this.stateSchemaVersion = const Value.absent(),
+    this.toolManifestVersion = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.lastOpenedAt = const Value.absent(),
+    this.isFavorite = const Value.absent(),
+    this.previewText = const Value.absent(),
+    this.stateSizeBytes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       toolId = Value(toolId),
+       toolSlug = Value(toolSlug),
+       name = Value(name),
+       stateJson = Value(stateJson),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ToolSessionRow> custom({
+    Expression<String>? id,
+    Expression<String>? toolId,
+    Expression<String>? toolSlug,
+    Expression<String>? installId,
+    Expression<String>? toolVersion,
+    Expression<String>? name,
+    Expression<String>? stateJson,
+    Expression<int>? stateSchemaVersion,
+    Expression<String>? toolManifestVersion,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? lastOpenedAt,
+    Expression<bool>? isFavorite,
+    Expression<String>? previewText,
+    Expression<int>? stateSizeBytes,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (toolId != null) 'tool_id': toolId,
+      if (toolSlug != null) 'tool_slug': toolSlug,
+      if (installId != null) 'install_id': installId,
+      if (toolVersion != null) 'tool_version': toolVersion,
+      if (name != null) 'name': name,
+      if (stateJson != null) 'state_json': stateJson,
+      if (stateSchemaVersion != null)
+        'state_schema_version': stateSchemaVersion,
+      if (toolManifestVersion != null)
+        'tool_manifest_version': toolManifestVersion,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (lastOpenedAt != null) 'last_opened_at': lastOpenedAt,
+      if (isFavorite != null) 'is_favorite': isFavorite,
+      if (previewText != null) 'preview_text': previewText,
+      if (stateSizeBytes != null) 'state_size_bytes': stateSizeBytes,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ToolSessionsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? toolId,
+    Value<String>? toolSlug,
+    Value<String?>? installId,
+    Value<String?>? toolVersion,
+    Value<String>? name,
+    Value<String>? stateJson,
+    Value<int>? stateSchemaVersion,
+    Value<String?>? toolManifestVersion,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? lastOpenedAt,
+    Value<bool>? isFavorite,
+    Value<String?>? previewText,
+    Value<int?>? stateSizeBytes,
+    Value<int>? rowid,
+  }) {
+    return ToolSessionsCompanion(
+      id: id ?? this.id,
+      toolId: toolId ?? this.toolId,
+      toolSlug: toolSlug ?? this.toolSlug,
+      installId: installId ?? this.installId,
+      toolVersion: toolVersion ?? this.toolVersion,
+      name: name ?? this.name,
+      stateJson: stateJson ?? this.stateJson,
+      stateSchemaVersion: stateSchemaVersion ?? this.stateSchemaVersion,
+      toolManifestVersion: toolManifestVersion ?? this.toolManifestVersion,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      lastOpenedAt: lastOpenedAt ?? this.lastOpenedAt,
+      isFavorite: isFavorite ?? this.isFavorite,
+      previewText: previewText ?? this.previewText,
+      stateSizeBytes: stateSizeBytes ?? this.stateSizeBytes,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (toolId.present) {
+      map['tool_id'] = Variable<String>(toolId.value);
+    }
+    if (toolSlug.present) {
+      map['tool_slug'] = Variable<String>(toolSlug.value);
+    }
+    if (installId.present) {
+      map['install_id'] = Variable<String>(installId.value);
+    }
+    if (toolVersion.present) {
+      map['tool_version'] = Variable<String>(toolVersion.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (stateJson.present) {
+      map['state_json'] = Variable<String>(stateJson.value);
+    }
+    if (stateSchemaVersion.present) {
+      map['state_schema_version'] = Variable<int>(stateSchemaVersion.value);
+    }
+    if (toolManifestVersion.present) {
+      map['tool_manifest_version'] = Variable<String>(
+        toolManifestVersion.value,
+      );
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (lastOpenedAt.present) {
+      map['last_opened_at'] = Variable<DateTime>(lastOpenedAt.value);
+    }
+    if (isFavorite.present) {
+      map['is_favorite'] = Variable<bool>(isFavorite.value);
+    }
+    if (previewText.present) {
+      map['preview_text'] = Variable<String>(previewText.value);
+    }
+    if (stateSizeBytes.present) {
+      map['state_size_bytes'] = Variable<int>(stateSizeBytes.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ToolSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('toolId: $toolId, ')
+          ..write('toolSlug: $toolSlug, ')
+          ..write('installId: $installId, ')
+          ..write('toolVersion: $toolVersion, ')
+          ..write('name: $name, ')
+          ..write('stateJson: $stateJson, ')
+          ..write('stateSchemaVersion: $stateSchemaVersion, ')
+          ..write('toolManifestVersion: $toolManifestVersion, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('lastOpenedAt: $lastOpenedAt, ')
+          ..write('isFavorite: $isFavorite, ')
+          ..write('previewText: $previewText, ')
+          ..write('stateSizeBytes: $stateSizeBytes, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $EphemeralRuntimeStatesTable extends EphemeralRuntimeStates
+    with TableInfo<$EphemeralRuntimeStatesTable, EphemeralRuntimeStateRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EphemeralRuntimeStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _launchTokenMeta = const VerificationMeta(
+    'launchToken',
+  );
+  @override
+  late final GeneratedColumn<String> launchToken = GeneratedColumn<String>(
+    'launch_token',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _toolIdMeta = const VerificationMeta('toolId');
+  @override
+  late final GeneratedColumn<String> toolId = GeneratedColumn<String>(
+    'tool_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _toolSlugMeta = const VerificationMeta(
+    'toolSlug',
+  );
+  @override
+  late final GeneratedColumn<String> toolSlug = GeneratedColumn<String>(
+    'tool_slug',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stateJsonMeta = const VerificationMeta(
+    'stateJson',
+  );
+  @override
+  late final GeneratedColumn<String> stateJson = GeneratedColumn<String>(
+    'state_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _expiresAtMeta = const VerificationMeta(
+    'expiresAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> expiresAt = GeneratedColumn<DateTime>(
+    'expires_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    launchToken,
+    toolId,
+    toolSlug,
+    stateJson,
+    createdAt,
+    updatedAt,
+    expiresAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ephemeral_runtime_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<EphemeralRuntimeStateRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('launch_token')) {
+      context.handle(
+        _launchTokenMeta,
+        launchToken.isAcceptableOrUnknown(
+          data['launch_token']!,
+          _launchTokenMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_launchTokenMeta);
+    }
+    if (data.containsKey('tool_id')) {
+      context.handle(
+        _toolIdMeta,
+        toolId.isAcceptableOrUnknown(data['tool_id']!, _toolIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_toolIdMeta);
+    }
+    if (data.containsKey('tool_slug')) {
+      context.handle(
+        _toolSlugMeta,
+        toolSlug.isAcceptableOrUnknown(data['tool_slug']!, _toolSlugMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_toolSlugMeta);
+    }
+    if (data.containsKey('state_json')) {
+      context.handle(
+        _stateJsonMeta,
+        stateJson.isAcceptableOrUnknown(data['state_json']!, _stateJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stateJsonMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('expires_at')) {
+      context.handle(
+        _expiresAtMeta,
+        expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {launchToken};
+  @override
+  EphemeralRuntimeStateRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EphemeralRuntimeStateRow(
+      launchToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}launch_token'],
+      )!,
+      toolId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tool_id'],
+      )!,
+      toolSlug: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tool_slug'],
+      )!,
+      stateJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state_json'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      expiresAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}expires_at'],
+      ),
+    );
+  }
+
+  @override
+  $EphemeralRuntimeStatesTable createAlias(String alias) {
+    return $EphemeralRuntimeStatesTable(attachedDatabase, alias);
+  }
+}
+
+class EphemeralRuntimeStateRow extends DataClass
+    implements Insertable<EphemeralRuntimeStateRow> {
+  final String launchToken;
+  final String toolId;
+  final String toolSlug;
+  final String stateJson;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? expiresAt;
+  const EphemeralRuntimeStateRow({
+    required this.launchToken,
+    required this.toolId,
+    required this.toolSlug,
+    required this.stateJson,
+    required this.createdAt,
+    required this.updatedAt,
+    this.expiresAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['launch_token'] = Variable<String>(launchToken);
+    map['tool_id'] = Variable<String>(toolId);
+    map['tool_slug'] = Variable<String>(toolSlug);
+    map['state_json'] = Variable<String>(stateJson);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || expiresAt != null) {
+      map['expires_at'] = Variable<DateTime>(expiresAt);
+    }
+    return map;
+  }
+
+  EphemeralRuntimeStatesCompanion toCompanion(bool nullToAbsent) {
+    return EphemeralRuntimeStatesCompanion(
+      launchToken: Value(launchToken),
+      toolId: Value(toolId),
+      toolSlug: Value(toolSlug),
+      stateJson: Value(stateJson),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      expiresAt: expiresAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expiresAt),
+    );
+  }
+
+  factory EphemeralRuntimeStateRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EphemeralRuntimeStateRow(
+      launchToken: serializer.fromJson<String>(json['launchToken']),
+      toolId: serializer.fromJson<String>(json['toolId']),
+      toolSlug: serializer.fromJson<String>(json['toolSlug']),
+      stateJson: serializer.fromJson<String>(json['stateJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      expiresAt: serializer.fromJson<DateTime?>(json['expiresAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'launchToken': serializer.toJson<String>(launchToken),
+      'toolId': serializer.toJson<String>(toolId),
+      'toolSlug': serializer.toJson<String>(toolSlug),
+      'stateJson': serializer.toJson<String>(stateJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'expiresAt': serializer.toJson<DateTime?>(expiresAt),
+    };
+  }
+
+  EphemeralRuntimeStateRow copyWith({
+    String? launchToken,
+    String? toolId,
+    String? toolSlug,
+    String? stateJson,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> expiresAt = const Value.absent(),
+  }) => EphemeralRuntimeStateRow(
+    launchToken: launchToken ?? this.launchToken,
+    toolId: toolId ?? this.toolId,
+    toolSlug: toolSlug ?? this.toolSlug,
+    stateJson: stateJson ?? this.stateJson,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
+  );
+  EphemeralRuntimeStateRow copyWithCompanion(
+    EphemeralRuntimeStatesCompanion data,
+  ) {
+    return EphemeralRuntimeStateRow(
+      launchToken: data.launchToken.present
+          ? data.launchToken.value
+          : this.launchToken,
+      toolId: data.toolId.present ? data.toolId.value : this.toolId,
+      toolSlug: data.toolSlug.present ? data.toolSlug.value : this.toolSlug,
+      stateJson: data.stateJson.present ? data.stateJson.value : this.stateJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EphemeralRuntimeStateRow(')
+          ..write('launchToken: $launchToken, ')
+          ..write('toolId: $toolId, ')
+          ..write('toolSlug: $toolSlug, ')
+          ..write('stateJson: $stateJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('expiresAt: $expiresAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    launchToken,
+    toolId,
+    toolSlug,
+    stateJson,
+    createdAt,
+    updatedAt,
+    expiresAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EphemeralRuntimeStateRow &&
+          other.launchToken == this.launchToken &&
+          other.toolId == this.toolId &&
+          other.toolSlug == this.toolSlug &&
+          other.stateJson == this.stateJson &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.expiresAt == this.expiresAt);
+}
+
+class EphemeralRuntimeStatesCompanion
+    extends UpdateCompanion<EphemeralRuntimeStateRow> {
+  final Value<String> launchToken;
+  final Value<String> toolId;
+  final Value<String> toolSlug;
+  final Value<String> stateJson;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> expiresAt;
+  final Value<int> rowid;
+  const EphemeralRuntimeStatesCompanion({
+    this.launchToken = const Value.absent(),
+    this.toolId = const Value.absent(),
+    this.toolSlug = const Value.absent(),
+    this.stateJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  EphemeralRuntimeStatesCompanion.insert({
+    required String launchToken,
+    required String toolId,
+    required String toolSlug,
+    required String stateJson,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.expiresAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : launchToken = Value(launchToken),
+       toolId = Value(toolId),
+       toolSlug = Value(toolSlug),
+       stateJson = Value(stateJson),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<EphemeralRuntimeStateRow> custom({
+    Expression<String>? launchToken,
+    Expression<String>? toolId,
+    Expression<String>? toolSlug,
+    Expression<String>? stateJson,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? expiresAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (launchToken != null) 'launch_token': launchToken,
+      if (toolId != null) 'tool_id': toolId,
+      if (toolSlug != null) 'tool_slug': toolSlug,
+      if (stateJson != null) 'state_json': stateJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (expiresAt != null) 'expires_at': expiresAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  EphemeralRuntimeStatesCompanion copyWith({
+    Value<String>? launchToken,
+    Value<String>? toolId,
+    Value<String>? toolSlug,
+    Value<String>? stateJson,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? expiresAt,
+    Value<int>? rowid,
+  }) {
+    return EphemeralRuntimeStatesCompanion(
+      launchToken: launchToken ?? this.launchToken,
+      toolId: toolId ?? this.toolId,
+      toolSlug: toolSlug ?? this.toolSlug,
+      stateJson: stateJson ?? this.stateJson,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      expiresAt: expiresAt ?? this.expiresAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (launchToken.present) {
+      map['launch_token'] = Variable<String>(launchToken.value);
+    }
+    if (toolId.present) {
+      map['tool_id'] = Variable<String>(toolId.value);
+    }
+    if (toolSlug.present) {
+      map['tool_slug'] = Variable<String>(toolSlug.value);
+    }
+    if (stateJson.present) {
+      map['state_json'] = Variable<String>(stateJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (expiresAt.present) {
+      map['expires_at'] = Variable<DateTime>(expiresAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EphemeralRuntimeStatesCompanion(')
+          ..write('launchToken: $launchToken, ')
+          ..write('toolId: $toolId, ')
+          ..write('toolSlug: $toolSlug, ')
+          ..write('stateJson: $stateJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ToolWidgetsTable extends ToolWidgets
+    with TableInfo<$ToolWidgetsTable, ToolWidgetRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ToolWidgetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _platformMeta = const VerificationMeta(
+    'platform',
+  );
+  @override
+  late final GeneratedColumn<String> platform = GeneratedColumn<String>(
+    'platform',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _platformWidgetIdMeta = const VerificationMeta(
+    'platformWidgetId',
+  );
+  @override
+  late final GeneratedColumn<String> platformWidgetId = GeneratedColumn<String>(
+    'platform_widget_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _toolIdMeta = const VerificationMeta('toolId');
+  @override
+  late final GeneratedColumn<String> toolId = GeneratedColumn<String>(
+    'tool_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _toolSlugMeta = const VerificationMeta(
+    'toolSlug',
+  );
+  @override
+  late final GeneratedColumn<String> toolSlug = GeneratedColumn<String>(
+    'tool_slug',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _toolNameMeta = const VerificationMeta(
+    'toolName',
+  );
+  @override
+  late final GeneratedColumn<String> toolName = GeneratedColumn<String>(
+    'tool_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _iconSourceMeta = const VerificationMeta(
+    'iconSource',
+  );
+  @override
+  late final GeneratedColumn<String> iconSource = GeneratedColumn<String>(
+    'icon_source',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastLaunchedAtMeta = const VerificationMeta(
+    'lastLaunchedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastLaunchedAt =
+      GeneratedColumn<DateTime>(
+        'last_launched_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _configurationJsonMeta = const VerificationMeta(
+    'configurationJson',
+  );
+  @override
+  late final GeneratedColumn<String> configurationJson =
+      GeneratedColumn<String>(
+        'configuration_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    platform,
+    platformWidgetId,
+    toolId,
+    toolSlug,
+    toolName,
+    iconSource,
+    createdAt,
+    updatedAt,
+    lastLaunchedAt,
+    configurationJson,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'tool_widgets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ToolWidgetRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('platform')) {
+      context.handle(
+        _platformMeta,
+        platform.isAcceptableOrUnknown(data['platform']!, _platformMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_platformMeta);
+    }
+    if (data.containsKey('platform_widget_id')) {
+      context.handle(
+        _platformWidgetIdMeta,
+        platformWidgetId.isAcceptableOrUnknown(
+          data['platform_widget_id']!,
+          _platformWidgetIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_platformWidgetIdMeta);
+    }
+    if (data.containsKey('tool_id')) {
+      context.handle(
+        _toolIdMeta,
+        toolId.isAcceptableOrUnknown(data['tool_id']!, _toolIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_toolIdMeta);
+    }
+    if (data.containsKey('tool_slug')) {
+      context.handle(
+        _toolSlugMeta,
+        toolSlug.isAcceptableOrUnknown(data['tool_slug']!, _toolSlugMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_toolSlugMeta);
+    }
+    if (data.containsKey('tool_name')) {
+      context.handle(
+        _toolNameMeta,
+        toolName.isAcceptableOrUnknown(data['tool_name']!, _toolNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_toolNameMeta);
+    }
+    if (data.containsKey('icon_source')) {
+      context.handle(
+        _iconSourceMeta,
+        iconSource.isAcceptableOrUnknown(data['icon_source']!, _iconSourceMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('last_launched_at')) {
+      context.handle(
+        _lastLaunchedAtMeta,
+        lastLaunchedAt.isAcceptableOrUnknown(
+          data['last_launched_at']!,
+          _lastLaunchedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('configuration_json')) {
+      context.handle(
+        _configurationJsonMeta,
+        configurationJson.isAcceptableOrUnknown(
+          data['configuration_json']!,
+          _configurationJsonMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {platform, platformWidgetId},
+  ];
+  @override
+  ToolWidgetRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ToolWidgetRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      platform: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}platform'],
+      )!,
+      platformWidgetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}platform_widget_id'],
+      )!,
+      toolId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tool_id'],
+      )!,
+      toolSlug: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tool_slug'],
+      )!,
+      toolName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tool_name'],
+      )!,
+      iconSource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_source'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      lastLaunchedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_launched_at'],
+      ),
+      configurationJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}configuration_json'],
+      ),
+    );
+  }
+
+  @override
+  $ToolWidgetsTable createAlias(String alias) {
+    return $ToolWidgetsTable(attachedDatabase, alias);
+  }
+}
+
+class ToolWidgetRow extends DataClass implements Insertable<ToolWidgetRow> {
+  final String id;
+  final String platform;
+  final String platformWidgetId;
+  final String toolId;
+  final String toolSlug;
+  final String toolName;
+  final String? iconSource;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? lastLaunchedAt;
+  final String? configurationJson;
+  const ToolWidgetRow({
+    required this.id,
+    required this.platform,
+    required this.platformWidgetId,
+    required this.toolId,
+    required this.toolSlug,
+    required this.toolName,
+    this.iconSource,
+    required this.createdAt,
+    required this.updatedAt,
+    this.lastLaunchedAt,
+    this.configurationJson,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['platform'] = Variable<String>(platform);
+    map['platform_widget_id'] = Variable<String>(platformWidgetId);
+    map['tool_id'] = Variable<String>(toolId);
+    map['tool_slug'] = Variable<String>(toolSlug);
+    map['tool_name'] = Variable<String>(toolName);
+    if (!nullToAbsent || iconSource != null) {
+      map['icon_source'] = Variable<String>(iconSource);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || lastLaunchedAt != null) {
+      map['last_launched_at'] = Variable<DateTime>(lastLaunchedAt);
+    }
+    if (!nullToAbsent || configurationJson != null) {
+      map['configuration_json'] = Variable<String>(configurationJson);
+    }
+    return map;
+  }
+
+  ToolWidgetsCompanion toCompanion(bool nullToAbsent) {
+    return ToolWidgetsCompanion(
+      id: Value(id),
+      platform: Value(platform),
+      platformWidgetId: Value(platformWidgetId),
+      toolId: Value(toolId),
+      toolSlug: Value(toolSlug),
+      toolName: Value(toolName),
+      iconSource: iconSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(iconSource),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      lastLaunchedAt: lastLaunchedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastLaunchedAt),
+      configurationJson: configurationJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(configurationJson),
+    );
+  }
+
+  factory ToolWidgetRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ToolWidgetRow(
+      id: serializer.fromJson<String>(json['id']),
+      platform: serializer.fromJson<String>(json['platform']),
+      platformWidgetId: serializer.fromJson<String>(json['platformWidgetId']),
+      toolId: serializer.fromJson<String>(json['toolId']),
+      toolSlug: serializer.fromJson<String>(json['toolSlug']),
+      toolName: serializer.fromJson<String>(json['toolName']),
+      iconSource: serializer.fromJson<String?>(json['iconSource']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      lastLaunchedAt: serializer.fromJson<DateTime?>(json['lastLaunchedAt']),
+      configurationJson: serializer.fromJson<String?>(
+        json['configurationJson'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'platform': serializer.toJson<String>(platform),
+      'platformWidgetId': serializer.toJson<String>(platformWidgetId),
+      'toolId': serializer.toJson<String>(toolId),
+      'toolSlug': serializer.toJson<String>(toolSlug),
+      'toolName': serializer.toJson<String>(toolName),
+      'iconSource': serializer.toJson<String?>(iconSource),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'lastLaunchedAt': serializer.toJson<DateTime?>(lastLaunchedAt),
+      'configurationJson': serializer.toJson<String?>(configurationJson),
+    };
+  }
+
+  ToolWidgetRow copyWith({
+    String? id,
+    String? platform,
+    String? platformWidgetId,
+    String? toolId,
+    String? toolSlug,
+    String? toolName,
+    Value<String?> iconSource = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> lastLaunchedAt = const Value.absent(),
+    Value<String?> configurationJson = const Value.absent(),
+  }) => ToolWidgetRow(
+    id: id ?? this.id,
+    platform: platform ?? this.platform,
+    platformWidgetId: platformWidgetId ?? this.platformWidgetId,
+    toolId: toolId ?? this.toolId,
+    toolSlug: toolSlug ?? this.toolSlug,
+    toolName: toolName ?? this.toolName,
+    iconSource: iconSource.present ? iconSource.value : this.iconSource,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    lastLaunchedAt: lastLaunchedAt.present
+        ? lastLaunchedAt.value
+        : this.lastLaunchedAt,
+    configurationJson: configurationJson.present
+        ? configurationJson.value
+        : this.configurationJson,
+  );
+  ToolWidgetRow copyWithCompanion(ToolWidgetsCompanion data) {
+    return ToolWidgetRow(
+      id: data.id.present ? data.id.value : this.id,
+      platform: data.platform.present ? data.platform.value : this.platform,
+      platformWidgetId: data.platformWidgetId.present
+          ? data.platformWidgetId.value
+          : this.platformWidgetId,
+      toolId: data.toolId.present ? data.toolId.value : this.toolId,
+      toolSlug: data.toolSlug.present ? data.toolSlug.value : this.toolSlug,
+      toolName: data.toolName.present ? data.toolName.value : this.toolName,
+      iconSource: data.iconSource.present
+          ? data.iconSource.value
+          : this.iconSource,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      lastLaunchedAt: data.lastLaunchedAt.present
+          ? data.lastLaunchedAt.value
+          : this.lastLaunchedAt,
+      configurationJson: data.configurationJson.present
+          ? data.configurationJson.value
+          : this.configurationJson,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ToolWidgetRow(')
+          ..write('id: $id, ')
+          ..write('platform: $platform, ')
+          ..write('platformWidgetId: $platformWidgetId, ')
+          ..write('toolId: $toolId, ')
+          ..write('toolSlug: $toolSlug, ')
+          ..write('toolName: $toolName, ')
+          ..write('iconSource: $iconSource, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('lastLaunchedAt: $lastLaunchedAt, ')
+          ..write('configurationJson: $configurationJson')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    platform,
+    platformWidgetId,
+    toolId,
+    toolSlug,
+    toolName,
+    iconSource,
+    createdAt,
+    updatedAt,
+    lastLaunchedAt,
+    configurationJson,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ToolWidgetRow &&
+          other.id == this.id &&
+          other.platform == this.platform &&
+          other.platformWidgetId == this.platformWidgetId &&
+          other.toolId == this.toolId &&
+          other.toolSlug == this.toolSlug &&
+          other.toolName == this.toolName &&
+          other.iconSource == this.iconSource &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.lastLaunchedAt == this.lastLaunchedAt &&
+          other.configurationJson == this.configurationJson);
+}
+
+class ToolWidgetsCompanion extends UpdateCompanion<ToolWidgetRow> {
+  final Value<String> id;
+  final Value<String> platform;
+  final Value<String> platformWidgetId;
+  final Value<String> toolId;
+  final Value<String> toolSlug;
+  final Value<String> toolName;
+  final Value<String?> iconSource;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> lastLaunchedAt;
+  final Value<String?> configurationJson;
+  final Value<int> rowid;
+  const ToolWidgetsCompanion({
+    this.id = const Value.absent(),
+    this.platform = const Value.absent(),
+    this.platformWidgetId = const Value.absent(),
+    this.toolId = const Value.absent(),
+    this.toolSlug = const Value.absent(),
+    this.toolName = const Value.absent(),
+    this.iconSource = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.lastLaunchedAt = const Value.absent(),
+    this.configurationJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ToolWidgetsCompanion.insert({
+    required String id,
+    required String platform,
+    required String platformWidgetId,
+    required String toolId,
+    required String toolSlug,
+    required String toolName,
+    this.iconSource = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.lastLaunchedAt = const Value.absent(),
+    this.configurationJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       platform = Value(platform),
+       platformWidgetId = Value(platformWidgetId),
+       toolId = Value(toolId),
+       toolSlug = Value(toolSlug),
+       toolName = Value(toolName),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ToolWidgetRow> custom({
+    Expression<String>? id,
+    Expression<String>? platform,
+    Expression<String>? platformWidgetId,
+    Expression<String>? toolId,
+    Expression<String>? toolSlug,
+    Expression<String>? toolName,
+    Expression<String>? iconSource,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? lastLaunchedAt,
+    Expression<String>? configurationJson,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (platform != null) 'platform': platform,
+      if (platformWidgetId != null) 'platform_widget_id': platformWidgetId,
+      if (toolId != null) 'tool_id': toolId,
+      if (toolSlug != null) 'tool_slug': toolSlug,
+      if (toolName != null) 'tool_name': toolName,
+      if (iconSource != null) 'icon_source': iconSource,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (lastLaunchedAt != null) 'last_launched_at': lastLaunchedAt,
+      if (configurationJson != null) 'configuration_json': configurationJson,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ToolWidgetsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? platform,
+    Value<String>? platformWidgetId,
+    Value<String>? toolId,
+    Value<String>? toolSlug,
+    Value<String>? toolName,
+    Value<String?>? iconSource,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? lastLaunchedAt,
+    Value<String?>? configurationJson,
+    Value<int>? rowid,
+  }) {
+    return ToolWidgetsCompanion(
+      id: id ?? this.id,
+      platform: platform ?? this.platform,
+      platformWidgetId: platformWidgetId ?? this.platformWidgetId,
+      toolId: toolId ?? this.toolId,
+      toolSlug: toolSlug ?? this.toolSlug,
+      toolName: toolName ?? this.toolName,
+      iconSource: iconSource ?? this.iconSource,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      lastLaunchedAt: lastLaunchedAt ?? this.lastLaunchedAt,
+      configurationJson: configurationJson ?? this.configurationJson,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (platform.present) {
+      map['platform'] = Variable<String>(platform.value);
+    }
+    if (platformWidgetId.present) {
+      map['platform_widget_id'] = Variable<String>(platformWidgetId.value);
+    }
+    if (toolId.present) {
+      map['tool_id'] = Variable<String>(toolId.value);
+    }
+    if (toolSlug.present) {
+      map['tool_slug'] = Variable<String>(toolSlug.value);
+    }
+    if (toolName.present) {
+      map['tool_name'] = Variable<String>(toolName.value);
+    }
+    if (iconSource.present) {
+      map['icon_source'] = Variable<String>(iconSource.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (lastLaunchedAt.present) {
+      map['last_launched_at'] = Variable<DateTime>(lastLaunchedAt.value);
+    }
+    if (configurationJson.present) {
+      map['configuration_json'] = Variable<String>(configurationJson.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ToolWidgetsCompanion(')
+          ..write('id: $id, ')
+          ..write('platform: $platform, ')
+          ..write('platformWidgetId: $platformWidgetId, ')
+          ..write('toolId: $toolId, ')
+          ..write('toolSlug: $toolSlug, ')
+          ..write('toolName: $toolName, ')
+          ..write('iconSource: $iconSource, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('lastLaunchedAt: $lastLaunchedAt, ')
+          ..write('configurationJson: $configurationJson, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1851,6 +3911,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $CatPluginVersionsTable(this);
   late final $SyncKvTable syncKv = $SyncKvTable(this);
   late final $InstalledToolsTable installedTools = $InstalledToolsTable(this);
+  late final $ToolSessionsTable toolSessions = $ToolSessionsTable(this);
+  late final $EphemeralRuntimeStatesTable ephemeralRuntimeStates =
+      $EphemeralRuntimeStatesTable(this);
+  late final $ToolWidgetsTable toolWidgets = $ToolWidgetsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1862,6 +3926,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     catPluginVersions,
     syncKv,
     installedTools,
+    toolSessions,
+    ephemeralRuntimeStates,
+    toolWidgets,
   ];
 }
 
@@ -2957,6 +5024,991 @@ typedef $$InstalledToolsTableProcessedTableManager =
       InstalledToolRow,
       PrefetchHooks Function()
     >;
+typedef $$ToolSessionsTableCreateCompanionBuilder =
+    ToolSessionsCompanion Function({
+      required String id,
+      required String toolId,
+      required String toolSlug,
+      Value<String?> installId,
+      Value<String?> toolVersion,
+      required String name,
+      required String stateJson,
+      Value<int> stateSchemaVersion,
+      Value<String?> toolManifestVersion,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> lastOpenedAt,
+      Value<bool> isFavorite,
+      Value<String?> previewText,
+      Value<int?> stateSizeBytes,
+      Value<int> rowid,
+    });
+typedef $$ToolSessionsTableUpdateCompanionBuilder =
+    ToolSessionsCompanion Function({
+      Value<String> id,
+      Value<String> toolId,
+      Value<String> toolSlug,
+      Value<String?> installId,
+      Value<String?> toolVersion,
+      Value<String> name,
+      Value<String> stateJson,
+      Value<int> stateSchemaVersion,
+      Value<String?> toolManifestVersion,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> lastOpenedAt,
+      Value<bool> isFavorite,
+      Value<String?> previewText,
+      Value<int?> stateSizeBytes,
+      Value<int> rowid,
+    });
+
+class $$ToolSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $ToolSessionsTable> {
+  $$ToolSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toolId => $composableBuilder(
+    column: $table.toolId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toolSlug => $composableBuilder(
+    column: $table.toolSlug,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get installId => $composableBuilder(
+    column: $table.installId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toolVersion => $composableBuilder(
+    column: $table.toolVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stateJson => $composableBuilder(
+    column: $table.stateJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stateSchemaVersion => $composableBuilder(
+    column: $table.stateSchemaVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toolManifestVersion => $composableBuilder(
+    column: $table.toolManifestVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastOpenedAt => $composableBuilder(
+    column: $table.lastOpenedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isFavorite => $composableBuilder(
+    column: $table.isFavorite,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get previewText => $composableBuilder(
+    column: $table.previewText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stateSizeBytes => $composableBuilder(
+    column: $table.stateSizeBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ToolSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ToolSessionsTable> {
+  $$ToolSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toolId => $composableBuilder(
+    column: $table.toolId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toolSlug => $composableBuilder(
+    column: $table.toolSlug,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get installId => $composableBuilder(
+    column: $table.installId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toolVersion => $composableBuilder(
+    column: $table.toolVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stateJson => $composableBuilder(
+    column: $table.stateJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stateSchemaVersion => $composableBuilder(
+    column: $table.stateSchemaVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toolManifestVersion => $composableBuilder(
+    column: $table.toolManifestVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastOpenedAt => $composableBuilder(
+    column: $table.lastOpenedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isFavorite => $composableBuilder(
+    column: $table.isFavorite,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get previewText => $composableBuilder(
+    column: $table.previewText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stateSizeBytes => $composableBuilder(
+    column: $table.stateSizeBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ToolSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ToolSessionsTable> {
+  $$ToolSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get toolId =>
+      $composableBuilder(column: $table.toolId, builder: (column) => column);
+
+  GeneratedColumn<String> get toolSlug =>
+      $composableBuilder(column: $table.toolSlug, builder: (column) => column);
+
+  GeneratedColumn<String> get installId =>
+      $composableBuilder(column: $table.installId, builder: (column) => column);
+
+  GeneratedColumn<String> get toolVersion => $composableBuilder(
+    column: $table.toolVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get stateJson =>
+      $composableBuilder(column: $table.stateJson, builder: (column) => column);
+
+  GeneratedColumn<int> get stateSchemaVersion => $composableBuilder(
+    column: $table.stateSchemaVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get toolManifestVersion => $composableBuilder(
+    column: $table.toolManifestVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastOpenedAt => $composableBuilder(
+    column: $table.lastOpenedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isFavorite => $composableBuilder(
+    column: $table.isFavorite,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get previewText => $composableBuilder(
+    column: $table.previewText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get stateSizeBytes => $composableBuilder(
+    column: $table.stateSizeBytes,
+    builder: (column) => column,
+  );
+}
+
+class $$ToolSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ToolSessionsTable,
+          ToolSessionRow,
+          $$ToolSessionsTableFilterComposer,
+          $$ToolSessionsTableOrderingComposer,
+          $$ToolSessionsTableAnnotationComposer,
+          $$ToolSessionsTableCreateCompanionBuilder,
+          $$ToolSessionsTableUpdateCompanionBuilder,
+          (
+            ToolSessionRow,
+            BaseReferences<_$AppDatabase, $ToolSessionsTable, ToolSessionRow>,
+          ),
+          ToolSessionRow,
+          PrefetchHooks Function()
+        > {
+  $$ToolSessionsTableTableManager(_$AppDatabase db, $ToolSessionsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ToolSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ToolSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ToolSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> toolId = const Value.absent(),
+                Value<String> toolSlug = const Value.absent(),
+                Value<String?> installId = const Value.absent(),
+                Value<String?> toolVersion = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> stateJson = const Value.absent(),
+                Value<int> stateSchemaVersion = const Value.absent(),
+                Value<String?> toolManifestVersion = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> lastOpenedAt = const Value.absent(),
+                Value<bool> isFavorite = const Value.absent(),
+                Value<String?> previewText = const Value.absent(),
+                Value<int?> stateSizeBytes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ToolSessionsCompanion(
+                id: id,
+                toolId: toolId,
+                toolSlug: toolSlug,
+                installId: installId,
+                toolVersion: toolVersion,
+                name: name,
+                stateJson: stateJson,
+                stateSchemaVersion: stateSchemaVersion,
+                toolManifestVersion: toolManifestVersion,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                lastOpenedAt: lastOpenedAt,
+                isFavorite: isFavorite,
+                previewText: previewText,
+                stateSizeBytes: stateSizeBytes,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String toolId,
+                required String toolSlug,
+                Value<String?> installId = const Value.absent(),
+                Value<String?> toolVersion = const Value.absent(),
+                required String name,
+                required String stateJson,
+                Value<int> stateSchemaVersion = const Value.absent(),
+                Value<String?> toolManifestVersion = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> lastOpenedAt = const Value.absent(),
+                Value<bool> isFavorite = const Value.absent(),
+                Value<String?> previewText = const Value.absent(),
+                Value<int?> stateSizeBytes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ToolSessionsCompanion.insert(
+                id: id,
+                toolId: toolId,
+                toolSlug: toolSlug,
+                installId: installId,
+                toolVersion: toolVersion,
+                name: name,
+                stateJson: stateJson,
+                stateSchemaVersion: stateSchemaVersion,
+                toolManifestVersion: toolManifestVersion,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                lastOpenedAt: lastOpenedAt,
+                isFavorite: isFavorite,
+                previewText: previewText,
+                stateSizeBytes: stateSizeBytes,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ToolSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ToolSessionsTable,
+      ToolSessionRow,
+      $$ToolSessionsTableFilterComposer,
+      $$ToolSessionsTableOrderingComposer,
+      $$ToolSessionsTableAnnotationComposer,
+      $$ToolSessionsTableCreateCompanionBuilder,
+      $$ToolSessionsTableUpdateCompanionBuilder,
+      (
+        ToolSessionRow,
+        BaseReferences<_$AppDatabase, $ToolSessionsTable, ToolSessionRow>,
+      ),
+      ToolSessionRow,
+      PrefetchHooks Function()
+    >;
+typedef $$EphemeralRuntimeStatesTableCreateCompanionBuilder =
+    EphemeralRuntimeStatesCompanion Function({
+      required String launchToken,
+      required String toolId,
+      required String toolSlug,
+      required String stateJson,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> expiresAt,
+      Value<int> rowid,
+    });
+typedef $$EphemeralRuntimeStatesTableUpdateCompanionBuilder =
+    EphemeralRuntimeStatesCompanion Function({
+      Value<String> launchToken,
+      Value<String> toolId,
+      Value<String> toolSlug,
+      Value<String> stateJson,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> expiresAt,
+      Value<int> rowid,
+    });
+
+class $$EphemeralRuntimeStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $EphemeralRuntimeStatesTable> {
+  $$EphemeralRuntimeStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get launchToken => $composableBuilder(
+    column: $table.launchToken,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toolId => $composableBuilder(
+    column: $table.toolId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toolSlug => $composableBuilder(
+    column: $table.toolSlug,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stateJson => $composableBuilder(
+    column: $table.stateJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get expiresAt => $composableBuilder(
+    column: $table.expiresAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EphemeralRuntimeStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $EphemeralRuntimeStatesTable> {
+  $$EphemeralRuntimeStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get launchToken => $composableBuilder(
+    column: $table.launchToken,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toolId => $composableBuilder(
+    column: $table.toolId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toolSlug => $composableBuilder(
+    column: $table.toolSlug,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stateJson => $composableBuilder(
+    column: $table.stateJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get expiresAt => $composableBuilder(
+    column: $table.expiresAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EphemeralRuntimeStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EphemeralRuntimeStatesTable> {
+  $$EphemeralRuntimeStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get launchToken => $composableBuilder(
+    column: $table.launchToken,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get toolId =>
+      $composableBuilder(column: $table.toolId, builder: (column) => column);
+
+  GeneratedColumn<String> get toolSlug =>
+      $composableBuilder(column: $table.toolSlug, builder: (column) => column);
+
+  GeneratedColumn<String> get stateJson =>
+      $composableBuilder(column: $table.stateJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get expiresAt =>
+      $composableBuilder(column: $table.expiresAt, builder: (column) => column);
+}
+
+class $$EphemeralRuntimeStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EphemeralRuntimeStatesTable,
+          EphemeralRuntimeStateRow,
+          $$EphemeralRuntimeStatesTableFilterComposer,
+          $$EphemeralRuntimeStatesTableOrderingComposer,
+          $$EphemeralRuntimeStatesTableAnnotationComposer,
+          $$EphemeralRuntimeStatesTableCreateCompanionBuilder,
+          $$EphemeralRuntimeStatesTableUpdateCompanionBuilder,
+          (
+            EphemeralRuntimeStateRow,
+            BaseReferences<
+              _$AppDatabase,
+              $EphemeralRuntimeStatesTable,
+              EphemeralRuntimeStateRow
+            >,
+          ),
+          EphemeralRuntimeStateRow,
+          PrefetchHooks Function()
+        > {
+  $$EphemeralRuntimeStatesTableTableManager(
+    _$AppDatabase db,
+    $EphemeralRuntimeStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EphemeralRuntimeStatesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$EphemeralRuntimeStatesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$EphemeralRuntimeStatesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> launchToken = const Value.absent(),
+                Value<String> toolId = const Value.absent(),
+                Value<String> toolSlug = const Value.absent(),
+                Value<String> stateJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> expiresAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EphemeralRuntimeStatesCompanion(
+                launchToken: launchToken,
+                toolId: toolId,
+                toolSlug: toolSlug,
+                stateJson: stateJson,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                expiresAt: expiresAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String launchToken,
+                required String toolId,
+                required String toolSlug,
+                required String stateJson,
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> expiresAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EphemeralRuntimeStatesCompanion.insert(
+                launchToken: launchToken,
+                toolId: toolId,
+                toolSlug: toolSlug,
+                stateJson: stateJson,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                expiresAt: expiresAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EphemeralRuntimeStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EphemeralRuntimeStatesTable,
+      EphemeralRuntimeStateRow,
+      $$EphemeralRuntimeStatesTableFilterComposer,
+      $$EphemeralRuntimeStatesTableOrderingComposer,
+      $$EphemeralRuntimeStatesTableAnnotationComposer,
+      $$EphemeralRuntimeStatesTableCreateCompanionBuilder,
+      $$EphemeralRuntimeStatesTableUpdateCompanionBuilder,
+      (
+        EphemeralRuntimeStateRow,
+        BaseReferences<
+          _$AppDatabase,
+          $EphemeralRuntimeStatesTable,
+          EphemeralRuntimeStateRow
+        >,
+      ),
+      EphemeralRuntimeStateRow,
+      PrefetchHooks Function()
+    >;
+typedef $$ToolWidgetsTableCreateCompanionBuilder =
+    ToolWidgetsCompanion Function({
+      required String id,
+      required String platform,
+      required String platformWidgetId,
+      required String toolId,
+      required String toolSlug,
+      required String toolName,
+      Value<String?> iconSource,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> lastLaunchedAt,
+      Value<String?> configurationJson,
+      Value<int> rowid,
+    });
+typedef $$ToolWidgetsTableUpdateCompanionBuilder =
+    ToolWidgetsCompanion Function({
+      Value<String> id,
+      Value<String> platform,
+      Value<String> platformWidgetId,
+      Value<String> toolId,
+      Value<String> toolSlug,
+      Value<String> toolName,
+      Value<String?> iconSource,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> lastLaunchedAt,
+      Value<String?> configurationJson,
+      Value<int> rowid,
+    });
+
+class $$ToolWidgetsTableFilterComposer
+    extends Composer<_$AppDatabase, $ToolWidgetsTable> {
+  $$ToolWidgetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get platform => $composableBuilder(
+    column: $table.platform,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get platformWidgetId => $composableBuilder(
+    column: $table.platformWidgetId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toolId => $composableBuilder(
+    column: $table.toolId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toolSlug => $composableBuilder(
+    column: $table.toolSlug,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toolName => $composableBuilder(
+    column: $table.toolName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconSource => $composableBuilder(
+    column: $table.iconSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastLaunchedAt => $composableBuilder(
+    column: $table.lastLaunchedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get configurationJson => $composableBuilder(
+    column: $table.configurationJson,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ToolWidgetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ToolWidgetsTable> {
+  $$ToolWidgetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get platform => $composableBuilder(
+    column: $table.platform,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get platformWidgetId => $composableBuilder(
+    column: $table.platformWidgetId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toolId => $composableBuilder(
+    column: $table.toolId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toolSlug => $composableBuilder(
+    column: $table.toolSlug,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toolName => $composableBuilder(
+    column: $table.toolName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iconSource => $composableBuilder(
+    column: $table.iconSource,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastLaunchedAt => $composableBuilder(
+    column: $table.lastLaunchedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get configurationJson => $composableBuilder(
+    column: $table.configurationJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ToolWidgetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ToolWidgetsTable> {
+  $$ToolWidgetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get platform =>
+      $composableBuilder(column: $table.platform, builder: (column) => column);
+
+  GeneratedColumn<String> get platformWidgetId => $composableBuilder(
+    column: $table.platformWidgetId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get toolId =>
+      $composableBuilder(column: $table.toolId, builder: (column) => column);
+
+  GeneratedColumn<String> get toolSlug =>
+      $composableBuilder(column: $table.toolSlug, builder: (column) => column);
+
+  GeneratedColumn<String> get toolName =>
+      $composableBuilder(column: $table.toolName, builder: (column) => column);
+
+  GeneratedColumn<String> get iconSource => $composableBuilder(
+    column: $table.iconSource,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastLaunchedAt => $composableBuilder(
+    column: $table.lastLaunchedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get configurationJson => $composableBuilder(
+    column: $table.configurationJson,
+    builder: (column) => column,
+  );
+}
+
+class $$ToolWidgetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ToolWidgetsTable,
+          ToolWidgetRow,
+          $$ToolWidgetsTableFilterComposer,
+          $$ToolWidgetsTableOrderingComposer,
+          $$ToolWidgetsTableAnnotationComposer,
+          $$ToolWidgetsTableCreateCompanionBuilder,
+          $$ToolWidgetsTableUpdateCompanionBuilder,
+          (
+            ToolWidgetRow,
+            BaseReferences<_$AppDatabase, $ToolWidgetsTable, ToolWidgetRow>,
+          ),
+          ToolWidgetRow,
+          PrefetchHooks Function()
+        > {
+  $$ToolWidgetsTableTableManager(_$AppDatabase db, $ToolWidgetsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ToolWidgetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ToolWidgetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ToolWidgetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> platform = const Value.absent(),
+                Value<String> platformWidgetId = const Value.absent(),
+                Value<String> toolId = const Value.absent(),
+                Value<String> toolSlug = const Value.absent(),
+                Value<String> toolName = const Value.absent(),
+                Value<String?> iconSource = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> lastLaunchedAt = const Value.absent(),
+                Value<String?> configurationJson = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ToolWidgetsCompanion(
+                id: id,
+                platform: platform,
+                platformWidgetId: platformWidgetId,
+                toolId: toolId,
+                toolSlug: toolSlug,
+                toolName: toolName,
+                iconSource: iconSource,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                lastLaunchedAt: lastLaunchedAt,
+                configurationJson: configurationJson,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String platform,
+                required String platformWidgetId,
+                required String toolId,
+                required String toolSlug,
+                required String toolName,
+                Value<String?> iconSource = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> lastLaunchedAt = const Value.absent(),
+                Value<String?> configurationJson = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ToolWidgetsCompanion.insert(
+                id: id,
+                platform: platform,
+                platformWidgetId: platformWidgetId,
+                toolId: toolId,
+                toolSlug: toolSlug,
+                toolName: toolName,
+                iconSource: iconSource,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                lastLaunchedAt: lastLaunchedAt,
+                configurationJson: configurationJson,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ToolWidgetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ToolWidgetsTable,
+      ToolWidgetRow,
+      $$ToolWidgetsTableFilterComposer,
+      $$ToolWidgetsTableOrderingComposer,
+      $$ToolWidgetsTableAnnotationComposer,
+      $$ToolWidgetsTableCreateCompanionBuilder,
+      $$ToolWidgetsTableUpdateCompanionBuilder,
+      (
+        ToolWidgetRow,
+        BaseReferences<_$AppDatabase, $ToolWidgetsTable, ToolWidgetRow>,
+      ),
+      ToolWidgetRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2973,4 +6025,13 @@ class $AppDatabaseManager {
       $$SyncKvTableTableManager(_db, _db.syncKv);
   $$InstalledToolsTableTableManager get installedTools =>
       $$InstalledToolsTableTableManager(_db, _db.installedTools);
+  $$ToolSessionsTableTableManager get toolSessions =>
+      $$ToolSessionsTableTableManager(_db, _db.toolSessions);
+  $$EphemeralRuntimeStatesTableTableManager get ephemeralRuntimeStates =>
+      $$EphemeralRuntimeStatesTableTableManager(
+        _db,
+        _db.ephemeralRuntimeStates,
+      );
+  $$ToolWidgetsTableTableManager get toolWidgets =>
+      $$ToolWidgetsTableTableManager(_db, _db.toolWidgets);
 }

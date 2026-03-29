@@ -10,7 +10,9 @@ import 'package:utilivo_mobile/features/downloads/application/tool_bundle_downlo
 import 'package:utilivo_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
 import 'package:utilivo_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
 import 'package:utilivo_mobile/features/installs/application/installed_tools_controller.dart';
+import 'package:utilivo_mobile/features/installs/data/installed_tools_read_result.dart';
 import 'package:utilivo_mobile/features/installs/data/installed_tools_store.dart';
+import 'package:utilivo_mobile/features/installs/data/local_install_removals_store.dart';
 import 'package:utilivo_mobile/features/installs/data/installs_sync_meta_store.dart';
 import 'package:utilivo_mobile/features/installs/data/installs_api.dart';
 import 'package:utilivo_mobile/features/installs/data/installs_organization_store.dart';
@@ -237,7 +239,7 @@ void main() {
 
     expect(controller.installedTools, hasLength(1));
     expect(controller.installedTools.first.pluginSlug, 'tool-alpha');
-    expect((await store.read()), hasLength(1));
+    expect((await store.read()).installs, hasLength(1));
   });
 
   test(
@@ -540,6 +542,55 @@ void main() {
     },
   );
 
+  test(
+    'local removal tombstone blocks resurrecting install from server sync',
+    () async {
+      final store = _InMemoryInstalledToolsStore(
+        initial: <DeviceInstallRecord>[_installRecord(version: '1.0.0')],
+      );
+      final removals = _InMemoryLocalInstallRemovalsStore();
+      final controller = _createController(
+        store: store,
+        removalsStore: removals,
+        responder: (RequestOptions options) async {
+          if (options.path == '/v1/installs') {
+            return _jsonResponse(<String, dynamic>{
+              'data': <String, dynamic>{
+                'items': <Map<String, dynamic>>[_installJson(version: '1.0.0')],
+              },
+            }, 200);
+          }
+          return _jsonResponse(<String, dynamic>{
+            'error': <String, dynamic>{
+              'code': 'not_found',
+              'message': 'not found',
+            },
+          }, 404);
+        },
+      );
+
+      await controller.bootstrap();
+      await _waitForSettled(controller);
+      expect(controller.installedTools, hasLength(1));
+
+      await controller.removeInstall(controller.installedTools.first);
+      expect(controller.installedTools, isEmpty);
+      expect(removals.persisted, contains('tool-alpha'));
+
+      await controller.syncFromRepository(trigger: 'test');
+      await _waitForSettled(controller);
+      expect(controller.installedTools, isEmpty);
+
+      await controller.recordInstall(_installRecord(version: '1.0.1'));
+      expect(removals.persisted, isEmpty);
+      expect(controller.installedTools, hasLength(1));
+
+      await controller.syncFromRepository(trigger: 'after_reinstall');
+      await _waitForSettled(controller);
+      expect(controller.installedTools, hasLength(1));
+    },
+  );
+
   test('createFolder rejects names longer than 16 characters', () async {
     final store = _InMemoryInstalledToolsStore(
       initial: <DeviceInstallRecord>[_installRecord(version: '1.0.0')],
@@ -693,12 +744,82 @@ void main() {
       );
     },
   );
+
+  test('empty cache shows loading until first sync finishes', () async {
+    final store = _InMemoryInstalledToolsStore();
+    final controller = _createController(
+      store: store,
+      responder: (RequestOptions options) async {
+        if (options.path == '/v1/installs') {
+          await Future<void>.delayed(const Duration(milliseconds: 60));
+          return _jsonResponse(<String, dynamic>{
+            'data': <String, dynamic>{
+              'items': <Map<String, dynamic>>[],
+            },
+          }, 200);
+        }
+        return _jsonResponse(<String, dynamic>{
+          'error': <String, dynamic>{
+            'code': 'not_found',
+            'message': 'not found',
+          },
+        }, 404);
+      },
+    );
+
+    await controller.bootstrap();
+    expect(
+      controller.homePresentationPhase,
+      HomeInstallsPresentationPhase.loading,
+    );
+    await _waitForSettled(controller);
+    expect(
+      controller.homePresentationPhase,
+      HomeInstallsPresentationPhase.emptyLibrary,
+    );
+  });
+
+  test(
+    'first sync offline with empty cache ends in recoverable offline failure',
+    () async {
+      final store = _InMemoryInstalledToolsStore();
+      final controller = _createController(
+        store: store,
+        responder: (RequestOptions options) async {
+          if (options.path == '/v1/installs') {
+            throw DioException(
+              requestOptions: options,
+              type: DioExceptionType.connectionError,
+              message: 'offline',
+            );
+          }
+          return _jsonResponse(<String, dynamic>{
+            'error': <String, dynamic>{
+              'code': 'not_found',
+              'message': 'not found',
+            },
+          }, 404);
+        },
+      );
+      await controller.bootstrap();
+      await _waitForSettled(controller);
+      expect(
+        controller.homePresentationPhase,
+        HomeInstallsPresentationPhase.recoverableLoadFailure,
+      );
+      expect(
+        controller.homeLoadFailureKind,
+        HomeInstallsLoadFailureKind.offline,
+      );
+    },
+  );
 }
 
 InstalledToolsController _createController({
   required InstalledToolsStore store,
   InstallsOrganizationStore? organizationStore,
   InstallsSyncMetaStore? syncMetaStore,
+  LocalInstallRemovalsStore? removalsStore,
   required Future<ResponseBody> Function(RequestOptions options) responder,
   ToolBundleDownloadService? toolBundleDownloadService,
 }) {
@@ -713,6 +834,7 @@ InstalledToolsController _createController({
     organizationStore:
         organizationStore ?? _InMemoryInstallsOrganizationStore(),
     syncMetaStore: syncMetaStore,
+    removalsStore: removalsStore,
     toolBundleDownloadService: toolBundleDownloadService,
   );
 }
@@ -764,6 +886,18 @@ ResponseBody _jsonResponse(Map<String, dynamic> body, int statusCode) {
   );
 }
 
+class _InMemoryLocalInstallRemovalsStore implements LocalInstallRemovalsStore {
+  Set<String> persisted = <String>{};
+
+  @override
+  Future<Set<String>> read() async => Set<String>.from(persisted);
+
+  @override
+  Future<void> write(Set<String> normalizedSlugs) async {
+    persisted = Set<String>.from(normalizedSlugs);
+  }
+}
+
 class _InMemoryInstallsSyncMetaStore implements InstallsSyncMetaStore {
   DateTime? lastWritten;
 
@@ -791,8 +925,8 @@ class _InMemoryInstalledToolsStore implements InstalledToolsStore {
   }
 
   @override
-  Future<List<DeviceInstallRecord>> read() async {
-    return _value;
+  Future<InstalledToolsStoreReadResult> read() async {
+    return InstalledToolsStoreReadResult(installs: _value);
   }
 
   @override

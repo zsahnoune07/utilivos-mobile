@@ -1,18 +1,27 @@
 package com.utilivo.utilivo_mobile
 
+import android.app.Activity
+import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
+import android.webkit.WebStorage
 import android.webkit.WebView
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugins.webviewflutter.WebViewFlutterAndroidExternalApi
 
-class MainActivity : FlutterActivity() {
+open class MainActivity : FlutterActivity() {
+
+    companion object {
+        @JvmField
+        var pendingWidgetConfigureAppWidgetId: Int? = null
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -37,6 +46,11 @@ class MainActivity : FlutterActivity() {
                     if (webView == null) {
                         result.error("missing_webview", "Could not resolve Android WebView.", null)
                         return@setMethodCallHandler
+                    }
+
+                    val clearWebStorage = call.argument<Boolean>("clearWebStorage") == true
+                    if (clearWebStorage) {
+                        WebStorage.getInstance().deleteAllData()
                     }
 
                     @Suppress("DEPRECATION")
@@ -77,6 +91,37 @@ class MainActivity : FlutterActivity() {
                             .setIntent(launchIntent)
                             .build()
                     result.success(sm.requestPinShortcut(shortcut, null))
+                }
+                "getPendingWidgetConfigureId" -> {
+                    val v = pendingWidgetConfigureAppWidgetId
+                    pendingWidgetConfigureAppWidgetId = null
+                    result.success(v)
+                }
+                "completeWidgetConfigure" -> {
+                    val ok = call.argument<Boolean>("success") == true
+                    if (this@MainActivity !is WidgetConfigureActivity) {
+                        result.error(
+                            "bad_activity",
+                            "completeWidgetConfigure is only valid from widget configuration.",
+                            null,
+                        )
+                        return@setMethodCallHandler
+                    }
+                    val appWidgetId =
+                        intent.getIntExtra(
+                            AppWidgetManager.EXTRA_APPWIDGET_ID,
+                            AppWidgetManager.INVALID_APPWIDGET_ID,
+                        )
+                    val out = Intent()
+                    if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                        out.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                    }
+                    setResult(
+                        if (ok) Activity.RESULT_OK else Activity.RESULT_CANCELED,
+                        out,
+                    )
+                    finish()
+                    result.success(null)
                 }
                 else -> result.notImplemented()
             }

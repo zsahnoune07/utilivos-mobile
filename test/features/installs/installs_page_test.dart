@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,6 +27,7 @@ import 'package:utilivo_mobile/features/downloads/data/download_api.dart';
 import 'package:utilivo_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
 import 'package:utilivo_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
 import 'package:utilivo_mobile/features/installs/application/installed_tools_controller.dart';
+import 'package:utilivo_mobile/features/installs/data/installed_tools_read_result.dart';
 import 'package:utilivo_mobile/features/installs/data/installed_tools_store.dart';
 import 'package:utilivo_mobile/features/installs/data/installs_api.dart';
 import 'package:utilivo_mobile/features/installs/data/installs_organization_store.dart';
@@ -36,6 +38,29 @@ import 'package:utilivo_mobile/features/installs/presentation/folder_detail_page
 import 'package:utilivo_mobile/features/installs/presentation/widgets/folder_ui_catalog.dart';
 import 'package:utilivo_mobile/features/installs/presentation/widgets/installed_tool_card.dart';
 import 'package:utilivo_mobile/core/navigation/app_routes.dart';
+import 'package:utilivo_mobile/l10n/app_localizations.dart';
+
+Widget _testMaterialApp({Widget? home, GoRouter? router}) {
+  assert(home != null || router != null, 'home or router required');
+  const delegates = <LocalizationsDelegate<dynamic>>[
+    AppLocalizations.delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
+  if (router != null) {
+    return MaterialApp.router(
+      routerConfig: router,
+      localizationsDelegates: delegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+    );
+  }
+  return MaterialApp(
+    localizationsDelegates: delegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: home,
+  );
+}
 
 void main() {
   testWidgets('home renders cached installed tools while offline', (
@@ -112,9 +137,10 @@ void main() {
     addTearDown(pro.dispose);
 
     await tester.pumpWidget(
-      MaterialApp(
+      _testMaterialApp(
         home: InstallsPage(
           appName: 'Utilivo',
+          apiBaseUrl: 'https://api.example.test',
           installedToolsController: controller,
           downloadApi: downloadApi,
           toolBundleDownloadService: toolBundleDownloadService,
@@ -132,6 +158,93 @@ void main() {
     expect(find.text('tool-alpha'), findsOneWidget);
     expect(find.text('Browse Tool Library'), findsWidgets);
     expect(find.text('Could not load installed tools'), findsNothing);
+    expect(find.text("Couldn't load installed tools"), findsNothing);
+  });
+
+  testWidgets('home shows unified load error when offline with no cached tools', (
+    WidgetTester tester,
+  ) async {
+    final store = _InMemoryInstalledToolsStore(
+      initial: const <DeviceInstallRecord>[],
+    );
+
+    final dio = Dio(BaseOptions(baseUrl: 'https://api.example.test'));
+    dio.httpClientAdapter = _FakeHttpClientAdapter((
+      RequestOptions options,
+    ) async {
+      if (options.path == '/v1/installs') {
+        throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+          message: 'offline',
+        );
+      }
+      return _jsonResponse(<String, dynamic>{
+        'error': <String, dynamic>{'code': 'not_found', 'message': 'not found'},
+      }, 404);
+    });
+    addTearDown(() => dio.close(force: true));
+
+    final apiClient = ApiClient(dio);
+    final controller = InstalledToolsController(
+      installsApi: InstallsApi(apiClient),
+      catalogApi: CatalogApi(apiClient),
+      store: store,
+      organizationStore: _InMemoryInstallsOrganizationStore(),
+    );
+    addTearDown(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      controller.dispose();
+    });
+
+    await tester.runAsync(() async {
+      await controller.bootstrap();
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+    });
+
+    final l10n = lookupAppLocalizations(const Locale('en'));
+
+    final downloadApi = DownloadApi(apiClient);
+    final bundleStore = _InMemoryDownloadedToolBundleStore();
+    final toolBundleDownloadService = ToolBundleDownloadService(
+      dio: dio,
+      store: bundleStore,
+    );
+    final installsApi = InstallsApi(apiClient);
+    final entitlementStore = _InMemoryEntitlementStore();
+    final entitlementVerificationApi = EntitlementVerificationApi(apiClient);
+    final entitlementController = EntitlementController(
+      store: entitlementStore,
+      verificationApi: entitlementVerificationApi,
+      packageName: 'com.test.app',
+    );
+    await entitlementController.bootstrap();
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final pro = await _ProSidecar.create(entitlementController);
+    addTearDown(pro.dispose);
+
+    await tester.pumpWidget(
+      _testMaterialApp(
+        home: InstallsPage(
+          appName: 'Utilivo',
+          apiBaseUrl: 'https://api.example.test',
+          installedToolsController: controller,
+          downloadApi: downloadApi,
+          toolBundleDownloadService: toolBundleDownloadService,
+          installsApi: installsApi,
+          entitlementController: entitlementController,
+          proCapabilityService: pro.capability,
+          paywallCoordinator: pro.paywall,
+          proAnalytics: pro.analytics,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text(l10n.homeInstallsLoadFailedTitle), findsOneWidget);
+    expect(find.text(l10n.homeInstallsOfflineDetail), findsOneWidget);
+    expect(find.text(l10n.noInstalledTools), findsNothing);
   });
 
   testWidgets(
@@ -165,7 +278,7 @@ void main() {
       );
       addTearDown(router.dispose);
 
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpWidget(_testMaterialApp(router: router));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'zzzz');
@@ -174,7 +287,7 @@ void main() {
 
       await tester.tapAt(const Offset(20, 120));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Search in Tool Library'));
+      await tester.tap(find.text('Browse Tool Library').first);
       await tester.pumpAndSettle();
       expect(find.text('Install and return'), findsOneWidget);
 
@@ -189,7 +302,7 @@ void main() {
   );
 
   testWidgets(
-    'first outside tap while search focused only dismisses focus; second tap opens tool',
+    'unfocusing home search restores grid; tapping tool opens runtime',
     (WidgetTester tester) async {
       final harness = await _InstallsHarness.create();
       addTearDown(harness.dispose);
@@ -217,26 +330,30 @@ void main() {
       );
       addTearDown(router.dispose);
 
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpWidget(_testMaterialApp(router: router));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(TextField));
+      final searchField = find.byKey(const Key('home_tool_search_field'));
+      await tester.tap(searchField);
       await tester.pumpAndSettle();
       expect(
-        tester.widget<TextField>(find.byType(TextField)).focusNode?.hasFocus,
+        tester.widget<TextField>(searchField).focusNode?.hasFocus,
         isTrue,
       );
 
-      final iconCenter = tester.getCenter(find.byIcon(Icons.extension).first);
-      await tester.tapAt(iconCenter);
+      await tester.enterText(searchField, 'Tool');
+      await tester.pumpAndSettle();
+      expect(find.byType(InstalledToolCard), findsOneWidget);
+
+      FocusManager.instance.primaryFocus?.unfocus();
       await tester.pumpAndSettle();
       expect(
-        tester.widget<TextField>(find.byType(TextField)).focusNode?.hasFocus,
+        tester.widget<TextField>(searchField).focusNode?.hasFocus,
         isFalse,
       );
       expect(find.text('Runtime Page'), findsNothing);
 
-      await tester.tapAt(iconCenter);
+      await tester.tap(find.byType(InstalledToolCard).first);
       await tester.pumpAndSettle();
       expect(find.text('Runtime Page'), findsOneWidget);
     },
@@ -270,7 +387,7 @@ void main() {
     );
     addTearDown(router.dispose);
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpWidget(_testMaterialApp(router: router));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Tool Alpha'));
@@ -342,7 +459,7 @@ void main() {
         contains('tool-gamma'),
       );
 
-      await tester.pumpWidget(MaterialApp(home: harness.page));
+      await tester.pumpWidget(_testMaterialApp(home: harness.page));
       await tester.pumpAndSettle();
 
       expect(find.text('Tool Alpha'), findsOneWidget);
@@ -357,7 +474,7 @@ void main() {
       final harness = await _InstallsHarness.create();
       addTearDown(harness.dispose);
 
-      await tester.pumpWidget(MaterialApp(home: harness.page));
+      await tester.pumpWidget(_testMaterialApp(home: harness.page));
       await tester.pumpAndSettle();
 
       await tester.enterText(_homeSearchField(), 'alpha');
@@ -381,7 +498,7 @@ void main() {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.binding.handlePopRoute();
@@ -421,7 +538,7 @@ void main() {
     );
     addTearDown(router.dispose);
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpWidget(_testMaterialApp(router: router));
     await tester.pumpAndSettle();
 
     expect(find.text('Tool Alpha'), findsOneWidget);
@@ -457,6 +574,7 @@ void main() {
             final id = state.pathParameters['folderId']!;
             return FolderDetailPage(
               folderId: id,
+              apiBaseUrl: 'https://api.example.test',
               controller: harness.controller,
               proCapabilityService: harness.pro.capability,
               paywallCoordinator: harness.pro.paywall,
@@ -473,7 +591,7 @@ void main() {
     );
     addTearDown(router.dispose);
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpWidget(_testMaterialApp(router: router));
     await tester.pumpAndSettle();
 
     expect(find.text('Work'), findsOneWidget);
@@ -492,7 +610,7 @@ void main() {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pump(const Duration(milliseconds: 200));
 
     await tester.tap(find.text('Add folder'));
@@ -548,6 +666,7 @@ void main() {
             builder: (BuildContext context, GoRouterState state) =>
                 FolderDetailPage(
                   folderId: state.pathParameters['folderId']!,
+                  apiBaseUrl: 'https://api.example.test',
                   controller: harness.controller,
                   proCapabilityService: harness.pro.capability,
                   paywallCoordinator: harness.pro.paywall,
@@ -562,7 +681,7 @@ void main() {
       );
       addTearDown(router.dispose);
 
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpWidget(_testMaterialApp(router: router));
       await tester.pumpAndSettle();
       expect(find.byType(InstalledToolCard), findsOneWidget);
 
@@ -603,7 +722,7 @@ void main() {
       folderId: folderId,
     );
 
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'alpha');
@@ -634,6 +753,7 @@ void main() {
             builder: (BuildContext context, GoRouterState state) =>
                 FolderDetailPage(
                   folderId: state.pathParameters['folderId']!,
+                  apiBaseUrl: 'https://api.example.test',
                   controller: harness.controller,
                   proCapabilityService: harness.pro.capability,
                   paywallCoordinator: harness.pro.paywall,
@@ -643,7 +763,7 @@ void main() {
       );
       addTearDown(router.dispose);
 
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpWidget(_testMaterialApp(router: router));
       await tester.pumpAndSettle();
 
       final appBar = tester.widget<AppBar>(find.byType(AppBar));
@@ -678,7 +798,7 @@ void main() {
     );
     await harness.controller.recordInstall(secondInstall);
 
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     expect(find.text('Add folder'), findsOneWidget);
@@ -696,7 +816,7 @@ void main() {
   ) async {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Add folder'));
@@ -720,7 +840,7 @@ void main() {
         colorKey: 'blue',
       );
 
-      await tester.pumpWidget(MaterialApp(home: harness.page));
+      await tester.pumpWidget(_testMaterialApp(home: harness.page));
       await tester.pumpAndSettle();
 
       await tester.drag(find.byType(ListView).first, const Offset(0, -120));
@@ -744,7 +864,7 @@ void main() {
       final harness = await _InstallsHarness.create();
       addTearDown(harness.dispose);
 
-      await tester.pumpWidget(MaterialApp(home: harness.page));
+      await tester.pumpWidget(_testMaterialApp(home: harness.page));
       await tester.pumpAndSettle();
 
       await tester.longPress(find.byType(InstalledToolCard).first);
@@ -779,7 +899,7 @@ void main() {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.longPress(find.byType(InstalledToolCard).first);
@@ -797,7 +917,7 @@ void main() {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.byType(InstalledToolCard).first);
@@ -828,7 +948,7 @@ void main() {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.byType(InstalledToolCard).first);
@@ -853,7 +973,7 @@ void main() {
   ) async {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Add folder'));
@@ -868,7 +988,7 @@ void main() {
   ) async {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.longPress(find.byType(InstalledToolCard).first);
@@ -916,6 +1036,7 @@ void main() {
           builder: (BuildContext context, GoRouterState state) =>
               FolderDetailPage(
                 folderId: state.pathParameters['folderId']!,
+                apiBaseUrl: 'https://api.example.test',
                 controller: harness.controller,
                 proCapabilityService: harness.pro.capability,
                 paywallCoordinator: harness.pro.paywall,
@@ -925,7 +1046,7 @@ void main() {
     );
     addTearDown(router.dispose);
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpWidget(_testMaterialApp(router: router));
     await tester.pumpAndSettle();
 
     await tester.longPress(find.text('Tool Alpha'));
@@ -965,7 +1086,7 @@ void main() {
       folderId: folderId,
     );
 
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'long');
@@ -1007,7 +1128,7 @@ void main() {
       folderId: folderId,
     );
 
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'tool');
     await tester.pumpAndSettle();
@@ -1036,7 +1157,7 @@ void main() {
       folderId: folderId,
     );
 
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'alpha');
     await tester.pumpAndSettle();
@@ -1059,7 +1180,7 @@ void main() {
   ) async {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Add folder'));
@@ -1076,7 +1197,7 @@ void main() {
   ) async {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Sort tools'));
@@ -1104,7 +1225,7 @@ void main() {
       folderId: folderId,
     );
 
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.longPress(find.text('1 tools'));
@@ -1128,7 +1249,7 @@ void main() {
         colorKey: 'green',
       );
 
-      await tester.pumpWidget(MaterialApp(home: harness.page));
+      await tester.pumpWidget(_testMaterialApp(home: harness.page));
       await tester.pumpAndSettle();
 
       final shortCenter = tester.getCenter(
@@ -1163,7 +1284,7 @@ void main() {
     );
     addTearDown(harness.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: harness.page));
+    await tester.pumpWidget(_testMaterialApp(home: harness.page));
     await tester.pumpAndSettle();
 
     await tester.longPress(find.text('Legacy Folder Name Too Long'));
@@ -1183,10 +1304,7 @@ void main() {
 }
 
 Finder _homeSearchField() {
-  return find.byWidgetPredicate(
-    (widget) =>
-        widget is TextField && widget.decoration?.hintText == 'Search tools',
-  );
+  return find.byKey(const Key('home_tool_search_field'));
 }
 
 int _countDimmedBarriers(WidgetTester tester) {
@@ -1367,6 +1485,7 @@ class _InstallsHarness {
     final pro = await _ProSidecar.create(entitlementController);
     final page = InstallsPage(
       appName: 'Utilivo',
+      apiBaseUrl: 'https://api.example.test',
       installedToolsController: controller,
       downloadApi: DownloadApi(apiClient),
       toolBundleDownloadService: ToolBundleDownloadService(
@@ -1415,8 +1534,8 @@ class _InMemoryInstalledToolsStore implements InstalledToolsStore {
   }
 
   @override
-  Future<List<DeviceInstallRecord>> read() async {
-    return _value;
+  Future<InstalledToolsStoreReadResult> read() async {
+    return InstalledToolsStoreReadResult(installs: _value);
   }
 
   @override

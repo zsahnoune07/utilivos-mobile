@@ -16,9 +16,40 @@ import 'widgets/folder_ui_catalog.dart';
 import 'widgets/installed_tool_card.dart';
 import 'widgets/tool_actions_sheet.dart';
 
+Future<void> showMandatoryUpdateRequiredDialog(
+  BuildContext context,
+  String pluginSlug,
+) async {
+  await showDialog<void>(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        title: const Text('Update required'),
+        content: const Text(
+          'Update this tool from Home or the Tool Library before opening.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              context.push(AppRoutes.discoverPluginDetail(pluginSlug));
+            },
+            child: const Text('Tool details'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 class FolderDetailPage extends StatelessWidget {
   const FolderDetailPage({
     required this.folderId,
+    required this.apiBaseUrl,
     required this.controller,
     required this.proCapabilityService,
     required this.paywallCoordinator,
@@ -26,6 +57,7 @@ class FolderDetailPage extends StatelessWidget {
   });
 
   final String folderId;
+  final String apiBaseUrl;
   final InstalledToolsController controller;
   final ProCapabilityService proCapabilityService;
   final PaywallCoordinator paywallCoordinator;
@@ -106,8 +138,42 @@ class FolderDetailPage extends StatelessWidget {
                       child: InstalledToolCard(
                         install: tool,
                         iconPath: tool.iconPath,
+                        iconBaseUrl: apiBaseUrl,
                         dominantColorHex: tool.cardAccentColor,
                         onTap: () async {
+                          final prepared =
+                              await controller.prepareToolLaunch(tool.pluginSlug);
+                          if (!context.mounted) {
+                            return;
+                          }
+                          switch (prepared) {
+                            case ToolLaunchPrepared.notInstalled:
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'This tool is no longer installed.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            case ToolLaunchPrepared.missingBundle:
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Tool files were removed. Reinstall from the Tool Library.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            case ToolLaunchPrepared.mandatoryUpdateRequired:
+                              await showMandatoryUpdateRequiredDialog(
+                                context,
+                                tool.pluginSlug,
+                              );
+                              return;
+                            case ToolLaunchPrepared.ok:
+                              break;
+                          }
                           await controller.markToolLaunched(tool.pluginSlug);
                           if (!context.mounted) {
                             return;
@@ -130,17 +196,53 @@ class FolderDetailPage extends StatelessWidget {
     );
   }
 
-  void _openToolRuntime(BuildContext context, DeviceInstallRecord install) {
-    controller.markToolLaunched(install.pluginSlug);
+  Future<void> _openToolRuntime(
+    BuildContext context,
+    DeviceInstallRecord install,
+  ) async {
+    final prepared =
+        await controller.prepareToolLaunch(install.pluginSlug);
+    if (!context.mounted) {
+      return;
+    }
+    switch (prepared) {
+      case ToolLaunchPrepared.notInstalled:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This tool is no longer installed.'),
+          ),
+        );
+        return;
+      case ToolLaunchPrepared.missingBundle:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tool files were removed. Reinstall from the Tool Library.',
+            ),
+          ),
+        );
+        return;
+      case ToolLaunchPrepared.mandatoryUpdateRequired:
+        await showMandatoryUpdateRequiredDialog(
+          context,
+          install.pluginSlug,
+        );
+        return;
+      case ToolLaunchPrepared.ok:
+        break;
+    }
+    await controller.markToolLaunched(install.pluginSlug);
     unawaited(
       proCapabilityService.recordToolEngagement(install.pluginSlug),
     );
-    final restore = proCapabilityService.canRestoreSession;
+    if (!context.mounted) {
+      return;
+    }
     context.push(
       AppRoutes.pluginRuntime(
         install.pluginSlug,
         toolName: install.displayName,
-        restoreSession: restore,
+        restoreSession: false,
       ),
     );
   }
@@ -252,7 +354,7 @@ class FolderDetailPage extends StatelessWidget {
           folderContextOnly: false,
           onLaunch: () {
             Navigator.of(sheetContext).pop();
-            _openToolRuntime(context, install);
+            unawaited(_openToolRuntime(context, install));
           },
           onUpdate: null,
           onDelete: () async {

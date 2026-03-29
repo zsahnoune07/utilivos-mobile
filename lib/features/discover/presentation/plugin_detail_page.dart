@@ -21,6 +21,7 @@ import '../../../shared/widgets/tool_thumbnail.dart';
 import '../../downloads/application/tool_bundle_download_service.dart';
 import '../../downloads/data/download_api.dart';
 import '../../installs/application/installed_tools_controller.dart';
+import '../../installs/presentation/folder_detail_page.dart';
 import '../../installs/data/installs_api.dart';
 import '../data/catalog_api.dart';
 import '../data/models/catalog_models.dart';
@@ -393,17 +394,42 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
   }
 
   Future<void> _openRuntime(String slug) async {
+    final prepared =
+        await widget.installedToolsController.prepareToolLaunch(slug);
+    if (!mounted) {
+      return;
+    }
+    switch (prepared) {
+      case ToolLaunchPrepared.notInstalled:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This tool is no longer installed.')),
+        );
+        return;
+      case ToolLaunchPrepared.missingBundle:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tool files were removed. Reinstall from the Tool Library.',
+            ),
+          ),
+        );
+        return;
+      case ToolLaunchPrepared.mandatoryUpdateRequired:
+        await showMandatoryUpdateRequiredDialog(context, slug);
+        return;
+      case ToolLaunchPrepared.ok:
+        break;
+    }
     await widget.installedToolsController.markToolLaunched(slug);
     unawaited(widget.proCapabilityService.recordToolEngagement(slug));
     if (!mounted) {
       return;
     }
-    final restore = widget.proCapabilityService.canRestoreSession;
     context.push(
       AppRoutes.pluginRuntime(
         slug,
         toolName: _plugin?.name,
-        restoreSession: restore,
+        restoreSession: false,
       ),
     );
   }
@@ -495,9 +521,12 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             ToolThumbnail(
-              imageUrl: plugin.thumbnailUrl,
+              imageUrl: plugin.catalogIconRef,
               localPath: _localIconPath,
               baseUrl: widget.config.apiBaseUrl,
+              debugToolSlug: plugin.slug,
+              debugThumbnailUrl: plugin.thumbnailUrl,
+              debugIconUrl: plugin.iconUrl,
               size: 58,
               borderRadius: 12,
               fallbackIcon: hardProLock

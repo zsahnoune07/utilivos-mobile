@@ -11,6 +11,10 @@ class PluginDownloadGrant {
     this.signingPublicKey,
     this.signaturePayload,
     this.entitlementVerifiedAt,
+    this.runtimeMode,
+    this.runtimeContractVersion,
+    this.designSystemVersion,
+    this.sdkVersion,
   });
 
   final String url;
@@ -24,6 +28,10 @@ class PluginDownloadGrant {
   final String? signingPublicKey;
   final BundleSignaturePayload? signaturePayload;
   final DateTime? entitlementVerifiedAt;
+  final String? runtimeMode;
+  final int? runtimeContractVersion;
+  final int? designSystemVersion;
+  final String? sdkVersion;
 
   factory PluginDownloadGrant.fromJson(Map<String, dynamic> json) {
     final url = json['url'];
@@ -57,6 +65,16 @@ class PluginDownloadGrant {
       entitlementVerifiedAt: _readOptionalDateTime(
         json['entitlement_verified_at'],
       ),
+      runtimeMode: _readOptionalString(json, const <String>['runtime_mode']),
+      runtimeContractVersion: _readOptionalInt(
+        json,
+        const <String>['runtime_contract_version'],
+      ),
+      designSystemVersion: _readOptionalInt(
+        json,
+        const <String>['design_system_version'],
+      ),
+      sdkVersion: _readOptionalString(json, const <String>['sdk_version']),
     );
   }
 }
@@ -133,4 +151,14 @@ BundleSignaturePayload? _readOptionalSigningPayload(Object? raw) {
     return null;
   }
   return BundleSignaturePayload.fromJson(raw);
+}
+
+int? _readOptionalInt(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final raw = json[key];
+    if (raw is int) {
+      return raw;
+    }
+  }
+  return null;
 }

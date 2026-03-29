@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'home_tool_card_layout.dart';
+
 class AppSkeletonBox extends StatefulWidget {
   const AppSkeletonBox({
     required this.width,
@@ -135,61 +137,69 @@ class AppHomeToolGridSkeleton extends StatelessWidget {
       ),
       itemCount: cells,
       itemBuilder: (BuildContext context, int index) {
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: scheme.outlineVariant,
-              width: 0.8,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (BuildContext context, BoxConstraints c) {
-                      final side = c.maxWidth < c.maxHeight
-                          ? c.maxWidth
-                          : c.maxHeight;
-                      return Center(
+        return LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final iconSide =
+                HomeToolCardLayout.iconBoxSide(constraints.maxWidth);
+            final iconR = HomeToolCardLayout.iconCornerRadius(iconSide);
+            final verticalPad =
+                HomeToolCardLayout.verticalPadding(compact: false);
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLow,
+                borderRadius:
+                    BorderRadius.circular(HomeToolCardLayout.cardBorderRadius),
+                border: Border.all(
+                  color: scheme.outlineVariant,
+                  width: 0.8,
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  HomeToolCardLayout.gridChildHorizontalPadding,
+                  verticalPad,
+                  HomeToolCardLayout.gridChildHorizontalPadding,
+                  verticalPad,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Expanded(
+                      child: Center(
                         child: AppSkeletonBox(
-                          width: side,
-                          height: side,
-                          borderRadius: 12,
+                          width: iconSide,
+                          height: iconSide,
+                          borderRadius: iconR,
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                    SizedBox(height: verticalPad > 10 ? 9 : 7),
+                    LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints c) {
+                        final w = c.maxWidth;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            AppSkeletonBox(
+                              width: w * 0.88,
+                              height: 10,
+                              borderRadius: 4,
+                            ),
+                            const SizedBox(height: 6),
+                            AppSkeletonBox(
+                              width: w * 0.55,
+                              height: 9,
+                              borderRadius: 4,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                LayoutBuilder(
-                  builder: (BuildContext context, BoxConstraints c) {
-                    final w = c.maxWidth;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        AppSkeletonBox(
-                          width: w * 0.88,
-                          height: 10,
-                          borderRadius: 4,
-                        ),
-                        const SizedBox(height: 6),
-                        AppSkeletonBox(
-                          width: w * 0.55,
-                          height: 9,
-                          borderRadius: 4,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

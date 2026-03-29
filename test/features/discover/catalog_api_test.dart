@@ -136,7 +136,7 @@ void main() {
     );
   });
 
-  test('listPlugins maps icon_url into thumbnailUrl', () async {
+  test('listPlugins maps icon_url into iconUrl and catalogIconRef', () async {
     final dio = Dio(BaseOptions(baseUrl: 'https://api.example.test'));
     dio.httpClientAdapter = _FakeHttpClientAdapter((
       RequestOptions options,
@@ -173,7 +173,9 @@ void main() {
 
     final page = await api.listPlugins();
     expect(page.items, hasLength(1));
-    expect(page.items.first.thumbnailUrl, '/v1/plugins/json-tools/icon');
+    expect(page.items.first.thumbnailUrl, isNull);
+    expect(page.items.first.iconUrl, '/v1/plugins/json-tools/icon');
+    expect(page.items.first.catalogIconRef, '/v1/plugins/json-tools/icon');
   });
 
   test('getPluginBySlug does not use cache after maxStale window', () async {

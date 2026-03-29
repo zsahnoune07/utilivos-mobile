@@ -6,12 +6,16 @@ import '../../features/discover/presentation/discover_page.dart';
 import '../../features/home/presentation/home_page.dart';
 import '../../features/installs/presentation/installs_page.dart';
 import '../../features/installs/presentation/folder_detail_page.dart';
+import '../../features/installs/data/models/install_models.dart';
 import '../../features/runtime/presentation/plugin_runtime_page.dart';
+import '../sessions/tool_launch_context.dart';
 import '../../features/settings/presentation/settings_page.dart';
+import '../../features/widgets/presentation/widget_configure_page.dart';
 import '../../features/splash/presentation/splash_page.dart';
 import '../bootstrap/app_bootstrap_controller.dart';
 import '../di/app_dependencies.dart';
 import 'app_routes.dart';
+import 'deep_link_parser.dart';
 
 GoRouter createAppRouter({
   required AppDependencies dependencies,
@@ -22,6 +26,15 @@ GoRouter createAppRouter({
     initialLocation: initialLocation,
     refreshListenable: bootstrapController,
     redirect: (BuildContext context, GoRouterState state) {
+      // Home-screen widget / some Android intents deliver utilivo://tool/... as the
+      // route location; GoRouter only knows /runtime/... paths.
+      if (state.uri.scheme == 'utilivo' && state.uri.host == 'tool') {
+        final String? target = parseAppDeepLink(state.uri);
+        if (target != null) {
+          return target;
+        }
+      }
+
       final isSplash = state.matchedLocation == AppRoutes.splash;
       final isInitializing = bootstrapController.isInitializing;
       final hasBootstrapFailed = bootstrapController.hasFailed;
@@ -62,55 +75,90 @@ GoRouter createAppRouter({
         },
       ),
       GoRoute(
+        path: AppRoutes.widgetConfigure,
+        builder: (BuildContext context, GoRouterState state) {
+          final raw = state.uri.queryParameters['androidAppWidgetId'];
+          final id = int.tryParse(raw ?? '');
+          if (id == null) {
+            return const Scaffold(
+              body: Center(child: Text('Invalid widget configuration.')),
+            );
+          }
+          return WidgetConfigurePage(
+            androidAppWidgetId: id,
+            installedToolsController: dependencies.installedToolsController,
+            toolWidgetService: dependencies.toolWidgetService,
+          );
+        },
+      ),
+      GoRoute(
         path: '${AppRoutes.pluginRuntimePrefix}/:slug',
-        pageBuilder: (BuildContext context, GoRouterState state) {
+        builder: (BuildContext context, GoRouterState state) {
           final slug = state.pathParameters['slug'] ?? '';
           final initialToolName = state.uri.queryParameters['name'];
           final restoreSession =
               state.uri.queryParameters['restore'] == '1';
-          return CustomTransitionPage<void>(
-            key: state.pageKey,
-            transitionDuration: const Duration(milliseconds: 280),
-            reverseTransitionDuration: const Duration(milliseconds: 220),
-            child: PluginRuntimePage(
-              pluginSlug: slug,
-              initialToolName: initialToolName,
-              restoreSessionRequested: restoreSession,
-              catalogApi: dependencies.catalogApi,
-              downloadApi: dependencies.downloadApi,
-              toolBundleDownloadService: dependencies.toolBundleDownloadService,
-              entitlementController: dependencies.entitlementController,
-              proCapabilityService: dependencies.proCapabilityService,
-              paywallCoordinator: dependencies.paywallCoordinator,
-              toolSessionStore: dependencies.toolSessionStore,
-              proAnalytics: dependencies.proAnalytics,
-            ),
-            transitionsBuilder:
-                (
-                  BuildContext context,
-                  Animation<double> animation,
-                  Animation<double> secondaryAnimation,
-                  Widget child,
-                ) {
-                  final curved = CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                    reverseCurve: Curves.easeInCubic,
-                  );
-                  return FadeTransition(
-                    opacity: Tween<double>(
-                      begin: 0.0,
-                      end: 1.0,
-                    ).animate(curved),
-                    child: ScaleTransition(
-                      scale: Tween<double>(
-                        begin: 0.92,
-                        end: 1.0,
-                      ).animate(curved),
-                      child: child,
-                    ),
-                  );
-                },
+          final widgetInstanceId =
+              state.uri.queryParameters['widget']?.trim() ?? '';
+          final sessionParam =
+              state.uri.queryParameters['session']?.trim() ?? '';
+          DeviceInstallRecord? install;
+          for (final i in dependencies.installedToolsController.installedTools) {
+            if (i.pluginSlug == slug) {
+              install = i;
+              break;
+            }
+          }
+          final toolId = install?.id ?? slug;
+          final ToolLaunchContext launchContext;
+          if (widgetInstanceId.isNotEmpty) {
+            launchContext = ToolLaunchContext.widgetLaunch(
+              toolId: toolId,
+              toolSlug: slug,
+              widgetInstanceId: widgetInstanceId,
+              installId: install?.id,
+              installedVersion: install?.installedVersion,
+            );
+          } else if (sessionParam.isNotEmpty) {
+            launchContext = ToolLaunchContext.namedSessionLaunch(
+              toolId: toolId,
+              toolSlug: slug,
+              sessionId: sessionParam,
+              installId: install?.id,
+              installedVersion: install?.installedVersion,
+            );
+          } else if (restoreSession) {
+            launchContext = ToolLaunchContext.legacyFileRestore(
+              toolId: toolId,
+              toolSlug: slug,
+              installId: install?.id,
+              installedVersion: install?.installedVersion,
+            );
+          } else {
+            launchContext = ToolLaunchContext.ephemeral(
+              toolId: toolId,
+              toolSlug: slug,
+              installId: install?.id,
+              installedVersion: install?.installedVersion,
+            );
+          }
+          return PluginRuntimePage(
+            pluginSlug: slug,
+            initialToolName: initialToolName,
+            launchContext: launchContext,
+            config: dependencies.config,
+            catalogApi: dependencies.catalogApi,
+            downloadApi: dependencies.downloadApi,
+            toolBundleDownloadService: dependencies.toolBundleDownloadService,
+            entitlementController: dependencies.entitlementController,
+            proCapabilityService: dependencies.proCapabilityService,
+            paywallCoordinator: dependencies.paywallCoordinator,
+            toolSessionStore: dependencies.toolSessionStore,
+            runtimeStateScopeService: dependencies.runtimeStateScopeService,
+            toolSessionService: dependencies.toolSessionService,
+            toolWidgetService: dependencies.toolWidgetService,
+            proAnalytics: dependencies.proAnalytics,
+            installedToolsController: dependencies.installedToolsController,
           );
         },
       ),
@@ -136,6 +184,7 @@ GoRouter createAppRouter({
             builder: (BuildContext context, GoRouterState state) {
               return InstallsPage(
                 appName: dependencies.config.appName,
+                apiBaseUrl: dependencies.config.apiBaseUrl,
                 installedToolsController: dependencies.installedToolsController,
                 downloadApi: dependencies.downloadApi,
                 toolBundleDownloadService:
@@ -154,6 +203,7 @@ GoRouter createAppRouter({
               final folderId = state.pathParameters['folderId'] ?? '';
               return FolderDetailPage(
                 folderId: folderId,
+                apiBaseUrl: dependencies.config.apiBaseUrl,
                 controller: dependencies.installedToolsController,
                 proCapabilityService: dependencies.proCapabilityService,
                 paywallCoordinator: dependencies.paywallCoordinator,

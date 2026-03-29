@@ -88,6 +88,105 @@ class InstalledTools extends Table {
   TextColumn get metadataJson => text()();
 }
 
+/// Named saved session for an installed tool (Pro). [stateJson] holds envelope JSON.
+@DataClassName('ToolSessionRow')
+class ToolSessions extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get toolId => text()();
+
+  TextColumn get toolSlug => text()();
+
+  TextColumn get installId => text().nullable()();
+
+  TextColumn get toolVersion => text().nullable()();
+
+  TextColumn get name => text()();
+
+  TextColumn get stateJson => text()();
+
+  IntColumn get stateSchemaVersion =>
+      integer().withDefault(const Constant(1))();
+
+  TextColumn get toolManifestVersion => text().nullable()();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  DateTimeColumn get updatedAt => dateTime()();
+
+  DateTimeColumn get lastOpenedAt => dateTime().nullable()();
+
+  BoolColumn get isFavorite =>
+      boolean().withDefault(const Constant(false))();
+
+  TextColumn get previewText => text().nullable()();
+
+  IntColumn get stateSizeBytes => integer().nullable()();
+
+  @override
+  Set<Column<Object>>? get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+        {toolId, name},
+      ];
+}
+
+/// Per-launch ephemeral tool state; deleted on dispose or cleanup.
+@DataClassName('EphemeralRuntimeStateRow')
+class EphemeralRuntimeStates extends Table {
+  TextColumn get launchToken => text()();
+
+  TextColumn get toolId => text()();
+
+  TextColumn get toolSlug => text()();
+
+  TextColumn get stateJson => text()();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  DateTimeColumn get updatedAt => dateTime()();
+
+  DateTimeColumn get expiresAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>>? get primaryKey => {launchToken};
+}
+
+/// Home screen widget instance mapped to a tool (Phase 4+).
+@DataClassName('ToolWidgetRow')
+class ToolWidgets extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get platform => text()();
+
+  TextColumn get platformWidgetId => text()();
+
+  TextColumn get toolId => text()();
+
+  TextColumn get toolSlug => text()();
+
+  TextColumn get toolName => text()();
+
+  TextColumn get iconSource => text().nullable()();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  DateTimeColumn get updatedAt => dateTime()();
+
+  DateTimeColumn get lastLaunchedAt => dateTime().nullable()();
+
+  TextColumn get configurationJson => text().nullable()();
+
+  @override
+  Set<Column<Object>>? get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+        {platform, platformWidgetId},
+      ];
+}
+
 @DriftDatabase(
   tables: <Type>[
     CatCategories,
@@ -96,6 +195,9 @@ class InstalledTools extends Table {
     CatPluginVersions,
     SyncKv,
     InstalledTools,
+    ToolSessions,
+    EphemeralRuntimeStates,
+    ToolWidgets,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -110,16 +212,29 @@ class AppDatabase extends _$AppDatabase {
   factory AppDatabase.memory() => AppDatabase(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
       await m.createAll();
+      await m.database.customStatement(
+        'CREATE INDEX IF NOT EXISTS tool_sessions_tool_id_updated_at '
+        'ON tool_sessions (tool_id, updated_at DESC)',
+      );
     },
     onUpgrade: (Migrator m, int from, int to) async {
       if (from < 2) {
         await m.createTable(installedTools);
+      }
+      if (from < 3) {
+        await m.createTable(toolSessions);
+        await m.createTable(ephemeralRuntimeStates);
+        await m.createTable(toolWidgets);
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS tool_sessions_tool_id_updated_at '
+          'ON tool_sessions (tool_id, updated_at DESC)',
+        );
       }
     },
   );
