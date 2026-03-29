@@ -18,6 +18,7 @@ import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
 import 'package:utilivo_mobile/core/navigation/app_routes.dart';
 import 'package:utilivo_mobile/features/discover/data/catalog_cache_store.dart';
 import 'package:utilivo_mobile/features/discover/data/models/catalog_cache_snapshot.dart';
+import 'package:utilivo_mobile/features/installs/data/installed_tools_read_result.dart';
 import 'package:utilivo_mobile/features/installs/data/installed_tools_store.dart';
 import 'package:utilivo_mobile/features/installs/data/models/install_models.dart';
 
@@ -406,8 +407,8 @@ class _InMemoryInstalledToolsStore implements InstalledToolsStore {
   }
 
   @override
-  Future<List<DeviceInstallRecord>> read() async {
-    return _value;
+  Future<InstalledToolsStoreReadResult> read() async {
+    return InstalledToolsStoreReadResult(installs: _value);
   }
 
   @override

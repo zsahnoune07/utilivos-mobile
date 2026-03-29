@@ -1,6 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+
+import 'package:utilivo_mobile/shared/widgets/home_tool_card_layout.dart';
+import 'package:utilivo_mobile/shared/widgets/tool_thumbnail.dart';
 
 import '../../data/models/install_models.dart';
 
@@ -10,6 +11,7 @@ class InstalledToolCard extends StatelessWidget {
     required this.onTap,
     required this.onLongPress,
     this.iconPath,
+    this.iconBaseUrl,
     this.dominantColorHex,
     this.folderBadgeLabel,
     this.folderBadgeColor,
@@ -20,6 +22,9 @@ class InstalledToolCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final String? iconPath;
+
+  /// API base URL for resolving relative catalog icon paths.
+  final String? iconBaseUrl;
   final String? dominantColorHex;
   final String? folderBadgeLabel;
   final Color? folderBadgeColor;
@@ -74,7 +79,8 @@ class InstalledToolCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
-    final accent = _parseHexColor(dominantColorHex) ??
+    final accent =
+        _parseHexColor(dominantColorHex) ??
         _defaultAccentForSlug(install.pluginSlug);
     final cardBg = _cardTint(accent);
     final iconBg = _iconTint(accent, isDark);
@@ -96,11 +102,15 @@ class InstalledToolCard extends StatelessWidget {
       children: <Widget>[
         Material(
           color: Color.alphaBlend(cardBg, colorScheme.surface),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(
+            HomeToolCardLayout.cardBorderRadius,
+          ),
           child: InkWell(
             onTap: onTap,
             onLongPress: onLongPress,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(
+              HomeToolCardLayout.cardBorderRadius,
+            ),
             child: LayoutBuilder(
               builder: (BuildContext context, BoxConstraints constraints) {
                 final compact = constraints.maxHeight < 170;
@@ -115,21 +125,29 @@ class InstalledToolCard extends StatelessWidget {
                 final nameLineHeight =
                     (nameStyle?.fontSize ?? 13) * (nameStyle?.height ?? 1.35);
                 final twoLineNameHeight = nameLineHeight * 2;
-                final iconBoxSize = compact ? 48.0 : 58.0;
-                final iconSize = compact ? 24.0 : 28.0;
-                final iconRadius = compact ? 12.0 : 14.0;
-                final verticalPadding = compact ? 8.0 : 10.0;
-                final titleSpacing = compact ? 6.0 : 10.0;
-                final topIndicatorHeight =
-                    install.pinned || install.updateAvailable ? 16.0 : 0.0;
+                final iconBoxSize = HomeToolCardLayout.iconBoxSide(
+                  constraints.maxWidth,
+                );
+                final iconRadius = HomeToolCardLayout.iconCornerRadius(
+                  iconBoxSize,
+                );
+                final iconGlyphSize = HomeToolCardLayout.iconGlyphSize(
+                  iconBoxSize,
+                );
+                final verticalPadding = HomeToolCardLayout.verticalPadding(
+                  compact: compact,
+                );
+                final titleSpacing = compact ? 7.0 : 11.0;
 
                 return Container(
                   padding: EdgeInsets.symmetric(
-                    horizontal: 8,
+                    horizontal: HomeToolCardLayout.gridChildHorizontalPadding,
                     vertical: verticalPadding,
                   ),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(
+                      HomeToolCardLayout.cardBorderRadius,
+                    ),
                     border: Border.all(
                       color: colorScheme.outlineVariant.withValues(alpha: 0.35),
                     ),
@@ -143,64 +161,19 @@ class InstalledToolCard extends StatelessWidget {
                   ),
                   child: Column(
                     children: <Widget>[
-                      SizedBox(
-                        height: topIndicatorHeight,
-                        child: Row(
-                          children: <Widget>[
-                            if (install.pinned)
-                              Icon(
-                                Icons.push_pin,
-                                size: 14,
-                                color: colorScheme.primary.withValues(
-                                  alpha: 0.7,
-                                ),
-                              ),
-                            const Spacer(),
-                            if (install.updateAvailable)
-                              Icon(
-                                Icons.error_outline,
-                                size: 16,
-                                color: colorScheme.error,
-                              ),
-                          ],
-                        ),
-                      ),
-                      if (topIndicatorHeight > 0) const SizedBox(height: 2),
                       Expanded(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: <Widget>[
-                            Container(
-                              width: iconBoxSize,
-                              height: iconBoxSize,
-                              decoration: BoxDecoration(
-                                color: iconBg,
-                                borderRadius: BorderRadius.circular(iconRadius),
-                              ),
-                              child: iconPath != null
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(
-                                        iconRadius,
-                                      ),
-                                      child: Image.file(
-                                        File(iconPath!),
-                                        width: iconBoxSize,
-                                        height: iconBoxSize,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Icon(
-                                                  Icons.extension,
-                                                  color: accent,
-                                                  size: iconSize,
-                                                ),
-                                      ),
-                                    )
-                                  : Icon(
-                                      Icons.extension,
-                                      color: accent,
-                                      size: iconSize,
-                                    ),
+                            _ToolCardIcon(
+                              install: install,
+                              iconPath: iconPath,
+                              iconBaseUrl: iconBaseUrl,
+                              accent: accent,
+                              iconBg: iconBg,
+                              boxSize: iconBoxSize,
+                              cornerRadius: iconRadius,
+                              glyphSize: iconGlyphSize,
                             ),
                             SizedBox(height: titleSpacing),
                             SizedBox(
@@ -226,6 +199,46 @@ class InstalledToolCard extends StatelessWidget {
             ),
           ),
         ),
+        if (install.pinned)
+          Positioned(
+            top: -7,
+            left: 8,
+            child: IgnorePointer(
+              child: Icon(
+                Icons.push_pin_rounded,
+                size: 17,
+                color: colorScheme.primary.withValues(alpha: 0.82),
+              ),
+            ),
+          ),
+        if (install.updateAvailable)
+          Positioned(
+            top: 6,
+            right: 6,
+            child: IgnorePointer(
+              child: Tooltip(
+                message: 'Update available',
+                child: Material(
+                  elevation: 2,
+                  shadowColor: Colors.black.withValues(alpha: 0.35),
+                  color: colorScheme.primaryContainer,
+                  shape: CircleBorder(
+                    side: BorderSide(
+                      color: colorScheme.primary.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(5),
+                    child: Icon(
+                      Icons.system_update_rounded,
+                      size: 18,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         if (hasFolderBadge)
           Positioned(
             top: 6,
@@ -265,6 +278,67 @@ class InstalledToolCard extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ToolCardIcon extends StatelessWidget {
+  const _ToolCardIcon({
+    required this.install,
+    required this.iconPath,
+    required this.iconBaseUrl,
+    required this.accent,
+    required this.iconBg,
+    required this.boxSize,
+    required this.cornerRadius,
+    required this.glyphSize,
+  });
+
+  final DeviceInstallRecord install;
+  final String? iconPath;
+  final String? iconBaseUrl;
+  final Color accent;
+  final Color iconBg;
+  final double boxSize;
+  final double cornerRadius;
+  final double glyphSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconRef = install.catalogListIconRef.trim();
+    final localRef = iconPath?.trim();
+    final preferLocalIcon = localRef != null && localRef.isNotEmpty;
+    final hasCustomIcon =
+        iconRef.isNotEmpty || (localRef != null && localRef.isNotEmpty);
+
+    return Container(
+      width: boxSize,
+      height: boxSize,
+      decoration: BoxDecoration(
+        color: iconBg,
+        borderRadius: BorderRadius.circular(cornerRadius),
+      ),
+      clipBehavior: Clip.antiAlias,
+      alignment: Alignment.center,
+      child: hasCustomIcon
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(cornerRadius),
+              child: ToolThumbnail(
+                imageUrl: preferLocalIcon ? null : install.catalogListIconRef,
+                localPath: iconPath,
+                baseUrl: iconBaseUrl,
+                debugToolSlug: install.pluginSlug,
+                debugThumbnailUrl: install.catalogThumbnailUrl,
+                debugIconUrl: install.catalogThumbnailUrl,
+                size: boxSize,
+                borderRadius: cornerRadius,
+                fallbackIcon: Icons.extension_rounded,
+                fallbackIconColor: accent,
+                fallbackIconSize: glyphSize,
+                transparentFallback: true,
+              ),
+            )
+          : Icon(Icons.extension_rounded, color: accent, size: glyphSize),
     );
   }
 }

@@ -20,6 +20,10 @@ class DownloadedToolBundle {
     this.signatureVerifiedAt,
     this.signatureSchemaVersion,
     this.entitlementVerifiedAt,
+    this.runtimeMode,
+    this.runtimeContractVersion,
+    this.designSystemVersion,
+    this.sdkVersion,
   });
 
   final String pluginSlug;
@@ -42,6 +46,10 @@ class DownloadedToolBundle {
   final DateTime? signatureVerifiedAt;
   final int? signatureSchemaVersion;
   final DateTime? entitlementVerifiedAt;
+  final String? runtimeMode;
+  final int? runtimeContractVersion;
+  final int? designSystemVersion;
+  final String? sdkVersion;
 
   bool get isRunnable {
     final entry = entryFilePath?.trim();
@@ -78,6 +86,10 @@ class DownloadedToolBundle {
         json,
         'entitlement_verified_at',
       ),
+      runtimeMode: _readOptionalString(json, 'runtime_mode'),
+      runtimeContractVersion: _readOptionalInt(json, 'runtime_contract_version'),
+      designSystemVersion: _readOptionalInt(json, 'design_system_version'),
+      sdkVersion: _readOptionalString(json, 'sdk_version'),
     );
   }
 
@@ -105,6 +117,10 @@ class DownloadedToolBundle {
       'entitlement_verified_at': entitlementVerifiedAt
           ?.toUtc()
           .toIso8601String(),
+      'runtime_mode': runtimeMode,
+      'runtime_contract_version': runtimeContractVersion,
+      'design_system_version': designSystemVersion,
+      'sdk_version': sdkVersion,
     };
   }
 
@@ -129,6 +145,10 @@ class DownloadedToolBundle {
     DateTime? signatureVerifiedAt,
     int? signatureSchemaVersion,
     DateTime? entitlementVerifiedAt,
+    String? runtimeMode,
+    int? runtimeContractVersion,
+    int? designSystemVersion,
+    String? sdkVersion,
   }) {
     return DownloadedToolBundle(
       pluginSlug: pluginSlug ?? this.pluginSlug,
@@ -153,6 +173,11 @@ class DownloadedToolBundle {
           signatureSchemaVersion ?? this.signatureSchemaVersion,
       entitlementVerifiedAt:
           entitlementVerifiedAt ?? this.entitlementVerifiedAt,
+      runtimeMode: runtimeMode ?? this.runtimeMode,
+      runtimeContractVersion:
+          runtimeContractVersion ?? this.runtimeContractVersion,
+      designSystemVersion: designSystemVersion ?? this.designSystemVersion,
+      sdkVersion: sdkVersion ?? this.sdkVersion,
     );
   }
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -64,6 +65,7 @@ class _UtilivoAppState extends State<UtilivoApp> {
   );
 
   StreamSubscription<Uri>? _appLinkSubscription;
+  StreamSubscription<Uri?>? _homeWidgetUriSubscription;
   DateTime? _lastResumeSyncAt;
 
   String _resolveInitialRouterLocation() {
@@ -83,8 +85,13 @@ class _UtilivoAppState extends State<UtilivoApp> {
     WidgetsBinding.instance.addObserver(_lifecycleObserver);
     unawaited(_bootstrapController.bootstrap());
     unawaited(_dependencies.proPurchaseController.initialize());
+    unawaited(_dependencies.installedToolsController.bootstrap());
     unawaited(_seedLocalToolBundleIfConfigured());
     _listenAppLinks();
+    _listenHomeWidgetLaunches();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_consumeInitialHomeWidgetLaunch());
+    });
   }
 
   void _listenAppLinks() {
@@ -98,6 +105,37 @@ class _UtilivoAppState extends State<UtilivoApp> {
       });
     } catch (error) {
       debugPrint('App links stream unavailable: $error');
+    }
+  }
+
+  void _listenHomeWidgetLaunches() {
+    try {
+      _homeWidgetUriSubscription = HomeWidget.widgetClicked.listen((Uri? uri) {
+        if (uri == null || !mounted) {
+          return;
+        }
+        final String? loc = parseAppDeepLink(uri);
+        if (loc != null) {
+          _router.go(loc);
+        }
+      });
+    } catch (error) {
+      debugPrint('Home widget link stream unavailable: $error');
+    }
+  }
+
+  Future<void> _consumeInitialHomeWidgetLaunch() async {
+    try {
+      final Uri? uri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+      if (!mounted || uri == null) {
+        return;
+      }
+      final String? loc = parseAppDeepLink(uri);
+      if (loc != null) {
+        _router.go(loc);
+      }
+    } catch (error) {
+      debugPrint('Home widget initial launch check failed: $error');
     }
   }
 
@@ -168,6 +206,7 @@ class _UtilivoAppState extends State<UtilivoApp> {
   @override
   void dispose() {
     _appLinkSubscription?.cancel();
+    _homeWidgetUriSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(_lifecycleObserver);
     _router.dispose();
     _bootstrapController.dispose();

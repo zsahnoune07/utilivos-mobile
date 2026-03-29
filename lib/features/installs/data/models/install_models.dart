@@ -13,6 +13,7 @@ class DeviceInstallRecord {
     this.updatedAt,
     this.latestAvailableVersion,
     this.updateAvailable = false,
+    this.updateMandatory = false,
     this.lastUpdateCheckAt,
     this.pluginName,
     this.categoryName,
@@ -20,6 +21,7 @@ class DeviceInstallRecord {
     this.pinned = false,
     this.categoryColor,
     this.iconPath,
+    this.catalogThumbnailUrl,
     this.cardAccentColor,
     this.pricingTier,
     this.folderId,
@@ -37,6 +39,8 @@ class DeviceInstallRecord {
   final DateTime? updatedAt;
   final String? latestAvailableVersion;
   final bool updateAvailable;
+  /// Latest catalog version requires update before running ([updateAvailable] must be true).
+  final bool updateMandatory;
   final DateTime? lastUpdateCheckAt;
   final String? pluginName;
   final String? categoryName;
@@ -44,12 +48,32 @@ class DeviceInstallRecord {
   final bool pinned;
   final String? categoryColor;
   final String? iconPath;
+  /// Catalog `icon_url` / thumbnail from API — CDN-first rendering on device.
+  final String? catalogThumbnailUrl;
   final String? cardAccentColor;
   final String? pricingTier;
   final String? folderId;
   final DateTime? lastLaunchedAt;
 
   String get displayName => pluginName ?? pluginSlug;
+
+  /// Same contract as [CatalogPlugin.catalogIconRef] for stored catalog art.
+  String get catalogIconRef {
+    final t = catalogThumbnailUrl?.trim();
+    if (t != null && t.isNotEmpty) {
+      return t;
+    }
+    final s = pluginSlug.trim();
+    if (s.isEmpty) {
+      return '';
+    }
+    return '/v1/plugins/${Uri.encodeComponent(s)}/icon';
+  }
+
+  /// List-style square icon when falling back to catalog (not local bundle).
+  ///
+  /// [catalogThumbnailUrl] should be hydrated with [CatalogPlugin.catalogListIconRef].
+  String get catalogListIconRef => catalogIconRef;
 
   factory DeviceInstallRecord.fromJson(Map<String, dynamic> json) {
     return DeviceInstallRecord(
@@ -89,6 +113,10 @@ class DeviceInstallRecord {
       updateAvailable: _readOptionalBool(json, const <String>[
         'update_available',
       ]),
+      updateMandatory: _readOptionalBool(json, const <String>[
+        'update_mandatory',
+        'UpdateMandatory',
+      ]),
       lastUpdateCheckAt: _readOptionalDateTime(json, const <String>[
         'last_update_check_at',
       ]),
@@ -112,6 +140,12 @@ class DeviceInstallRecord {
       iconPath: _readOptionalString(json, const <String>[
         'icon_path',
         'IconPath',
+      ]),
+      catalogThumbnailUrl: _readOptionalString(json, const <String>[
+        'catalog_thumbnail_url',
+        'CatalogThumbnailUrl',
+        'icon_url',
+        'IconUrl',
       ]),
       cardAccentColor: _readOptionalString(json, const <String>[
         'card_accent_color',
@@ -145,6 +179,7 @@ class DeviceInstallRecord {
       'updated_at': updatedAt?.toUtc().toIso8601String(),
       'latest_available_version': latestAvailableVersion,
       'update_available': updateAvailable,
+      'update_mandatory': updateMandatory,
       'last_update_check_at': lastUpdateCheckAt?.toUtc().toIso8601String(),
       'plugin_name': pluginName,
       'category_name': categoryName,
@@ -152,6 +187,7 @@ class DeviceInstallRecord {
       'pinned': pinned,
       'category_color': categoryColor,
       'icon_path': iconPath,
+      'catalog_thumbnail_url': catalogThumbnailUrl,
       'card_accent_color': cardAccentColor,
       'pricing_tier': pricingTier,
       'folder_id': folderId,
@@ -171,6 +207,7 @@ class DeviceInstallRecord {
     DateTime? updatedAt,
     String? latestAvailableVersion,
     bool? updateAvailable,
+    bool? updateMandatory,
     DateTime? lastUpdateCheckAt,
     String? pluginName,
     String? categoryName,
@@ -178,6 +215,7 @@ class DeviceInstallRecord {
     bool? pinned,
     String? categoryColor,
     String? iconPath,
+    String? catalogThumbnailUrl,
     String? cardAccentColor,
     String? pricingTier,
     Object? folderId = _unset,
@@ -196,6 +234,7 @@ class DeviceInstallRecord {
       latestAvailableVersion:
           latestAvailableVersion ?? this.latestAvailableVersion,
       updateAvailable: updateAvailable ?? this.updateAvailable,
+      updateMandatory: updateMandatory ?? this.updateMandatory,
       lastUpdateCheckAt: lastUpdateCheckAt ?? this.lastUpdateCheckAt,
       pluginName: pluginName ?? this.pluginName,
       categoryName: categoryName ?? this.categoryName,
@@ -203,6 +242,7 @@ class DeviceInstallRecord {
       pinned: pinned ?? this.pinned,
       categoryColor: categoryColor ?? this.categoryColor,
       iconPath: iconPath ?? this.iconPath,
+      catalogThumbnailUrl: catalogThumbnailUrl ?? this.catalogThumbnailUrl,
       cardAccentColor: cardAccentColor ?? this.cardAccentColor,
       pricingTier: pricingTier ?? this.pricingTier,
       folderId: identical(folderId, _unset)

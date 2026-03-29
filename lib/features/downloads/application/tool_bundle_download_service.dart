@@ -306,6 +306,10 @@ class ToolBundleDownloadService {
         category: manifest.category,
         iconPath: manifest.iconPath,
         iconAccentColor: manifest.iconAccentColor,
+        runtimeMode: manifest.runtimeMode,
+        runtimeContractVersion: manifest.runtimeContractVersion,
+        designSystemVersion: manifest.designSystemVersion,
+        sdkVersion: manifest.sdkVersion,
       );
     } on ToolBundleFormatException {
       return null;
@@ -376,6 +380,16 @@ class ToolBundleDownloadService {
     final name = _readRequiredManifestField(rawManifest, 'name');
     final version = _readRequiredManifestField(rawManifest, 'version');
     final entryPath = _readRequiredManifestField(rawManifest, 'entry');
+    final runtimeMode = _readOptionalManifestField(rawManifest, 'runtime_mode');
+    final runtimeContractVersion = _readOptionalManifestIntField(
+      rawManifest,
+      'runtime_contract_version',
+    );
+    final designSystemVersion = _readOptionalManifestIntField(
+      rawManifest,
+      'design_system_version',
+    );
+    final sdkVersion = _readOptionalManifestField(rawManifest, 'sdk_version');
     final rawCategory = rawManifest['category'];
     final category = rawCategory is String && rawCategory.trim().isNotEmpty
         ? rawCategory.trim()
@@ -432,6 +446,10 @@ class ToolBundleDownloadService {
       category: category,
       iconPath: resolvedIconPath,
       iconAccentColor: await _deriveIconAccentColor(resolvedIconPath),
+      runtimeMode: runtimeMode,
+      runtimeContractVersion: runtimeContractVersion,
+      designSystemVersion: designSystemVersion,
+      sdkVersion: sdkVersion,
     );
   }
 
@@ -551,6 +569,23 @@ class ToolBundleDownloadService {
     return raw.trim();
   }
 
+  String? _readOptionalManifestField(Map<String, dynamic> manifest, String key) {
+    final raw = manifest[key];
+    if (raw is! String) {
+      return null;
+    }
+    final value = raw.trim();
+    return value.isEmpty ? null : value;
+  }
+
+  int? _readOptionalManifestIntField(Map<String, dynamic> manifest, String key) {
+    final raw = manifest[key];
+    if (raw is int) {
+      return raw;
+    }
+    return null;
+  }
+
   _ArchiveManifestPreview _readManifestPreview(List<int> archiveBytes) {
     final archive = _decodeArchive(archiveBytes);
     ArchiveFile? manifestEntry;
@@ -665,6 +700,15 @@ class ToolBundleDownloadService {
       signatureVerifiedAt: signatureVerifiedAt,
       signatureSchemaVersion: grant?.signaturePayload?.schemaVersion,
       entitlementVerifiedAt: grant?.entitlementVerifiedAt,
+      runtimeMode:
+          (manifest.runtimeMode?.trim().isNotEmpty ?? false)
+              ? manifest.runtimeMode?.trim()
+              : grant?.runtimeMode,
+      runtimeContractVersion:
+          manifest.runtimeContractVersion ?? grant?.runtimeContractVersion,
+      designSystemVersion:
+          manifest.designSystemVersion ?? grant?.designSystemVersion,
+      sdkVersion: manifest.sdkVersion ?? grant?.sdkVersion,
     );
 
     await _upsertBundleMetadata(metadata);
@@ -852,6 +896,10 @@ class _ResolvedManifest {
     this.category,
     this.iconPath,
     this.iconAccentColor,
+    this.runtimeMode,
+    this.runtimeContractVersion,
+    this.designSystemVersion,
+    this.sdkVersion,
   });
 
   final String name;
@@ -861,6 +909,10 @@ class _ResolvedManifest {
   final String? category;
   final String? iconPath;
   final String? iconAccentColor;
+  final String? runtimeMode;
+  final int? runtimeContractVersion;
+  final int? designSystemVersion;
+  final String? sdkVersion;
 }
 
 class _ArchiveManifestPreview {

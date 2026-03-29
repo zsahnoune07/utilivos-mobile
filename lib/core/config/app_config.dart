@@ -10,6 +10,7 @@ class AppConfig {
     this.localToolBundlePath,
     this.localToolBundleSlug,
     this.localToolBundleVersion,
+    this.toolReportSubmitUrl,
   });
 
   final String appName;
@@ -24,6 +25,9 @@ class AppConfig {
   final String? localToolBundlePath;
   final String? localToolBundleSlug;
   final String? localToolBundleVersion;
+
+  /// Future HTTP endpoint for tool issue reports (optional until backend exists).
+  final String? toolReportSubmitUrl;
 
   factory AppConfig.fromEnvironment() {
     const appName = String.fromEnvironment(
@@ -63,6 +67,9 @@ class AppConfig {
     const localToolBundleVersion = String.fromEnvironment(
       'LOCAL_TOOL_BUNDLE_VERSION',
     );
+    const toolReportSubmitUrl = String.fromEnvironment(
+      'TOOL_REPORT_SUBMIT_URL',
+    );
 
     return AppConfig(
       appName: appName.trim().isEmpty ? 'Utilivo' : appName.trim(),
@@ -83,6 +90,7 @@ class AppConfig {
       localToolBundlePath: _normalizeOptional(localToolBundlePath),
       localToolBundleSlug: _normalizeOptional(localToolBundleSlug),
       localToolBundleVersion: _normalizeOptional(localToolBundleVersion),
+      toolReportSubmitUrl: _normalizeOptional(toolReportSubmitUrl),
     );
   }
 

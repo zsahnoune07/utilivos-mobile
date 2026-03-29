@@ -130,6 +130,12 @@ abstract class AppLocalizations {
   /// **'Browse Tool Library'**
   String get browseMarketplace;
 
+  /// No description provided for @searchInToolLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Search in Tool Library'**
+  String get searchInToolLibrary;
+
   /// No description provided for @noInstalledTools.
   ///
   /// In en, this message translates to:
@@ -141,6 +147,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Browse the Tool Library to install your first tool.'**
   String get noInstalledToolsMessage;
+
+  /// No description provided for @homeInstallsLoadFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load installed tools'**
+  String get homeInstallsLoadFailedTitle;
+
+  /// No description provided for @homeInstallsOfflineDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to load your tools from the library. Once installed, tools work offline.'**
+  String get homeInstallsOfflineDetail;
+
+  /// No description provided for @homeInstallsBootstrapFailedDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Your saved tool list could not be read. Try again.'**
+  String get homeInstallsBootstrapFailedDetail;
+
+  /// No description provided for @homeInstallsSyncFailedDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong while refreshing installed tools. Try again.'**
+  String get homeInstallsSyncFailedDetail;
+
+  /// No description provided for @homeInstallsCorruptLocalDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Some saved tool data was invalid. Your list was cleared — try again to resync.'**
+  String get homeInstallsCorruptLocalDetail;
 
   /// No description provided for @noToolsMatchSearch.
   ///
@@ -279,6 +315,291 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Up to date'**
   String get upToDate;
+
+  /// No description provided for @searchStartTypingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find your tools'**
+  String get searchStartTypingTitle;
+
+  /// No description provided for @searchStartTypingMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Start typing to find tools on this device.'**
+  String get searchStartTypingMessage;
+
+  /// No description provided for @recentSearchesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent searches'**
+  String get recentSearchesSection;
+
+  /// No description provided for @recentActivitySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent activity'**
+  String get recentActivitySection;
+
+  /// No description provided for @recentToolNoLongerInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'This tool is no longer installed.'**
+  String get recentToolNoLongerInstalled;
+
+  /// No description provided for @clearSearchHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear history'**
+  String get clearSearchHistory;
+
+  /// No description provided for @runtimeMenuCheckUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check updates'**
+  String get runtimeMenuCheckUpdates;
+
+  /// No description provided for @runtimeMenuDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get runtimeMenuDetails;
+
+  /// No description provided for @runtimeMenuReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Report'**
+  String get runtimeMenuReport;
+
+  /// No description provided for @runtimeMenuSaveSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Save session'**
+  String get runtimeMenuSaveSession;
+
+  /// No description provided for @runtimeMenuLoadSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Load session'**
+  String get runtimeMenuLoadSession;
+
+  /// No description provided for @runtimeMenuManageSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage sessions'**
+  String get runtimeMenuManageSessions;
+
+  /// No description provided for @runtimeSessionSaveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save session'**
+  String get runtimeSessionSaveTitle;
+
+  /// No description provided for @runtimeSessionSaveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Name this session so you can reopen it later.'**
+  String get runtimeSessionSaveHint;
+
+  /// No description provided for @runtimeSessionNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Session name'**
+  String get runtimeSessionNameLabel;
+
+  /// No description provided for @runtimeSessionSaveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get runtimeSessionSaveConfirm;
+
+  /// No description provided for @runtimeSessionSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Session saved'**
+  String get runtimeSessionSaved;
+
+  /// No description provided for @runtimeSessionNothingToSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to save yet. Use the tool, then try again.'**
+  String get runtimeSessionNothingToSave;
+
+  /// No description provided for @runtimeSessionLoadTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Load session'**
+  String get runtimeSessionLoadTitle;
+
+  /// No description provided for @runtimeSessionNoSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved sessions for this tool.'**
+  String get runtimeSessionNoSaved;
+
+  /// No description provided for @runtimeSessionManageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved sessions'**
+  String get runtimeSessionManageTitle;
+
+  /// No description provided for @runtimeSessionRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get runtimeSessionRename;
+
+  /// No description provided for @runtimeSessionDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get runtimeSessionDelete;
+
+  /// No description provided for @runtimeSessionDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete session?'**
+  String get runtimeSessionDeleteConfirmTitle;
+
+  /// No description provided for @runtimeSessionDeleteConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{name}\"? This cannot be undone.'**
+  String runtimeSessionDeleteConfirmMessage(String name);
+
+  /// No description provided for @runtimeSessionRenameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename session'**
+  String get runtimeSessionRenameTitle;
+
+  /// No description provided for @runtimeSessionNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'That saved session was not found for this tool.'**
+  String get runtimeSessionNotFound;
+
+  /// No description provided for @runtimeSessionProRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved sessions are a Pro feature.'**
+  String get runtimeSessionProRequired;
+
+  /// No description provided for @runtimeUpToDateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get runtimeUpToDateTitle;
+
+  /// No description provided for @runtimeUpToDateMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You have the latest version installed.'**
+  String get runtimeUpToDateMessage;
+
+  /// No description provided for @runtimeUpdateAvailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get runtimeUpdateAvailableTitle;
+
+  /// No description provided for @runtimeUpdateAvailableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest: {latestVersion}. Installed: {installedVersion}.'**
+  String runtimeUpdateAvailableBody(
+    String latestVersion,
+    String installedVersion,
+  );
+
+  /// No description provided for @runtimeToolDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool details'**
+  String get runtimeToolDetailsTitle;
+
+  /// No description provided for @runtimeReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Report a problem'**
+  String get runtimeReportTitle;
+
+  /// No description provided for @runtimeReportReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get runtimeReportReasonLabel;
+
+  /// No description provided for @runtimeReportDetailsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Additional details'**
+  String get runtimeReportDetailsLabel;
+
+  /// No description provided for @runtimeReportSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get runtimeReportSubmit;
+
+  /// No description provided for @runtimeReportQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Thanks — your report was saved locally. Server submission is not wired up yet.'**
+  String get runtimeReportQueued;
+
+  /// No description provided for @runtimeReportSelectReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a reason'**
+  String get runtimeReportSelectReason;
+
+  /// No description provided for @reportReasonNotWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Not working'**
+  String get reportReasonNotWorking;
+
+  /// No description provided for @reportReasonIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect or misleading'**
+  String get reportReasonIncorrect;
+
+  /// No description provided for @reportReasonOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get reportReasonOther;
+
+  /// No description provided for @reportDetailsTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a few more details (at least 4 characters).'**
+  String get reportDetailsTooShort;
+
+  /// No description provided for @checkingUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for updates…'**
+  String get checkingUpdates;
+
+  /// No description provided for @latestVersionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest version'**
+  String get latestVersionLabel;
+
+  /// No description provided for @catalogSearchEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No tools found'**
+  String get catalogSearchEmptyTitle;
+
+  /// No description provided for @catalogSearchEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Try different words or clear filters.'**
+  String get catalogSearchEmptyMessage;
 }
 
 class _AppLocalizationsDelegate

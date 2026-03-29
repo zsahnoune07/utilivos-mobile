@@ -23,10 +23,11 @@ void main() {
 
     await store.write(<DeviceInstallRecord>[record]);
     final read = await store.read();
-    expect(read.length, 1);
-    expect(read.single.pluginSlug, 'alpha');
-    expect(read.single.installedVersion, '1.0.0');
-    expect(read.single.pluginName, 'Alpha');
+    expect(read.installs.length, 1);
+    expect(read.skippedInvalidRowCount, 0);
+    expect(read.installs.single.pluginSlug, 'alpha');
+    expect(read.installs.single.installedVersion, '1.0.0');
+    expect(read.installs.single.pluginName, 'Alpha');
 
     final streamValues = await store.watch().take(1).toList();
     expect(streamValues.single.length, 1);

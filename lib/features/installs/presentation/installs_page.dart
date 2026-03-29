@@ -7,14 +7,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/navigation/app_routes.dart';
+import '../../../core/search/recent_search_store.dart';
 import '../../../core/pro/paywall_coordinator.dart';
 import '../../../core/pro/paywall_models.dart';
 import '../../../core/pro/pro_analytics.dart';
 import '../../../core/pro/pro_capability_service.dart';
 import '../../../core/networking/network_exception.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/app_buttons.dart';
 import '../../../shared/widgets/app_skeletons.dart';
 import '../../../shared/widgets/app_state_views.dart';
+import '../../../shared/widgets/tool_thumbnail.dart';
 import '../../discover/data/models/catalog_models.dart';
 import '../../downloads/application/tool_bundle_download_service.dart';
 import '../../downloads/data/download_api.dart';
@@ -31,6 +34,7 @@ import 'widgets/tool_actions_sheet.dart';
 class InstallsPage extends StatefulWidget {
   const InstallsPage({
     required this.appName,
+    required this.apiBaseUrl,
     required this.installedToolsController,
     required this.downloadApi,
     required this.toolBundleDownloadService,
@@ -43,6 +47,7 @@ class InstallsPage extends StatefulWidget {
   });
 
   final String appName;
+  final String apiBaseUrl;
   final InstalledToolsController installedToolsController;
   final DownloadApi downloadApi;
   final ToolBundleDownloadService toolBundleDownloadService;
@@ -60,15 +65,80 @@ class _InstallsPageState extends State<InstallsPage> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   bool _isResettingSearch = false;
+  List<HomeSearchHistoryEntry> _homeRecentHistory = <HomeSearchHistoryEntry>[];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.installedToolsController.bootstrap();
+      unawaited(_reloadHomeRecentQueries());
     });
     _searchController.addListener(() => setState(() {}));
-    _searchFocusNode.addListener(() => setState(() {}));
+    _searchFocusNode.addListener(_onSearchFocusChanged);
+  }
+
+  void _onSearchFocusChanged() {
+    setState(() {});
+  }
+
+  Future<void> _reloadHomeRecentQueries() async {
+    final store = await RecentSearchStore.open();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _homeRecentHistory = store.loadHomeSync();
+    });
+  }
+
+  Future<void> _persistHomeSearchSubmission(String raw) async {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+    final store = await RecentSearchStore.open();
+    await store.addHomeQuery(trimmed);
+    await _reloadHomeRecentQueries();
+  }
+
+  Future<void> _persistHomeToolHistoryEntry(DeviceInstallRecord install) async {
+    final store = await RecentSearchStore.open();
+    await store.addHomeTool(
+      slug: install.pluginSlug,
+      name: install.displayName,
+    );
+    if (!mounted) {
+      return;
+    }
+    await _reloadHomeRecentQueries();
+  }
+
+  bool _isHomeSearchMode(InstalledToolsController controller) {
+    final phase = controller.homePresentationPhase;
+    return _searchFocusNode.hasFocus &&
+        (phase == HomeInstallsPresentationPhase.content ||
+            phase == HomeInstallsPresentationPhase.emptyLibrary);
+  }
+
+  String _homeLoadFailureDetail(
+    InstalledToolsController controller,
+    AppLocalizations l10n,
+  ) {
+    switch (controller.homeLoadFailureKind) {
+      case HomeInstallsLoadFailureKind.offline:
+        return l10n.homeInstallsOfflineDetail;
+      case HomeInstallsLoadFailureKind.bootstrap:
+        return l10n.homeInstallsBootstrapFailedDetail;
+      case HomeInstallsLoadFailureKind.corruptLocalData:
+        return l10n.homeInstallsCorruptLocalDetail;
+      case HomeInstallsLoadFailureKind.sync:
+        final message = controller.errorMessage?.trim();
+        if (message != null && message.isNotEmpty) {
+          return message;
+        }
+        return l10n.homeInstallsSyncFailedDetail;
+    }
   }
 
   @override
@@ -76,26 +146,6 @@ class _InstallsPageState extends State<InstallsPage> {
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
-  }
-
-  List<DeviceInstallRecord> _filteredTools(
-    InstalledToolsController controller,
-  ) {
-    final tools = controller.installedTools;
-
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) {
-      return tools;
-    }
-    return tools
-        .where(
-          (DeviceInstallRecord t) =>
-              t.displayName.toLowerCase().contains(query) ||
-              t.pluginSlug.toLowerCase().contains(query) ||
-              (t.pluginDescription?.toLowerCase().contains(query) ?? false) ||
-              (t.categoryName?.toLowerCase().contains(query) ?? false),
-        )
-        .toList();
   }
 
   HomeGroupedInstalls _filteredGroupedData(
@@ -129,6 +179,20 @@ class _InstallsPageState extends State<InstallsPage> {
       folders: const <HomeFolderSection>[],
       unpinnedTools: unpinnedMatches,
     );
+  }
+
+  DeviceInstallRecord? _homeInstallForSlug(String slug) {
+    final normalized = slug.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return null;
+    }
+    for (final DeviceInstallRecord tool
+        in widget.installedToolsController.installedTools) {
+      if (tool.pluginSlug.trim().toLowerCase() == normalized) {
+        return tool;
+      }
+    }
+    return null;
   }
 
   Map<String, ToolFolder> _foldersById(InstalledToolsController controller) {
@@ -166,18 +230,47 @@ class _InstallsPageState extends State<InstallsPage> {
     FocusManager.instance.primaryFocus?.unfocus();
   }
 
-  void _openToolRuntime(BuildContext context, DeviceInstallRecord install) {
+  Future<void> _openToolRuntime(
+    BuildContext context,
+    DeviceInstallRecord install,
+  ) async {
+    final prepared = await widget.installedToolsController.prepareToolLaunch(
+      install.pluginSlug,
+    );
+    if (!context.mounted) {
+      return;
+    }
+    switch (prepared) {
+      case ToolLaunchPrepared.notInstalled:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This tool is no longer installed.')),
+        );
+        return;
+      case ToolLaunchPrepared.missingBundle:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tool files were removed. Reinstall from the Tool Library.',
+            ),
+          ),
+        );
+        return;
+      case ToolLaunchPrepared.mandatoryUpdateRequired:
+        _showUpdateModal(context, install: install);
+        return;
+      case ToolLaunchPrepared.ok:
+        break;
+    }
     widget.installedToolsController.markToolLaunched(install.pluginSlug);
     unawaited(
       widget.proCapabilityService.recordToolEngagement(install.pluginSlug),
     );
-    final restore = widget.proCapabilityService.canRestoreSession;
     context
         .push(
           AppRoutes.pluginRuntime(
             install.pluginSlug,
             toolName: install.displayName,
-            restoreSession: restore,
+            restoreSession: false,
           ),
         )
         .then((_) {
@@ -250,22 +343,19 @@ class _InstallsPageState extends State<InstallsPage> {
     await _openMarketplace(context, search: _searchController.text);
   }
 
-  bool get _hasActiveSearchState => _searchController.text.trim().isNotEmpty;
+  bool get _hasActiveSearchState =>
+      _searchFocusNode.hasFocus || _searchController.text.trim().isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: !_hasActiveSearchState && !_searchFocusNode.hasFocus,
+      canPop: !_hasActiveSearchState,
       onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) {
           return;
         }
         if (_hasActiveSearchState) {
           _resetSearchState();
-          return;
-        }
-        if (_searchFocusNode.hasFocus) {
-          _dismissSearchFocus();
         }
       },
       child: Scaffold(
@@ -295,8 +385,6 @@ class _InstallsPageState extends State<InstallsPage> {
           animation: widget.installedToolsController,
           builder: (BuildContext context, Widget? child) {
             final controller = widget.installedToolsController;
-            final viewState = _resolveViewState(controller);
-            final filtered = _filteredTools(controller);
             final grouped = _filteredGroupedData(controller);
             return SafeArea(
               top: false,
@@ -309,24 +397,18 @@ class _InstallsPageState extends State<InstallsPage> {
                       child: _buildBody(
                         context,
                         controller,
-                        viewState,
-                        filtered,
                         grouped,
                       ),
                     ),
                   ),
-                  if (_searchFocusNode.hasFocus)
-                    Positioned.fill(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: _searchFocusNode.unfocus,
-                      ),
-                    ),
                   _FloatingControlsBar(
                     controller: _searchController,
                     focusNode: _searchFocusNode,
                     onClear: () => _searchController.clear(),
                     onOpenMarketplace: () => _openMarketplace(context),
+                    onSearchSubmitted: (String value) {
+                      unawaited(_persistHomeSearchSubmission(value));
+                    },
                   ),
                 ],
               ),
@@ -340,16 +422,14 @@ class _InstallsPageState extends State<InstallsPage> {
   Widget _buildBody(
     BuildContext context,
     InstalledToolsController controller,
-    AppViewState viewState,
-    List<DeviceInstallRecord> filtered,
     HomeGroupedInstalls grouped,
   ) {
-    final hasSearchQuery = _searchController.text.trim().isNotEmpty;
-    final showFilteredEmpty =
-        viewState == AppViewState.content && filtered.isEmpty && hasSearchQuery;
     final foldersById = _foldersById(controller);
+    final phase = controller.homePresentationPhase;
+    final l10n =
+        AppLocalizations.of(context) ?? lookupAppLocalizations(const Locale('en'));
 
-    if (viewState == AppViewState.loading) {
+    if (phase == HomeInstallsPresentationPhase.loading) {
       return CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: <Widget>[
@@ -365,65 +445,24 @@ class _InstallsPageState extends State<InstallsPage> {
       );
     }
 
-    if (viewState == AppViewState.error) {
-      if (controller.isFirstRunOffline) {
-        return CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: <Widget>[
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      const AppEmptyView(
-                        title: 'No tools installed',
-                        message:
-                            'You need an internet connection to install tools',
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Once installed, tools work offline',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      AppPrimaryButton(
-                        label: 'Retry',
-                        onPressed: () =>
-                            controller.syncFromRepository(trigger: 'retry'),
-                        expand: true,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      }
+    if (phase == HomeInstallsPresentationPhase.recoverableLoadFailure) {
       return CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: <Widget>[
           SliverFillRemaining(
             hasScrollBody: false,
             child: AppErrorView(
-              title: 'Could not load installed tools',
-              message:
-                  controller.errorMessage ??
-                  'Unexpected installed-tools loading error.',
-              onRetry: controller.retryBootstrap,
+              title: l10n.homeInstallsLoadFailedTitle,
+              message: _homeLoadFailureDetail(controller, l10n),
+              onRetry: () => unawaited(controller.retryHomeLoad()),
             ),
           ),
         ],
       );
     }
 
-    if (viewState == AppViewState.empty) {
+    if (phase == HomeInstallsPresentationPhase.emptyLibrary &&
+        !_searchFocusNode.hasFocus) {
       return CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: <Widget>[
@@ -435,14 +474,13 @@ class _InstallsPageState extends State<InstallsPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    const AppEmptyView(
-                      title: 'No installed tools',
-                      message:
-                          'Browse the Tool Library to install your first tool.',
+                    AppEmptyView(
+                      title: l10n.noInstalledTools,
+                      message: l10n.noInstalledToolsMessage,
                     ),
                     const SizedBox(height: 20),
                     AppPrimaryButton(
-                      label: 'Browse Tool Library',
+                      label: l10n.browseMarketplace,
                       onPressed: () => _openMarketplace(context),
                       expand: true,
                     ),
@@ -461,37 +499,12 @@ class _InstallsPageState extends State<InstallsPage> {
       );
     }
 
-    if (showFilteredEmpty) {
-      return CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: <Widget>[
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                const AppEmptyView(
-                  title: 'No tools match your search',
-                  message: 'Try a different search term or category.',
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      AppPrimaryButton(
-                        label: 'Search in Tool Library',
-                        onPressed: () => _openMarketplaceWithSearch(context),
-                        expand: true,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+    if (_isHomeSearchMode(controller)) {
+      return _buildHomeFocusedSearchBody(
+        context,
+        controller,
+        grouped,
+        foldersById,
       );
     }
 
@@ -537,26 +550,19 @@ class _InstallsPageState extends State<InstallsPage> {
             itemCount: grouped.pinnedTools.length,
             itemBuilder: (BuildContext context, int index) {
               final install = grouped.pinnedTools[index];
-              final folder =
-                  install.folderId != null && install.folderId!.isNotEmpty
-                  ? foldersById[install.folderId!]
-                  : null;
               return RepaintBoundary(
                 child: InstalledToolCard(
                   install: install,
                   iconPath: install.iconPath,
+                  iconBaseUrl: widget.apiBaseUrl,
                   dominantColorHex: install.cardAccentColor,
-                  folderBadgeLabel: hasSearchQuery && folder != null
-                      ? folder.name
-                      : null,
-                  folderBadgeColor: hasSearchQuery && folder != null
-                      ? FolderUiCatalog.colorFor(folder.colorKey)
-                      : null,
+                  folderBadgeLabel: null,
+                  folderBadgeColor: null,
                   onTap: () {
                     if (install.updateAvailable) {
                       _showUpdateModal(context, install: install);
                     } else {
-                      _openToolRuntime(context, install);
+                      unawaited(_openToolRuntime(context, install));
                     }
                   },
                   onLongPress: () => _showToolDetailsModal(
@@ -607,26 +613,19 @@ class _InstallsPageState extends State<InstallsPage> {
           itemCount: grouped.unpinnedTools.length,
           itemBuilder: (BuildContext context, int index) {
             final install = grouped.unpinnedTools[index];
-            final folder =
-                install.folderId != null && install.folderId!.isNotEmpty
-                ? foldersById[install.folderId!]
-                : null;
             return RepaintBoundary(
               child: InstalledToolCard(
                 install: install,
                 iconPath: install.iconPath,
+                iconBaseUrl: widget.apiBaseUrl,
                 dominantColorHex: install.cardAccentColor,
-                folderBadgeLabel: hasSearchQuery && folder != null
-                    ? folder.name
-                    : null,
-                folderBadgeColor: hasSearchQuery && folder != null
-                    ? FolderUiCatalog.colorFor(folder.colorKey)
-                    : null,
+                folderBadgeLabel: null,
+                folderBadgeColor: null,
                 onTap: () {
                   if (install.updateAvailable) {
                     _showUpdateModal(context, install: install);
                   } else {
-                    _openToolRuntime(context, install);
+                    unawaited(_openToolRuntime(context, install));
                   }
                 },
                 onLongPress: () => _showToolDetailsModal(
@@ -654,6 +653,180 @@ class _InstallsPageState extends State<InstallsPage> {
     );
   }
 
+  Widget _buildHomeFocusedSearchBody(
+    BuildContext context,
+    InstalledToolsController controller,
+    HomeGroupedInstalls grouped,
+    Map<String, ToolFolder> foldersById,
+  ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final l10n =
+        AppLocalizations.of(context) ?? lookupAppLocalizations(const Locale('en'));
+    final query = _searchController.text.trim();
+    final flat = <DeviceInstallRecord>[
+      ...grouped.pinnedTools,
+      ...grouped.unpinnedTools,
+    ];
+
+    if (query.isNotEmpty && flat.isNotEmpty) {
+      return GridView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.86,
+        ),
+        itemCount: flat.length,
+        itemBuilder: (BuildContext context, int index) {
+          final install = flat[index];
+          final folder =
+              install.folderId != null && install.folderId!.isNotEmpty
+              ? foldersById[install.folderId!]
+              : null;
+          return RepaintBoundary(
+            child: InstalledToolCard(
+              install: install,
+              iconPath: install.iconPath,
+              iconBaseUrl: widget.apiBaseUrl,
+              dominantColorHex: install.cardAccentColor,
+              folderBadgeLabel: folder?.name,
+              folderBadgeColor: folder != null
+                  ? FolderUiCatalog.colorFor(folder.colorKey)
+                  : null,
+              onTap: () {
+                unawaited(_persistHomeToolHistoryEntry(install));
+                if (install.updateAvailable) {
+                  _showUpdateModal(context, install: install);
+                } else {
+                  unawaited(_openToolRuntime(context, install));
+                }
+              },
+              onLongPress: () => _showToolDetailsModal(
+                context,
+                install: install,
+                controller: widget.installedToolsController,
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+      children: <Widget>[
+        if (query.isEmpty) ...<Widget>[
+          Icon(
+            Icons.search_rounded,
+            size: 44,
+            color: colorScheme.outline,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            l10n.searchStartTypingTitle,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.searchStartTypingMessage,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          if (_homeRecentHistory.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 24),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    l10n.recentActivitySection,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final store = await RecentSearchStore.open();
+                    await store.clearHome();
+                    await _reloadHomeRecentQueries();
+                  },
+                  child: Text(l10n.clearSearchHistory),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            ..._homeRecentHistory.map(
+              (HomeSearchHistoryEntry e) => switch (e) {
+                final HomeSearchHistoryQuery q => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.history,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  title: Text(q.text),
+                  onTap: () {
+                    _searchController.text = q.text;
+                    _searchController.selection = TextSelection.collapsed(
+                      offset: q.text.length,
+                    );
+                    unawaited(_persistHomeSearchSubmission(q.text));
+                  },
+                ),
+                final HomeSearchHistoryTool t => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: ToolThumbnail(
+                    imageUrl:
+                        '/v1/plugins/${Uri.encodeComponent(t.slug)}/icon',
+                    baseUrl: widget.apiBaseUrl,
+                    size: 40,
+                    borderRadius: 10,
+                    fallbackIcon: Icons.extension_outlined,
+                  ),
+                  title: Text(t.name),
+                  onTap: () {
+                    final install = _homeInstallForSlug(t.slug);
+                    if (install == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(l10n.recentToolNoLongerInstalled)),
+                      );
+                      return;
+                    }
+                    if (install.updateAvailable) {
+                      _showUpdateModal(context, install: install);
+                    } else {
+                      unawaited(_openToolRuntime(context, install));
+                    }
+                  },
+                ),
+              },
+            ),
+          ],
+        ] else ...<Widget>[
+          AppEmptyView(
+            title: l10n.noToolsMatchSearch,
+            message: l10n.noToolsMatchSearchMessage,
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: AppPrimaryButton(
+              label: l10n.searchInToolLibrary,
+              onPressed: () => _openMarketplaceWithSearch(context),
+              expand: true,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   void _showUpdateModal(
     BuildContext context, {
     required DeviceInstallRecord install,
@@ -667,10 +840,12 @@ class _InstallsPageState extends State<InstallsPage> {
             Navigator.of(dialogContext).pop();
             _updateTool(context, install: install);
           },
-          onOpenAnyway: () {
-            Navigator.of(dialogContext).pop();
-            _openToolRuntime(context, install);
-          },
+          onOpenAnyway: install.updateMandatory
+              ? null
+              : () {
+                  Navigator.of(dialogContext).pop();
+                  unawaited(_openToolRuntime(context, install));
+                },
         );
       },
     );
@@ -764,7 +939,7 @@ class _InstallsPageState extends State<InstallsPage> {
           ),
           onLaunch: () {
             Navigator.of(sheetContext).pop();
-            _openToolRuntime(context, install);
+            unawaited(_openToolRuntime(context, install));
           },
           onUpdate: install.updateAvailable
               ? () {
@@ -890,19 +1065,6 @@ class _InstallsPageState extends State<InstallsPage> {
     }
   }
 
-  AppViewState _resolveViewState(InstalledToolsController controller) {
-    if (controller.state == InstalledToolsState.initializing &&
-        controller.installedTools.isEmpty) {
-      return AppViewState.loading;
-    }
-    if (controller.installedTools.isNotEmpty) {
-      return AppViewState.content;
-    }
-    if (controller.state == InstalledToolsState.failed) {
-      return AppViewState.error;
-    }
-    return AppViewState.empty;
-  }
 }
 
 class _BlurredFloatingSurface extends StatelessWidget {
@@ -959,12 +1121,14 @@ class _FloatingControlsBar extends StatelessWidget {
     required this.focusNode,
     required this.onClear,
     required this.onOpenMarketplace,
+    required this.onSearchSubmitted,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final VoidCallback onClear;
   final VoidCallback onOpenMarketplace;
+  final ValueChanged<String> onSearchSubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -1042,11 +1206,13 @@ class _FloatingControlsBar extends StatelessWidget {
                 child: SizedBox(
                   height: 56,
                   child: TextField(
+                    key: const Key('home_tool_search_field'),
                     controller: controller,
                     focusNode: focusNode,
+                    textCapitalization: TextCapitalization.none,
                     textInputAction: TextInputAction.search,
                     textAlignVertical: TextAlignVertical.center,
-                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                    onSubmitted: onSearchSubmitted,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search),
                       hintText: 'Search tools',
@@ -1247,29 +1413,36 @@ class _UpdateDialog extends StatelessWidget {
   const _UpdateDialog({
     required this.install,
     required this.onUpdate,
-    required this.onOpenAnyway,
+    this.onOpenAnyway,
   });
 
   final DeviceInstallRecord install;
   final VoidCallback onUpdate;
-  final VoidCallback onOpenAnyway;
+  final VoidCallback? onOpenAnyway;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final mandatory = install.updateMandatory;
     return AlertDialog(
       title: Row(
         children: <Widget>[
           Icon(Icons.system_update_alt, color: colorScheme.primary),
           const SizedBox(width: 8),
-          const Expanded(child: Text('Update Available')),
+          Expanded(
+            child: Text(mandatory ? 'Update required' : 'Update Available'),
+          ),
         ],
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('${install.displayName} has a newer version.'),
+          Text(
+            mandatory
+                ? 'You must update ${install.displayName} before you can open it.'
+                : '${install.displayName} has a newer version.',
+          ),
           const SizedBox(height: 8),
           Text(
             'Installed: ${install.installedVersion ?? "unknown"}',
@@ -1286,7 +1459,11 @@ class _UpdateDialog extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        TextButton(onPressed: onOpenAnyway, child: const Text('Open Anyway')),
+        if (onOpenAnyway != null)
+          TextButton(
+            onPressed: onOpenAnyway,
+            child: const Text('Open Anyway'),
+          ),
         FilledButton.icon(
           onPressed: onUpdate,
           icon: const Icon(Icons.download_rounded, size: 18),

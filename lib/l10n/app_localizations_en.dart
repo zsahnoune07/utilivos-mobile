@@ -27,11 +27,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get browseMarketplace => 'Browse Tool Library';
 
   @override
+  String get searchInToolLibrary => 'Search in Tool Library';
+
+  @override
   String get noInstalledTools => 'No installed tools';
 
   @override
   String get noInstalledToolsMessage =>
       'Browse the Tool Library to install your first tool.';
+
+  @override
+  String get homeInstallsLoadFailedTitle => 'Couldn\'t load installed tools';
+
+  @override
+  String get homeInstallsOfflineDetail =>
+      'Connect to the internet to load your tools from the library. Once installed, tools work offline.';
+
+  @override
+  String get homeInstallsBootstrapFailedDetail =>
+      'Your saved tool list could not be read. Try again.';
+
+  @override
+  String get homeInstallsSyncFailedDetail =>
+      'Something went wrong while refreshing installed tools. Try again.';
+
+  @override
+  String get homeInstallsCorruptLocalDetail =>
+      'Some saved tool data was invalid. Your list was cleared — try again to resync.';
 
   @override
   String get noToolsMatchSearch => 'No tools match your search';
@@ -106,4 +128,159 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get upToDate => 'Up to date';
+
+  @override
+  String get searchStartTypingTitle => 'Find your tools';
+
+  @override
+  String get searchStartTypingMessage =>
+      'Start typing to find tools on this device.';
+
+  @override
+  String get recentSearchesSection => 'Recent searches';
+
+  @override
+  String get recentActivitySection => 'Recent activity';
+
+  @override
+  String get recentToolNoLongerInstalled => 'This tool is no longer installed.';
+
+  @override
+  String get clearSearchHistory => 'Clear history';
+
+  @override
+  String get runtimeMenuCheckUpdates => 'Check updates';
+
+  @override
+  String get runtimeMenuDetails => 'Details';
+
+  @override
+  String get runtimeMenuReport => 'Report';
+
+  @override
+  String get runtimeMenuSaveSession => 'Save session';
+
+  @override
+  String get runtimeMenuLoadSession => 'Load session';
+
+  @override
+  String get runtimeMenuManageSessions => 'Manage sessions';
+
+  @override
+  String get runtimeSessionSaveTitle => 'Save session';
+
+  @override
+  String get runtimeSessionSaveHint =>
+      'Name this session so you can reopen it later.';
+
+  @override
+  String get runtimeSessionNameLabel => 'Session name';
+
+  @override
+  String get runtimeSessionSaveConfirm => 'Save';
+
+  @override
+  String get runtimeSessionSaved => 'Session saved';
+
+  @override
+  String get runtimeSessionNothingToSave =>
+      'Nothing to save yet. Use the tool, then try again.';
+
+  @override
+  String get runtimeSessionLoadTitle => 'Load session';
+
+  @override
+  String get runtimeSessionNoSaved => 'No saved sessions for this tool.';
+
+  @override
+  String get runtimeSessionManageTitle => 'Saved sessions';
+
+  @override
+  String get runtimeSessionRename => 'Rename';
+
+  @override
+  String get runtimeSessionDelete => 'Delete';
+
+  @override
+  String get runtimeSessionDeleteConfirmTitle => 'Delete session?';
+
+  @override
+  String runtimeSessionDeleteConfirmMessage(String name) {
+    return 'Remove \"$name\"? This cannot be undone.';
+  }
+
+  @override
+  String get runtimeSessionRenameTitle => 'Rename session';
+
+  @override
+  String get runtimeSessionNotFound =>
+      'That saved session was not found for this tool.';
+
+  @override
+  String get runtimeSessionProRequired => 'Saved sessions are a Pro feature.';
+
+  @override
+  String get runtimeUpToDateTitle => 'Up to date';
+
+  @override
+  String get runtimeUpToDateMessage => 'You have the latest version installed.';
+
+  @override
+  String get runtimeUpdateAvailableTitle => 'Update available';
+
+  @override
+  String runtimeUpdateAvailableBody(
+    String latestVersion,
+    String installedVersion,
+  ) {
+    return 'Latest: $latestVersion. Installed: $installedVersion.';
+  }
+
+  @override
+  String get runtimeToolDetailsTitle => 'Tool details';
+
+  @override
+  String get runtimeReportTitle => 'Report a problem';
+
+  @override
+  String get runtimeReportReasonLabel => 'Reason';
+
+  @override
+  String get runtimeReportDetailsLabel => 'Additional details';
+
+  @override
+  String get runtimeReportSubmit => 'Submit';
+
+  @override
+  String get runtimeReportQueued =>
+      'Thanks — your report was saved locally. Server submission is not wired up yet.';
+
+  @override
+  String get runtimeReportSelectReason => 'Choose a reason';
+
+  @override
+  String get reportReasonNotWorking => 'Not working';
+
+  @override
+  String get reportReasonIncorrect => 'Incorrect or misleading';
+
+  @override
+  String get reportReasonOther => 'Other';
+
+  @override
+  String get reportDetailsTooShort =>
+      'Please enter a few more details (at least 4 characters).';
+
+  @override
+  String get checkingUpdates => 'Checking for updates…';
+
+  @override
+  String get latestVersionLabel => 'Latest version';
+
+  @override
+  String get catalogSearchEmptyTitle => 'No tools found';
+
+  @override
+  String get catalogSearchEmptyMessage =>
+      'Try different words or clear filters.';
 }

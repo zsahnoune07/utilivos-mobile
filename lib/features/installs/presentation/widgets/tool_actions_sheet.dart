@@ -79,9 +79,13 @@ class _ToolActionsSheetState extends State<ToolActionsSheet> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final status = widget.install.updateAvailable
-        ? 'Update available: ${widget.install.latestAvailableVersion ?? 'latest'}'
-        : 'Up to date';
+    final mandatoryUpdate =
+        widget.install.updateMandatory && widget.install.updateAvailable;
+    final status = mandatoryUpdate
+        ? 'Update required: ${widget.install.latestAvailableVersion ?? 'latest'}'
+        : widget.install.updateAvailable
+            ? 'Update available: ${widget.install.latestAvailableVersion ?? 'latest'}'
+            : 'Up to date';
     final canPin = widget.install.pinned || widget.canPinMore;
 
     return PopScope(
@@ -122,7 +126,13 @@ class _ToolActionsSheetState extends State<ToolActionsSheet> {
             );
           },
           child: _step == _ToolActionsSheetStep.actions
-              ? _buildActionsStep(context, colorScheme, status, canPin)
+              ? _buildActionsStep(
+                  context,
+                  colorScheme,
+                  status,
+                  canPin,
+                  mandatoryUpdate,
+                )
               : _buildMoveStep(context),
         ),
       ),
@@ -134,6 +144,7 @@ class _ToolActionsSheetState extends State<ToolActionsSheet> {
     ColorScheme colorScheme,
     String status,
     bool canPin,
+    bool mandatoryUpdate,
   ) {
     return SingleChildScrollView(
       key: _actionsStepKey,
@@ -150,19 +161,22 @@ class _ToolActionsSheetState extends State<ToolActionsSheet> {
             ),
           ),
           const SizedBox(height: 20),
-          AppPrimaryButton(
-            label: 'Launch tool',
-            onPressed: widget.onLaunch,
-            expand: true,
-          ),
+          if (!mandatoryUpdate)
+            AppPrimaryButton(
+              label: 'Launch tool',
+              onPressed: widget.onLaunch,
+              expand: true,
+            ),
           if (widget.install.updateAvailable &&
               widget.onUpdate != null) ...<Widget>[
-            const SizedBox(height: 12),
+            if (!mandatoryUpdate) const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: widget.onUpdate,
               icon: const Icon(Icons.system_update_alt, size: 20),
               label: Text(
-                'Update to ${widget.install.latestAvailableVersion ?? "latest"}',
+                mandatoryUpdate
+                    ? 'Update required — ${widget.install.latestAvailableVersion ?? "latest"}'
+                    : 'Update to ${widget.install.latestAvailableVersion ?? "latest"}',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               style: FilledButton.styleFrom(
@@ -220,7 +234,7 @@ class _ToolActionsSheetState extends State<ToolActionsSheet> {
             onPressed: () async {
               final confirmed = await showDialog<bool>(
                 context: context,
-                barrierColor: Colors.transparent,
+                barrierColor: Colors.black54,
                 builder: (BuildContext ctx) => AlertDialog(
                   title: const Text('Delete tool?'),
                   content: Text(
