@@ -47,6 +47,21 @@ class ProCapabilityService extends ChangeNotifier {
 
   bool get canAddHomeScreenLaunchers => hasProAccess;
 
+  /// Free tier: one registered home-screen widget; reconfiguring the same slot is allowed.
+  /// Pro: unlimited.
+  bool canAddHomeScreenWidget({
+    required int registeredWidgetCount,
+    required bool isReplacingExisting,
+  }) {
+    if (hasProAccess) {
+      return true;
+    }
+    if (isReplacingExisting) {
+      return true;
+    }
+    return registeredWidgetCount < FreemiumLimits.maxHomeScreenWidgets;
+  }
+
   /// Full access to Pro catalog tools (not preview mode).
   bool get canUseProToolFullAccess => hasProAccess;
 

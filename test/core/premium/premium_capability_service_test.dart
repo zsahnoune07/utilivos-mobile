@@ -34,6 +34,28 @@ void main() {
     await usage.recordStorageAction();
     expect(service.remainingFreeStorageActionsToday, 0);
     expect(service.canPerformStorageAction(), false);
+
+    expect(
+      service.canAddHomeScreenWidget(
+        registeredWidgetCount: 0,
+        isReplacingExisting: false,
+      ),
+      true,
+    );
+    expect(
+      service.canAddHomeScreenWidget(
+        registeredWidgetCount: 1,
+        isReplacingExisting: false,
+      ),
+      false,
+    );
+    expect(
+      service.canAddHomeScreenWidget(
+        registeredWidgetCount: 99,
+        isReplacingExisting: true,
+      ),
+      true,
+    );
   });
 
   test('Pro user bypasses caps', () async {
@@ -62,6 +84,13 @@ void main() {
     expect(service.canPinMoreTools(99), true);
     expect(service.canCreateMoreFolders(99), true);
     expect(service.canPersistToolState, true);
+    expect(
+      service.canAddHomeScreenWidget(
+        registeredWidgetCount: 99,
+        isReplacingExisting: false,
+      ),
+      true,
+    );
   });
 }
 

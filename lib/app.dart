@@ -131,12 +131,81 @@ class _UtilivoAppState extends State<UtilivoApp> {
         return;
       }
       final String? loc = parseAppDeepLink(uri);
-      if (loc != null) {
+      if (loc == null) {
+        return;
+      }
+
+      Future<void> navigateIfNeeded() async {
+        if (!mounted) {
+          return;
+        }
+        final String? initialDeep = widget.initialDeepLinkRoute?.trim();
+        if (initialDeep != null &&
+            initialDeep.isNotEmpty &&
+            _sameAppRouteTarget(initialDeep, loc)) {
+          return;
+        }
+        final String current = _router.state.uri.toString();
+        if (_sameAppRouteTarget(current, loc)) {
+          return;
+        }
+        if (_splashFromAlreadyTargets(current, loc)) {
+          return;
+        }
         _router.go(loc);
       }
+
+      if (_bootstrapController.isInitializing) {
+        void onBootstrap() {
+          if (_bootstrapController.isInitializing) {
+            return;
+          }
+          _bootstrapController.removeListener(onBootstrap);
+          unawaited(navigateIfNeeded());
+        }
+
+        _bootstrapController.addListener(onBootstrap);
+        return;
+      }
+      await navigateIfNeeded();
     } catch (error) {
       debugPrint('Home widget initial launch check failed: $error');
     }
+  }
+
+  bool _splashFromAlreadyTargets(String currentUri, String loc) {
+    final Uri? u = Uri.tryParse(currentUri);
+    if (u == null || u.path != AppRoutes.splash) {
+      return false;
+    }
+    final String? raw = u.queryParameters['from'];
+    if (raw == null || raw.trim().isEmpty) {
+      return false;
+    }
+    final String decoded = Uri.decodeComponent(raw.trim());
+    return _sameAppRouteTarget(decoded, loc);
+  }
+
+  /// True when [a] and [b] refer to the same in-app path (path + query), ignoring scheme/host.
+  static bool _sameAppRouteTarget(String a, String b) {
+    final ua = Uri.tryParse(a.trim());
+    final ub = Uri.tryParse(b.trim());
+    if (ua == null || ub == null) {
+      return false;
+    }
+    if (ua.hasScheme && ua.scheme != 'https' && ua.scheme != 'http') {
+      final conv = parseAppDeepLink(ua);
+      if (conv != null) {
+        return _sameAppRouteTarget(conv, b);
+      }
+    }
+    if (ub.hasScheme && ub.scheme != 'https' && ub.scheme != 'http') {
+      final conv = parseAppDeepLink(ub);
+      if (conv != null) {
+        return _sameAppRouteTarget(a, conv);
+      }
+    }
+    return ua.path == ub.path && ua.query == ub.query;
   }
 
   late final WidgetsBindingObserver _lifecycleObserver =

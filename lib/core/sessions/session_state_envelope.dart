@@ -53,6 +53,57 @@ class SessionStateEnvelope {
     return encoded;
   }
 
+  /// Best-effort parse for restore and migration paths. Never throws.
+  /// Unknown fields are ignored except [payload], which is shallow-copied.
+  static SessionStateEnvelope? tryParseRelaxed(String json) {
+    try {
+      enforceMaxUtf8Length(json);
+      final decoded = jsonDecode(json);
+      if (decoded is! Map) {
+        return null;
+      }
+      final m = Map<String, dynamic>.from(decoded);
+      try {
+        return parse(json);
+      } catch (_) {}
+      final rawPayload = m['payload'];
+      if (rawPayload is Map) {
+        final payload = Map<String, dynamic>.from(rawPayload);
+        final sv = m['schemaVersion'];
+        int schema = currentSchemaVersion;
+        if (sv is int) {
+          schema = sv;
+        } else if (sv is num) {
+          schema = sv.toInt();
+        }
+        var slug = m['toolSlug']?.toString() ?? '';
+        if (slug.isEmpty) {
+          slug = 'unknown';
+        }
+        final savedRaw = m['savedAt']?.toString();
+        final savedAt = savedRaw != null && savedRaw.isNotEmpty
+            ? (DateTime.tryParse(savedRaw) ?? DateTime.now().toUtc())
+            : DateTime.now().toUtc();
+        return SessionStateEnvelope(
+          schemaVersion: schema,
+          toolSlug: slug,
+          toolVersion: m['toolVersion']?.toString(),
+          savedAt: savedAt,
+          payload: payload,
+        );
+      }
+      return SessionStateEnvelope(
+        schemaVersion: 0,
+        toolSlug: 'unknown',
+        toolVersion: null,
+        savedAt: DateTime.now().toUtc(),
+        payload: m,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   static SessionStateEnvelope parse(String json) {
     enforceMaxUtf8Length(json);
     final decoded = jsonDecode(json);

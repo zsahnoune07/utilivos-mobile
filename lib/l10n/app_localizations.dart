@@ -484,6 +484,54 @@ abstract class AppLocalizations {
   /// **'Saved sessions are a Pro feature.'**
   String get runtimeSessionProRequired;
 
+  /// No description provided for @runtimeSessionUpdateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Update session'**
+  String get runtimeSessionUpdateButton;
+
+  /// No description provided for @runtimeSessionUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Session updated'**
+  String get runtimeSessionUpdated;
+
+  /// No description provided for @runtimeSessionUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update session'**
+  String get runtimeSessionUpdateFailed;
+
+  /// No description provided for @runtimeSessionBarFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved session'**
+  String get runtimeSessionBarFallback;
+
+  /// No description provided for @widgetConfigureProRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Free includes one home screen widget. Pro unlocks unlimited widgets.'**
+  String get widgetConfigureProRequired;
+
+  /// No description provided for @widgetConfigureSecondWidgetPaywall.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve used your free home screen widget. Pro unlocks unlimited widgets.'**
+  String get widgetConfigureSecondWidgetPaywall;
+
+  /// No description provided for @widgetConfigureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose tool for widget'**
+  String get widgetConfigureTitle;
+
+  /// No description provided for @runtimeHomeWidgetProRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'This widget is not set up in the app. Open Utilivo and add the widget again, or unlock Pro for unlimited widgets.'**
+  String get runtimeHomeWidgetProRequired;
+
   /// No description provided for @runtimeUpToDateTitle.
   ///
   /// In en, this message translates to:

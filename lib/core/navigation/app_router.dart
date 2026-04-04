@@ -86,8 +86,11 @@ GoRouter createAppRouter({
           }
           return WidgetConfigurePage(
             androidAppWidgetId: id,
+            apiBaseUrl: dependencies.config.apiBaseUrl,
             installedToolsController: dependencies.installedToolsController,
             toolWidgetService: dependencies.toolWidgetService,
+            proCapabilityService: dependencies.proCapabilityService,
+            paywallCoordinator: dependencies.paywallCoordinator,
           );
         },
       ),
@@ -143,6 +146,7 @@ GoRouter createAppRouter({
             );
           }
           return PluginRuntimePage(
+            key: ValueKey<String>('plugin_runtime_$slug'),
             pluginSlug: slug,
             initialToolName: initialToolName,
             launchContext: launchContext,

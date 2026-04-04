@@ -1427,10 +1427,10 @@ class _UpdateDialog extends StatelessWidget {
     return AlertDialog(
       title: Row(
         children: <Widget>[
-          Icon(Icons.system_update_alt, color: colorScheme.primary),
+          Icon(Icons.system_update_alt, color: colorScheme.secondary),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(mandatory ? 'Update required' : 'Update Available'),
+            child: Text(mandatory ? 'Update required' : 'Update available'),
           ),
         ],
       ),

@@ -134,4 +134,25 @@ class DriftToolSessionRepository implements ToolSessionRepository {
       ),
     );
   }
+
+  @override
+  Future<void> updateStatePayload({
+    required String id,
+    required String stateJson,
+    required int stateSchemaVersion,
+    String? toolVersion,
+    String? toolManifestVersion,
+    required int stateSizeBytes,
+  }) async {
+    await (_db.update(_db.toolSessions)..where((t) => t.id.equals(id))).write(
+      ToolSessionsCompanion(
+        stateJson: Value(stateJson),
+        stateSchemaVersion: Value(stateSchemaVersion),
+        toolVersion: Value(toolVersion),
+        toolManifestVersion: Value(toolManifestVersion),
+        stateSizeBytes: Value(stateSizeBytes),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+  }
 }

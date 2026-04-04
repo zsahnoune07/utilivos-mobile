@@ -22,4 +22,14 @@ abstract class ToolSessionRepository {
   });
 
   Future<void> touchLastOpened(String id);
+
+  /// Updates persisted state for an existing session row (same id / name).
+  Future<void> updateStatePayload({
+    required String id,
+    required String stateJson,
+    required int stateSchemaVersion,
+    String? toolVersion,
+    String? toolManifestVersion,
+    required int stateSizeBytes,
+  });
 }

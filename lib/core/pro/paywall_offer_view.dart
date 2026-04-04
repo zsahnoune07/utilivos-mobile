@@ -142,6 +142,7 @@ class _PaywallOfferViewState extends State<PaywallOfferView> {
           const _Bullet(text: 'Full access to Pro catalog tools'),
           const _Bullet(text: 'Save and resume work across launches'),
           const _Bullet(text: 'Unlimited exports and file actions'),
+          const _Bullet(text: 'Unlimited home screen widgets'),
           const _Bullet(text: 'Home screen shortcuts for instant launch'),
           if (widget.showCompareTable) ...<Widget>[
             SizedBox(height: gap),
@@ -348,6 +349,7 @@ class _CompareTable extends StatelessWidget {
         row('Pro catalog', 'Locked / preview*', 'Full access'),
         row('Save & resume', '—', 'Yes'),
         row('Exports & files / day', 'Limited', 'Unlimited'),
+        row('Home screen widgets', '1', 'Unlimited'),
         row('Home shortcuts', '—', 'Yes'),
       ],
     );

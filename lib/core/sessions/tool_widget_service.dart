@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:home_widget/home_widget.dart';
+
 import 'tool_home_widget_record.dart';
 import 'tool_widget_repository.dart';
 
@@ -5,6 +9,9 @@ class ToolWidgetService {
   ToolWidgetService(this._repository);
 
   final ToolWidgetRepository _repository;
+
+  static const String _androidWidgetProvider =
+      'com.utilivo.utilivo_mobile.ToolHomeWidgetProvider';
 
   Future<List<ToolHomeWidgetRecord>> listWidgets() {
     return _repository.listAll();
@@ -69,6 +76,39 @@ class ToolWidgetService {
     return _repository.delete(id);
   }
 
+  /// Drops metadata for widgets bound to this install and clears Android
+  /// [HomeWidget] prefs so tiles return to the unconfigured state.
+  Future<void> removeWidgetsForTool({
+    required String installId,
+    required String toolSlug,
+  }) async {
+    final normalizedSlug = _normalizeSlug(toolSlug);
+    final all = await _repository.listAll();
+    final targets = all
+        .where(
+          (ToolHomeWidgetRecord w) =>
+              w.toolId == installId || _normalizeSlug(w.toolSlug) == normalizedSlug,
+        )
+        .toList(growable: false);
+    var clearedAndroidPrefs = false;
+    for (final w in targets) {
+      await _repository.delete(w.id);
+      if (w.platform.toLowerCase() == 'android') {
+        final wid = int.tryParse(w.platformWidgetId);
+        if (wid != null) {
+          await HomeWidget.saveWidgetData<String?>('tool_slug_$wid', null);
+          await HomeWidget.saveWidgetData<String?>('tool_name_$wid', null);
+          await HomeWidget.saveWidgetData<String?>('tool_icon_path_$wid', null);
+          await HomeWidget.saveWidgetData<String?>('widget_layout_mode_$wid', null);
+          clearedAndroidPrefs = true;
+        }
+      }
+    }
+    if (clearedAndroidPrefs && Platform.isAndroid) {
+      await HomeWidget.updateWidget(qualifiedAndroidName: _androidWidgetProvider);
+    }
+  }
+
   Future<void> touchLaunched({
     required String platform,
     required String platformWidgetId,
@@ -103,4 +143,6 @@ class ToolWidgetService {
       throw ArgumentError.value(value, field, 'must be non-empty');
     }
   }
+
+  String _normalizeSlug(String slug) => slug.trim().toLowerCase();
 }

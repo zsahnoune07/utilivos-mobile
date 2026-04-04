@@ -198,6 +198,10 @@ class AppDependencies {
         installsSyncMetaStore ?? DriftInstallsSyncMetaStore(resolvedDb);
     final localInstallRemovalsStore =
         DriftLocalInstallRemovalsStore(resolvedDb);
+    final toolSessionService =
+        ToolSessionService(DriftToolSessionRepository(resolvedDb));
+    final toolWidgetService =
+        ToolWidgetService(DriftToolWidgetRepository(resolvedDb));
     final installedToolsController = InstalledToolsController(
       installsApi: installsApi,
       catalogApi: catalogApi,
@@ -206,17 +210,16 @@ class AppDependencies {
       syncMetaStore: resolvedInstallsSyncMetaStore,
       removalsStore: localInstallRemovalsStore,
       toolBundleDownloadService: toolBundleDownloadService,
+      toolWidgetService: toolWidgetService,
+      toolSessionService: toolSessionService,
+      toolSessionStore: toolSessionStore,
       pinningPolicy: FreemiumPinningPolicy(entitlementController),
       folderCreationPolicy: FreemiumFolderCreationPolicy(entitlementController),
     );
 
-    final toolSessionService =
-        ToolSessionService(DriftToolSessionRepository(resolvedDb));
     final runtimeStateScopeService = RuntimeStateScopeService(
       DriftEphemeralRuntimeStateRepository(resolvedDb),
     );
-    final toolWidgetService =
-        ToolWidgetService(DriftToolWidgetRepository(resolvedDb));
 
     return AppDependencies._(
       config: resolvedConfig,

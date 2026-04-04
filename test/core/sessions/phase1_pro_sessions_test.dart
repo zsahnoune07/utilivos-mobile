@@ -96,6 +96,34 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    test('updateNamedSessionState overwrites payload', () async {
+      final id = await service.saveNamedSession(
+        toolId: 't1',
+        toolSlug: 'slug',
+        name: 'S',
+        payload: <String, dynamic>{'a': 1},
+      );
+      await service.updateNamedSessionState(
+        id: id,
+        payload: <String, dynamic>{'b': 2},
+        toolVersion: '2.0.0',
+      );
+      final env = await service.loadEnvelopeForSession(id);
+      expect(env?.payload['b'], 2);
+      expect(env?.payload.containsKey('a'), isFalse);
+      expect(env?.toolVersion, '2.0.0');
+    });
+
+    test('updateNamedSessionState missing id throws', () async {
+      expect(
+        () => service.updateNamedSessionState(
+          id: 'nope',
+          payload: <String, dynamic>{},
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
   });
 
   group('RuntimeStateScopeService + Drift', () {

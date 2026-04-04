@@ -111,7 +111,10 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
         widget.slug,
         forceRefresh: true,
       );
-      final versionsFuture = widget.catalogApi.listPluginVersions(widget.slug);
+      final versionsFuture = widget.catalogApi.listPluginVersions(
+        widget.slug,
+        forceRefresh: true,
+      );
       final results = await Future.wait<Object>(<Future<Object>>[
         pluginFuture,
         versionsFuture,

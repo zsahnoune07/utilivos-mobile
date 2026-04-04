@@ -5,6 +5,9 @@ class FreemiumLimits {
   static const int maxPinnedTools = 3;
   static const int maxFolders = 3;
 
+  /// Distinct home-screen tool widgets free users may register (Android / future platforms).
+  static const int maxHomeScreenWidgets = 1;
+
   /// Free-tier storage/export/download actions per calendar day (host-enforced via bridge).
   static const int maxStorageActionsPerDay = 5;
 

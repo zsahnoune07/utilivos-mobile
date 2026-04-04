@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:math' show Random;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,7 +23,7 @@ import '../../../core/pro/tool_gate.dart';
 import '../../../core/pro/tool_session_store.dart';
 import '../../../core/sessions/named_tool_session.dart';
 import '../../../core/sessions/runtime_state_scope_service.dart';
-import '../../../core/sessions/session_state_envelope.dart';
+import '../../../core/sessions/session_snapshot_normalizer.dart';
 import '../../../core/sessions/tool_launch_context.dart';
 import '../../../core/sessions/tool_session_service.dart';
 import '../../../core/sessions/tool_widget_service.dart';
@@ -30,7 +31,8 @@ import '../../../core/theme/app_design_tokens.dart';
 import '../../../core/versioning/plugin_version_compare.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/app_state_views.dart';
-import '../../installs/application/installed_tools_controller.dart';
+import '../../installs/application/installed_tools_controller.dart'
+    show InstalledToolsController, ToolLaunchPrepared;
 import '../../discover/data/catalog_api.dart';
 import '../../discover/data/models/catalog_models.dart';
 import '../../downloads/application/tool_bundle_download_service.dart';
@@ -96,7 +98,16 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
   bool _previewMode = false;
   bool _mandatoryUpdateBlocked = false;
   bool _clearedSessionStorageForThisLaunch = false;
+  String? _namedSessionBarTitle;
+  String? _namedSessionBaselineJson;
+  bool _namedSessionDirty = false;
+  /// When set, user loaded or saved a named session without a route change.
+  String? _boundNamedSessionId;
+  final Map<String, Completer<bool>> _pendingRestoreCompleters = {};
+  final Map<String, Timer> _pendingRestoreTimers = {};
   static const Duration _proOfflineWindow = Duration(hours: 72);
+  static const Duration _sessionRestoreAckTimeout = Duration(seconds: 10);
+  static const String _sessionLogName = 'SessionRestore';
 
   @override
   void initState() {
@@ -129,6 +140,16 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
 
   @override
   void dispose() {
+    for (final Timer t in _pendingRestoreTimers.values) {
+      t.cancel();
+    }
+    _pendingRestoreTimers.clear();
+    for (final Completer<bool> c in _pendingRestoreCompleters.values) {
+      if (!c.isCompleted) {
+        c.complete(false);
+      }
+    }
+    _pendingRestoreCompleters.clear();
     if (widget.launchContext.shouldClearEphemeralOnDispose) {
       unawaited(
         widget.runtimeStateScopeService.clearLaunch(
@@ -145,6 +166,86 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     unawaited(_injectThemeIntoWebView());
   }
 
+  String? _activeNamedSessionId() {
+    final String? bound = _boundNamedSessionId?.trim();
+    if (bound != null && bound.isNotEmpty) {
+      return bound;
+    }
+    final String? fromRoute = widget.launchContext.sessionId?.trim();
+    if (fromRoute != null && fromRoute.isNotEmpty) {
+      return fromRoute;
+    }
+    return null;
+  }
+
+  bool get _shouldShowNamedSessionSubBar {
+    final String? id = _activeNamedSessionId();
+    return id != null && id.isNotEmpty;
+  }
+
+  void _sessionRestoreLog(String message, [String? detail]) {
+    developer.log(
+      detail != null && detail.isNotEmpty ? '$message $detail' : message,
+      name: _sessionLogName,
+    );
+  }
+
+  void _completePendingSessionRestore(String id, bool ok) {
+    _pendingRestoreTimers.remove(id)?.cancel();
+    final Completer<bool>? c = _pendingRestoreCompleters.remove(id);
+    if (c != null && !c.isCompleted) {
+      c.complete(ok);
+    }
+  }
+
+  Future<bool> _requestToolApplySessionSnapshot(String stateJson) async {
+    final WebViewController? controller = _webViewController;
+    if (controller == null) {
+      _sessionRestoreLog('restore_skipped_no_webview');
+      return false;
+    }
+    final String id =
+        'rs_${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(1 << 20)}';
+    final Completer<bool> completer = Completer<bool>();
+    _pendingRestoreCompleters[id] = completer;
+    _pendingRestoreTimers[id] = Timer(_sessionRestoreAckTimeout, () {
+      _sessionRestoreLog('restore_timeout', 'requestId=$id');
+      _completePendingSessionRestore(id, false);
+    });
+
+    final String detailJson = jsonEncode(<String, dynamic>{
+      'id': id,
+      'stateJson': stateJson,
+    });
+
+    _sessionRestoreLog('restore_request_dispatched', 'requestId=$id');
+
+    try {
+      await controller.runJavaScript(
+        '''
+(function(){
+  try {
+    const detail = $detailJson;
+    document.dispatchEvent(new CustomEvent('utilivo-restore-request', { detail: detail }));
+  } catch (e) {}
+})();
+''',
+      );
+    } catch (error, stackTrace) {
+      _sessionRestoreLog('restore_dispatch_failed', '$error');
+      developer.log(
+        'Session restore JS dispatch failed',
+        name: 'PluginRuntimePage',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _completePendingSessionRestore(id, false);
+      return false;
+    }
+
+    return completer.future;
+  }
+
   Future<void> _prepareAndLoad() async {
     if (_isPreparing) {
       return;
@@ -159,24 +260,95 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
       _downloadProgress = null;
       _loadedBundle = null;
       _catalogDetail = null;
+      _namedSessionBarTitle = null;
+      _namedSessionBaselineJson = null;
+      _namedSessionDirty = false;
+      _boundNamedSessionId = null;
     });
 
-    for (final install in widget.installedToolsController.installedTools) {
-      if (install.pluginSlug == widget.pluginSlug &&
-          install.updateMandatory &&
-          install.updateAvailable) {
-        if (!mounted) {
-          return;
-        }
+    final preparedLaunch = await widget.installedToolsController
+        .prepareToolLaunch(widget.pluginSlug);
+    if (!mounted) {
+      _isPreparing = false;
+      return;
+    }
+    switch (preparedLaunch) {
+      case ToolLaunchPrepared.mandatoryUpdateRequired:
         setState(() {
           _mandatoryUpdateBlocked = true;
           _isPreparing = false;
         });
         return;
-      }
+      case ToolLaunchPrepared.notInstalled:
+        setState(() {
+          _viewState = AppViewState.error;
+          _errorMessage =
+              'This tool is no longer installed on this device.';
+          _isPreparing = false;
+        });
+        return;
+      case ToolLaunchPrepared.missingBundle:
+        setState(() {
+          _viewState = AppViewState.error;
+          _errorMessage =
+              'Tool files were removed. Reinstall this tool from the Tool Library.';
+          _isPreparing = false;
+        });
+        return;
+      case ToolLaunchPrepared.ok:
+        break;
     }
 
     try {
+      String? namedSessionBarTitle;
+      String? namedSessionBaselineJson;
+      if (widget.launchContext.launchMode == ToolLaunchMode.widget) {
+        if (!mounted) {
+          return;
+        }
+        if (!widget.entitlementController.hasProAccess) {
+          var allowedFreeWidget = false;
+          if (Platform.isAndroid) {
+            final wid = widget.launchContext.widgetInstanceId?.trim();
+            if (wid != null && wid.isNotEmpty) {
+              final rec = await widget.toolWidgetService.findWidget(
+                platform: 'android',
+                platformWidgetId: wid,
+              );
+              allowedFreeWidget = rec != null;
+            }
+          }
+          if (!mounted) {
+            return;
+          }
+          if (!allowedFreeWidget) {
+            final l10nGate =
+                AppLocalizations.of(context) ??
+                lookupAppLocalizations(const Locale('en'));
+            await widget.paywallCoordinator.show(
+              context,
+              PaywallRequest(
+                trigger: PaywallTrigger.contextualFeature,
+                triggerSource: 'home_widget_open',
+                blockedFeatureId: 'home_widget',
+                contextMessage: l10nGate.runtimeHomeWidgetProRequired,
+              ),
+            );
+            if (!mounted) {
+              return;
+            }
+            if (!widget.entitlementController.hasProAccess) {
+              setState(() {
+                _viewState = AppViewState.error;
+                _errorMessage = l10nGate.runtimeHomeWidgetProRequired;
+                _isPreparing = false;
+              });
+              return;
+            }
+          }
+        }
+      }
+
       final preparedBundle = await _resolveBundle();
       _assertRuntimeContractCompatible(preparedBundle);
       final entryFilePath = preparedBundle.entryFilePath;
@@ -246,6 +418,18 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         }
       }
 
+      if (widget.launchContext.launchMode == ToolLaunchMode.namedSession) {
+        final sid = widget.launchContext.sessionId?.trim();
+        if (sid != null && sid.isNotEmpty) {
+          final row = await widget.toolSessionService.getSession(sid);
+          namedSessionBarTitle = row?.name;
+        }
+        final ep = await widget.runtimeStateScopeService.loadEphemeral(
+          widget.launchContext.launchToken,
+        );
+        namedSessionBaselineJson = ep?.stateJson;
+      }
+
       final webViewController = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(surfaceColor)
@@ -294,10 +478,13 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         _viewState = AppViewState.content;
         _toolName = preparedBundle.pluginName ?? widget.pluginSlug;
         _loadedBundle = preparedBundle;
+        _namedSessionBarTitle = namedSessionBarTitle;
+        _namedSessionBaselineJson = namedSessionBaselineJson;
+        _namedSessionDirty = false;
       });
       unawaited(_hydrateCatalogDetail());
-      unawaited(_injectThemeIntoWebView());
-      unawaited(_injectHostBootstrap());
+      // Theme + host bootstrap run in _onToolDocumentPageFinished after the document
+      // loads so tool scripts and bridge injection order stay deterministic.
     } on NetworkException catch (_) {
       if (!mounted) {
         return;
@@ -585,6 +772,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
               payload,
             );
           }
+          _maybeUpdateNamedSessionDirty(payload);
         }
         _emitHostReply(<String, Object?>{'id': id, 'ok': true});
         return;
@@ -648,6 +836,18 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
           _emitHostReply(<String, Object?>{'id': id, 'ok': false});
         }
         return;
+      case 'restoreAck':
+        if (id.isEmpty) {
+          return;
+        }
+        final bool ok = data['ok'] == true;
+        final String err = data['error']?.toString() ?? '';
+        _sessionRestoreLog(
+          ok ? 'restore_ack_ok' : 'restore_ack_fail',
+          'requestId=$id err=$err',
+        );
+        _completePendingSessionRestore(id, ok);
+        return;
       default:
         return;
     }
@@ -664,6 +864,27 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         'document.dispatchEvent(new CustomEvent("utilivo-host-reply", { detail: $encoded }));',
       ),
     );
+  }
+
+  void _maybeUpdateNamedSessionDirty(String payload) {
+    final String? sid = _activeNamedSessionId();
+    if (sid == null || sid.isEmpty) {
+      return;
+    }
+    if (!widget.entitlementController.hasProAccess) {
+      return;
+    }
+    final baseline = _namedSessionBaselineJson;
+    if (baseline == null) {
+      return;
+    }
+    final dirty = payload != baseline;
+    if (!mounted || dirty == _namedSessionDirty) {
+      return;
+    }
+    setState(() {
+      _namedSessionDirty = dirty;
+    });
   }
 
   Future<void> _injectHostBootstrap([
@@ -685,6 +906,13 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     );
     try {
       await webViewController.runJavaScript(script);
+    } catch (_) {
+      return;
+    }
+    try {
+      await webViewController.runJavaScript(
+        r"try { document.dispatchEvent(new CustomEvent('utilivo-host-ready')); } catch (e) {}",
+      );
     } catch (_) {}
   }
 
@@ -846,7 +1074,25 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
           document.addEventListener('utilivo-host-reply', onReply);
           UtilivoHost.postMessage(JSON.stringify({ type: 'pinHomeShortcut', id, label: label || '' }));
         });
+      },
+      reportRestoreAck(restoreId, ok, error) {
+        UtilivoHost.postMessage(JSON.stringify({
+          type: 'restoreAck',
+          id: String(restoreId || ''),
+          ok: !!ok,
+          error: error != null ? String(error) : ''
+        }));
       }
+    };
+  }
+  if (window.utilivo && typeof window.utilivo.reportRestoreAck !== 'function') {
+    window.utilivo.reportRestoreAck = function(restoreId, ok, error) {
+      UtilivoHost.postMessage(JSON.stringify({
+        type: 'restoreAck',
+        id: String(restoreId || ''),
+        ok: !!ok,
+        error: error != null ? String(error) : ''
+      }));
     };
   }
 })();
@@ -930,13 +1176,14 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
     if (row == null || row.toolId != widget.launchContext.toolId) {
       throw _RuntimeLaunchException(l10n.runtimeSessionNotFound);
     }
-    final env = await widget.toolSessionService.loadEnvelopeForSession(sid);
-    final String stateJson;
-    if (env != null) {
-      stateJson = jsonEncode(env.payload);
-    } else {
-      stateJson = row.stateJson;
-    }
+    final String stateJson =
+        SessionSnapshotNormalizer.ephemeralStateJsonFromNamedSessionRow(
+          row.stateJson,
+        );
+    _sessionRestoreLog(
+      'cold_open_session_seeded',
+      'sessionId=$sid bytes=${utf8.encode(stateJson).length}',
+    );
     await widget.runtimeStateScopeService.persistEphemeral(
       launchToken: widget.launchContext.launchToken,
       toolId: widget.launchContext.toolId,
@@ -946,17 +1193,67 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
     await widget.toolSessionService.markSessionOpened(sid);
   }
 
-  Map<String, dynamic> _payloadMapFromEphemeralStateJson(String stateJson) {
-    try {
-      return SessionStateEnvelope.parse(stateJson).payload;
-    } catch (_) {
-      try {
-        final decoded = jsonDecode(stateJson);
-        if (decoded is Map<String, dynamic>) {
-          return decoded;
-        }
-      } catch (_) {}
-      return <String, dynamic>{'_raw': stateJson};
+  Future<void> _restoreNamedSessionInPlace(
+    BuildContext context,
+    NamedToolSession chosen,
+    AppLocalizations l10n,
+  ) async {
+    if (_viewState != AppViewState.content || _webViewController == null) {
+      _sessionRestoreLog('in_place_restore_skipped_not_ready');
+      return;
+    }
+    _sessionRestoreLog(
+      'in_place_load_requested',
+      'sessionId=${chosen.id} toolId=${widget.launchContext.toolId}',
+    );
+    final NamedToolSession? row =
+        await widget.toolSessionService.getSession(chosen.id);
+    if (!context.mounted) {
+      return;
+    }
+    if (row == null || row.toolId != widget.launchContext.toolId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.runtimeSessionNotFound)),
+      );
+      return;
+    }
+    final String stateJson =
+        SessionSnapshotNormalizer.ephemeralStateJsonFromNamedSessionRow(
+          row.stateJson,
+        );
+    if (!widget.launchContext.usesEphemeralPersistence) {
+      return;
+    }
+    await widget.runtimeStateScopeService.persistEphemeral(
+      launchToken: widget.launchContext.launchToken,
+      toolId: widget.launchContext.toolId,
+      toolSlug: widget.pluginSlug,
+      stateJson: stateJson,
+    );
+    await widget.toolSessionService.markSessionOpened(chosen.id);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _boundNamedSessionId = chosen.id;
+      _namedSessionBarTitle = row.name;
+      _namedSessionBaselineJson = stateJson;
+      _namedSessionDirty = false;
+    });
+    _sessionRestoreLog(
+      'in_place_ephemeral_written',
+      'bytes=${utf8.encode(stateJson).length} reusingLaunchToken=${widget.launchContext.launchToken}',
+    );
+    final bool ok = await _requestToolApplySessionSnapshot(stateJson);
+    if (!context.mounted) {
+      return;
+    }
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.runtimeSessionUpdateFailed)),
+      );
+    } else {
+      _sessionRestoreLog('in_place_restore_complete', 'sessionId=${chosen.id}');
     }
   }
 
@@ -1014,12 +1311,17 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
       return;
     }
     final bundle = _loadedBundle;
+    _sessionRestoreLog(
+      'save_session_requested',
+      'bytes=${utf8.encode(raw).length}',
+    );
     try {
-      await widget.toolSessionService.saveNamedSession(
+      final String sessionId = await widget.toolSessionService.saveNamedSession(
         toolId: widget.launchContext.toolId,
         toolSlug: widget.pluginSlug,
         name: name.trim(),
-        payload: _payloadMapFromEphemeralStateJson(raw),
+        payload:
+            SessionSnapshotNormalizer.payloadMapFromEphemeralStateJson(raw),
         installId: widget.launchContext.installId,
         toolVersion: bundle?.version,
         toolManifestVersion: bundle?.manifestVersion,
@@ -1027,6 +1329,13 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
       if (!context.mounted) {
         return;
       }
+      setState(() {
+        _boundNamedSessionId = sessionId;
+        _namedSessionBarTitle = name.trim();
+        _namedSessionBaselineJson = raw;
+        _namedSessionDirty = false;
+      });
+      _sessionRestoreLog('save_session_bound_in_place', 'sessionId=$sessionId');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.runtimeSessionSaved)),
       );
@@ -1036,6 +1345,61 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not save session: $error')),
+      );
+    }
+  }
+
+  Future<void> _onUpdateNamedSession(BuildContext context) async {
+    final l10n =
+        AppLocalizations.of(context) ?? lookupAppLocalizations(const Locale('en'));
+    if (!widget.entitlementController.hasProAccess) {
+      return;
+    }
+    final String? sid = _activeNamedSessionId();
+    if (sid == null || sid.isEmpty) {
+      return;
+    }
+    if (!widget.launchContext.usesEphemeralPersistence) {
+      return;
+    }
+    final ephemeral = await widget.runtimeStateScopeService.loadEphemeral(
+      widget.launchContext.launchToken,
+    );
+    final raw = ephemeral?.stateJson;
+    if (raw == null || raw.trim().isEmpty) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.runtimeSessionNothingToSave)),
+      );
+      return;
+    }
+    final bundle = _loadedBundle;
+    try {
+      await widget.toolSessionService.updateNamedSessionState(
+        id: sid,
+        payload:
+            SessionSnapshotNormalizer.payloadMapFromEphemeralStateJson(raw),
+        toolVersion: bundle?.version,
+        toolManifestVersion: bundle?.manifestVersion,
+      );
+      if (!context.mounted) {
+        return;
+      }
+      setState(() {
+        _namedSessionBaselineJson = raw;
+        _namedSessionDirty = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.runtimeSessionUpdated)),
+      );
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.runtimeSessionUpdateFailed)),
       );
     }
   }
@@ -1064,13 +1428,7 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
     if (!context.mounted) {
       return;
     }
-    context.go(
-      AppRoutes.pluginRuntime(
-        widget.pluginSlug,
-        toolName: _toolName ?? widget.initialToolName,
-        sessionId: chosen.id,
-      ),
-    );
+    await _restoreNamedSessionInPlace(context, chosen, l10n);
   }
 
   Future<void> _onManageNamedSessions(BuildContext context) async {
@@ -1342,18 +1700,29 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
         ],
       ),
       body: SafeArea(
-        child: _mandatoryUpdateBlocked
-            ? _buildMandatoryUpdateGate(context)
-            : AppStateBody(
-                state: _viewState,
-                loadingBuilder: _buildLoading,
-                loadingMessage: _statusMessage,
-                errorTitle: 'Could not launch tool',
-                errorMessage:
-                    _errorMessage ?? 'Unexpected runtime startup failure.',
-                onRetry: _prepareAndLoad,
-                content: _buildContent(),
-              ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            if (_viewState == AppViewState.content &&
+                _shouldShowNamedSessionSubBar)
+              _buildNamedSessionSubBar(context, l10n),
+            Expanded(
+              child: _mandatoryUpdateBlocked
+                  ? _buildMandatoryUpdateGate(context)
+                  : AppStateBody(
+                      state: _viewState,
+                      loadingBuilder: _buildLoading,
+                      loadingMessage: _statusMessage,
+                      errorTitle: 'Could not launch tool',
+                      errorMessage:
+                          _errorMessage ??
+                          'Unexpected runtime startup failure.',
+                      onRetry: _prepareAndLoad,
+                      content: _buildContent(),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1402,6 +1771,65 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
               child: const Text('Back'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  static const double _namedSessionSubBarHeight = 48;
+
+  Widget _buildNamedSessionSubBar(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    final title =
+        _namedSessionBarTitle?.trim().isNotEmpty == true
+            ? _namedSessionBarTitle!
+            : l10n.runtimeSessionBarFallback;
+    return Material(
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      child: SizedBox(
+        height: _namedSessionSubBarHeight,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.bookmark_outline, size: 20, color: scheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 132,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: _namedSessionDirty
+                      ? TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () =>
+                              unawaited(_onUpdateNamedSession(context)),
+                          child: Text(l10n.runtimeSessionUpdateButton),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

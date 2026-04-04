@@ -81,6 +81,24 @@ class ToolSessionService {
     return _repository.delete(id);
   }
 
+  /// Deletes named sessions for an install removed from the device ([toolId]
+  /// is usually the install id; legacy rows may key only by [pluginSlug]).
+  Future<void> deleteAllSessionsForRemovedInstall({
+    required String installId,
+    required String pluginSlug,
+  }) async {
+    final ids = <String>{};
+    for (final s in await _repository.listForTool(installId)) {
+      ids.add(s.id);
+    }
+    for (final s in await _repository.listForTool(pluginSlug)) {
+      ids.add(s.id);
+    }
+    for (final id in ids) {
+      await _repository.delete(id);
+    }
+  }
+
   Future<void> renameSession({
     required String id,
     required String newName,
@@ -106,5 +124,33 @@ class ToolSessionService {
 
   Future<void> markSessionOpened(String id) {
     return _repository.touchLastOpened(id);
+  }
+
+  /// Overwrites stored state for an existing named session (same row id).
+  Future<void> updateNamedSessionState({
+    required String id,
+    required Map<String, dynamic> payload,
+    String? toolVersion,
+    String? toolManifestVersion,
+  }) async {
+    final row = await _repository.getById(id);
+    if (row == null) {
+      throw StateError('Named session not found: $id');
+    }
+    final envelope = SessionStateEnvelope.build(
+      toolSlug: row.toolSlug,
+      toolVersion: toolVersion ?? row.toolVersion,
+      payload: payload,
+    );
+    final stateJson = envelope.serialize();
+    final byteLen = utf8.encode(stateJson).length;
+    await _repository.updateStatePayload(
+      id: id,
+      stateJson: stateJson,
+      stateSchemaVersion: SessionStateEnvelope.currentSchemaVersion,
+      toolVersion: toolVersion ?? row.toolVersion,
+      toolManifestVersion: toolManifestVersion ?? row.toolManifestVersion,
+      stateSizeBytes: byteLen,
+    );
   }
 }

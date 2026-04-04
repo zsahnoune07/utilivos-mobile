@@ -5,10 +5,13 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/networking/network_exception.dart';
-import '../../../core/versioning/plugin_version_compare.dart';
 import '../../../core/pro/folder_creation_policy.dart';
 import '../../../core/pro/freemium_limits.dart';
 import '../../../core/pro/pinning_policy.dart';
+import '../../../core/pro/tool_session_store.dart';
+import '../../../core/sessions/tool_session_service.dart';
+import '../../../core/sessions/tool_widget_service.dart';
+import '../../../core/versioning/plugin_version_compare.dart';
 import '../../discover/data/catalog_api.dart';
 import 'folder_quota_exception.dart';
 import '../../downloads/application/tool_bundle_download_service.dart';
@@ -47,6 +50,9 @@ class InstalledToolsController extends ChangeNotifier {
     InstallsSyncMetaStore? syncMetaStore,
     LocalInstallRemovalsStore? removalsStore,
     ToolBundleDownloadService? toolBundleDownloadService,
+    ToolWidgetService? toolWidgetService,
+    ToolSessionService? toolSessionService,
+    ToolSessionStore? toolSessionStore,
     PinningPolicy pinningPolicy = const UnlimitedPinningPolicy(),
     FolderCreationPolicy folderCreationPolicy =
         const UnlimitedFolderCreationPolicy(),
@@ -57,6 +63,9 @@ class InstalledToolsController extends ChangeNotifier {
        _syncMetaStore = syncMetaStore ?? const NoopInstallsSyncMetaStore(),
        _removalsStore = removalsStore ?? const NoopLocalInstallRemovalsStore(),
        _toolBundleDownloadService = toolBundleDownloadService,
+       _toolWidgetService = toolWidgetService,
+       _toolSessionService = toolSessionService,
+       _toolSessionStore = toolSessionStore,
        _pinningPolicy = pinningPolicy,
        _folderCreationPolicy = folderCreationPolicy;
 
@@ -71,6 +80,9 @@ class InstalledToolsController extends ChangeNotifier {
   final InstallsSyncMetaStore _syncMetaStore;
   final LocalInstallRemovalsStore _removalsStore;
   final ToolBundleDownloadService? _toolBundleDownloadService;
+  final ToolWidgetService? _toolWidgetService;
+  final ToolSessionService? _toolSessionService;
+  final ToolSessionStore? _toolSessionStore;
   final PinningPolicy _pinningPolicy;
   final FolderCreationPolicy _folderCreationPolicy;
 
@@ -427,6 +439,29 @@ class InstalledToolsController extends ChangeNotifier {
       await _toolBundleDownloadService?.deleteBundle(install.pluginSlug);
     } catch (_) {
       // Best-effort bundle cleanup.
+    }
+    try {
+      await _toolWidgetService?.removeWidgetsForTool(
+        installId: install.id,
+        toolSlug: install.pluginSlug,
+      );
+    } catch (_) {
+      // Best-effort widget metadata + launcher tile reset.
+    }
+    try {
+      await _toolSessionService?.deleteAllSessionsForRemovedInstall(
+        installId: install.id,
+        pluginSlug: install.pluginSlug,
+      );
+    } catch (_) {
+      // Best-effort named session cleanup.
+    }
+    try {
+      await _toolSessionStore?.removeLegacyDiskSnapshotIfExists(
+        install.pluginSlug,
+      );
+    } catch (_) {
+      // Best-effort legacy file snapshot cleanup.
     }
   }
 

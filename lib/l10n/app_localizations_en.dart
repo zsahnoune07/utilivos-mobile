@@ -220,6 +220,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get runtimeSessionProRequired => 'Saved sessions are a Pro feature.';
 
   @override
+  String get runtimeSessionUpdateButton => 'Update session';
+
+  @override
+  String get runtimeSessionUpdated => 'Session updated';
+
+  @override
+  String get runtimeSessionUpdateFailed => 'Could not update session';
+
+  @override
+  String get runtimeSessionBarFallback => 'Saved session';
+
+  @override
+  String get widgetConfigureProRequired =>
+      'Free includes one home screen widget. Pro unlocks unlimited widgets.';
+
+  @override
+  String get widgetConfigureSecondWidgetPaywall =>
+      'You\'ve used your free home screen widget. Pro unlocks unlimited widgets.';
+
+  @override
+  String get widgetConfigureTitle => 'Choose tool for widget';
+
+  @override
+  String get runtimeHomeWidgetProRequired =>
+      'This widget is not set up in the app. Open Utilivo and add the widget again, or unlock Pro for unlimited widgets.';
+
+  @override
   String get runtimeUpToDateTitle => 'Up to date';
 
   @override
