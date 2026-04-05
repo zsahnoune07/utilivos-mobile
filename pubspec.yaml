@@ -61,6 +61,10 @@ dependencies:
   drift_flutter: ^0.3.0
   sqlite3_flutter_libs: ^0.6.0+eol
   home_widget: ^0.9.0
+  image_picker: ^1.1.2
+  package_info_plus: ^8.1.1
+  permission_handler: ^11.3.1
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +74,7 @@ dev_dependencies:
   flutter_lints: ^3.0.2
   drift_dev: ^2.32.1
   build_runner: ^2.13.1
+  network_image_mock: ^2.1.1
 
 flutter_launcher_icons:
   android: true

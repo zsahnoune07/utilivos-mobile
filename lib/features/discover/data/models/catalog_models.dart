@@ -53,6 +53,7 @@ class CatalogPlugin {
     this.iconUrl,
     this.categoryColor,
     this.proPreview = false,
+    this.tags = const <String>[],
   });
 
   final String id;
@@ -71,6 +72,9 @@ class CatalogPlugin {
   /// When this tool is Pro-tier ([isPro]), free users may install/run preview builds only if the API
   /// sets `pro_preview` / `premium_preview` / `allows_free_preview_install` to true.
   final bool proPreview;
+
+  /// Search / discover tags from API (array or comma-separated string).
+  final List<String> tags;
 
   /// API may use `pro`, `paid`, or `premium` for the paid catalog tier (product copy: Pro).
   static bool tierIsPro(String pricingType) {
@@ -203,6 +207,7 @@ class CatalogPlugin {
         'CategoryColor',
       ]),
       proPreview: previewFromApi == true,
+      tags: _parseTagsJson(json),
     );
   }
 
@@ -221,6 +226,7 @@ class CatalogPlugin {
       'icon_url': iconUrl,
       'category_color': categoryColor,
       'pro_preview': proPreview,
+      'tags': tags,
     };
   }
 }
@@ -287,6 +293,33 @@ String? _readOptionalString(Map<String, dynamic> json, List<String> keys) {
     }
   }
   return null;
+}
+
+List<String> _parseTagsJson(Map<String, dynamic> json) {
+  const keys = <String>['tags', 'Tags', 'tool_tags', 'ToolTags'];
+  for (final key in keys) {
+    final value = json[key];
+    if (value is String) {
+      return value
+          .split(',')
+          .map((String s) => s.trim())
+          .where((String s) => s.isNotEmpty)
+          .toList(growable: false);
+    }
+    if (value is List) {
+      final out = <String>[];
+      for (final e in value) {
+        if (e is String) {
+          final t = e.trim();
+          if (t.isNotEmpty) {
+            out.add(t);
+          }
+        }
+      }
+      return out;
+    }
+  }
+  return const <String>[];
 }
 
 bool? _readOptionalBool(Map<String, dynamic> json, List<String> keys) {

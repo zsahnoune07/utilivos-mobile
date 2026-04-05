@@ -1,22 +1,16 @@
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../cache/tool_icon_cache_manager.dart';
 import 'app_skeletons.dart';
-
-const bool _enableIconDebugLogs = true;
 
 class ToolThumbnail extends StatelessWidget {
   const ToolThumbnail({
     this.imageUrl,
     this.localPath,
     this.baseUrl,
-    this.debugToolSlug,
-    this.debugThumbnailUrl,
-    this.debugIconUrl,
     this.size = 52,
     this.borderRadius = 10,
     this.fallbackIcon = Icons.extension_outlined,
@@ -32,9 +26,6 @@ class ToolThumbnail extends StatelessWidget {
   final String? imageUrl;
   final String? localPath;
   final String? baseUrl;
-  final String? debugToolSlug;
-  final String? debugThumbnailUrl;
-  final String? debugIconUrl;
   final double size;
   final double borderRadius;
   final IconData fallbackIcon;
@@ -47,22 +38,6 @@ class ToolThumbnail extends StatelessWidget {
     final fallback = _fallback(context);
     final normalizedUrl = _normalizeImageUrl(imageUrl);
     final localFile = _resolveLocalFile(localPath);
-    final source = normalizedUrl != null
-        ? 'network'
-        : (localFile != null ? 'local' : 'placeholder');
-
-    if (kDebugMode && _enableIconDebugLogs) {
-      final raw = imageUrl?.trim();
-      final isAbsolute =
-          raw != null &&
-          (raw.startsWith('https://') || raw.startsWith('http://'));
-      debugPrint(
-        '[ToolThumbnail] ${{'tool': debugToolSlug, 'thumbnail_url': debugThumbnailUrl, 'icon_url': debugIconUrl, 'local_icon_path': localPath, 'raw_image_url': imageUrl, 'is_absolute_url': isAbsolute, 'resolved_image_url': normalizedUrl, 'resolved_source': source}}',
-      );
-      if (normalizedUrl != null) {
-        _debugLogCacheProbe(normalizedUrl);
-      }
-    }
 
     // Prefer CDN/API URL when [imageUrl] is non-null; when callers omit the URL (e.g.
     // installed tools with an extracted local icon), the local file is used first.
@@ -128,12 +103,6 @@ class ToolThumbnail extends StatelessWidget {
           borderRadius: borderRadius,
         ),
         errorWidget: (_, requestedUrl, error) {
-          if (kDebugMode && _enableIconDebugLogs) {
-            debugPrint(
-              '[ToolThumbnail] IMAGE ERROR url=$requestedUrl error=$error '
-              'tool=$debugToolSlug',
-            );
-          }
           if (localFallbackFile != null) {
             return Image.file(
               localFallbackFile,
@@ -150,25 +119,6 @@ class ToolThumbnail extends StatelessWidget {
         },
       ),
     );
-  }
-
-  void _debugLogCacheProbe(String url) {
-    ToolIconCacheManager.instance
-        .getFileFromCache(url)
-        .then((cached) {
-          if (kDebugMode && _enableIconDebugLogs) {
-            debugPrint(
-              '[ToolThumbnail] cache ${cached == null ? 'MISS' : 'HIT'} key=$url',
-            );
-          }
-        })
-        .catchError((Object error) {
-          if (kDebugMode && _enableIconDebugLogs) {
-            debugPrint(
-              '[ToolThumbnail] cache probe error key=$url error=$error',
-            );
-          }
-        });
   }
 
   Widget _fallback(BuildContext context) {
@@ -204,28 +154,17 @@ class ToolThumbnail extends StatelessWidget {
     if (trimmed.isEmpty) {
       return null;
     }
-    final uri = Uri.tryParse(trimmed);
-    if (uri == null) {
-      return null;
-    }
-    if (uri.hasScheme && uri.hasAuthority) {
-      if (uri.scheme != 'http' && uri.scheme != 'https') {
-        return null;
-      }
+    if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
       return trimmed;
     }
-
-    final rawBase = baseUrl?.trim();
-    if (rawBase == null || rawBase.isEmpty) {
+    final base = baseUrl?.trim();
+    if (base == null || base.isEmpty) {
       return null;
     }
-    final baseUri = Uri.tryParse(rawBase);
-    if (baseUri == null ||
-        !baseUri.hasScheme ||
-        !baseUri.hasAuthority ||
-        (baseUri.scheme != 'http' && baseUri.scheme != 'https')) {
-      return null;
+    if (trimmed.startsWith('/')) {
+      final uri = Uri.parse(base);
+      return uri.resolve(trimmed).toString();
     }
-    return baseUri.resolve(trimmed).toString();
+    return Uri.parse(base).resolve(trimmed).toString();
   }
 }

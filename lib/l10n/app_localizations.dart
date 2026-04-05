@@ -648,6 +648,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try different words or clear filters.'**
   String get catalogSearchEmptyMessage;
+
+  /// No description provided for @runtimeHostAppUpdateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Required'**
+  String get runtimeHostAppUpdateTitle;
+
+  /// No description provided for @runtimeHostAppUpdateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This tool requires a newer version of the app.'**
+  String get runtimeHostAppUpdateBody;
+
+  /// No description provided for @runtimeHostAppUpdateCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Update App'**
+  String get runtimeHostAppUpdateCta;
+
+  /// No description provided for @runtimeHostAppUpdateNoStoreUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Store link is not configured for this build.'**
+  String get runtimeHostAppUpdateNoStoreUrl;
+
+  /// No description provided for @runtimePermissionRequiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission Required'**
+  String get runtimePermissionRequiredTitle;
+
+  /// No description provided for @runtimePermissionContinueCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get runtimePermissionContinueCta;
+
+  /// No description provided for @runtimePermissionDefaultRationale.
+  ///
+  /// In en, this message translates to:
+  /// **'This tool needs additional access to your device to run correctly.'**
+  String get runtimePermissionDefaultRationale;
+
+  /// No description provided for @runtimePermissionDeniedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This tool cannot run without the permissions it needs.'**
+  String get runtimePermissionDeniedBody;
+
+  /// No description provided for @runtimePermissionRetryCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get runtimePermissionRetryCta;
+
+  /// No description provided for @runtimePermissionOpenSettingsCta.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get runtimePermissionOpenSettingsCta;
 }
 
 class _AppLocalizationsDelegate

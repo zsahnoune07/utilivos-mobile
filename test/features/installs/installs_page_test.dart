@@ -40,6 +40,8 @@ import 'package:utilivo_mobile/features/installs/presentation/widgets/installed_
 import 'package:utilivo_mobile/core/navigation/app_routes.dart';
 import 'package:utilivo_mobile/l10n/app_localizations.dart';
 
+import '../../support/pump_tool_thumbnail_ui.dart';
+
 Widget _testMaterialApp({Widget? home, GoRouter? router}) {
   assert(home != null || router != null, 'home or router required');
   const delegates = <LocalizationsDelegate<dynamic>>[
@@ -279,20 +281,20 @@ void main() {
       addTearDown(router.dispose);
 
       await tester.pumpWidget(_testMaterialApp(router: router));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       await tester.enterText(find.byType(TextField), 'zzzz');
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       expect(find.text('No tools match your search'), findsOneWidget);
 
       await tester.tapAt(const Offset(20, 120));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Browse Tool Library').first);
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
+      await tester.tap(find.text('Search in Tool Library'));
+      await pumpToolThumbnailUiSettled(tester);
       expect(find.text('Install and return'), findsOneWidget);
 
       await tester.tap(find.text('Install and return'));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       final textField = tester.widget<TextField>(find.byType(TextField));
       expect(textField.controller?.text, isEmpty);
@@ -331,22 +333,22 @@ void main() {
       addTearDown(router.dispose);
 
       await tester.pumpWidget(_testMaterialApp(router: router));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       final searchField = find.byKey(const Key('home_tool_search_field'));
       await tester.tap(searchField);
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       expect(
         tester.widget<TextField>(searchField).focusNode?.hasFocus,
         isTrue,
       );
 
       await tester.enterText(searchField, 'Tool');
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       expect(find.byType(InstalledToolCard), findsOneWidget);
 
       FocusManager.instance.primaryFocus?.unfocus();
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       expect(
         tester.widget<TextField>(searchField).focusNode?.hasFocus,
         isFalse,
@@ -354,7 +356,7 @@ void main() {
       expect(find.text('Runtime Page'), findsNothing);
 
       await tester.tap(find.byType(InstalledToolCard).first);
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       expect(find.text('Runtime Page'), findsOneWidget);
     },
   );
@@ -388,10 +390,10 @@ void main() {
     addTearDown(router.dispose);
 
     await tester.pumpWidget(_testMaterialApp(router: router));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.tap(find.text('Tool Alpha'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     expect(find.text('Runtime Page'), findsOneWidget);
   });
 
@@ -460,7 +462,7 @@ void main() {
       );
 
       await tester.pumpWidget(_testMaterialApp(home: harness.page));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       expect(find.text('Tool Alpha'), findsOneWidget);
       expect(find.text('Work'), findsOneWidget);
@@ -475,15 +477,15 @@ void main() {
       addTearDown(harness.dispose);
 
       await tester.pumpWidget(_testMaterialApp(home: harness.page));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       await tester.enterText(_homeSearchField(), 'alpha');
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       await tester.tapAt(const Offset(8, 8));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       final textField = tester.widget<TextField>(_homeSearchField());
       expect(textField.controller?.text, isEmpty);
@@ -499,18 +501,18 @@ void main() {
     addTearDown(harness.dispose);
 
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     final initialField = tester.widget<TextField>(_homeSearchField());
     expect(initialField.controller?.text, isEmpty);
     expect(tester.takeException(), isNull);
 
     await tester.enterText(_homeSearchField(), 'alpha');
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     final clearedField = tester.widget<TextField>(_homeSearchField());
     expect(clearedField.controller?.text, isEmpty);
   });
@@ -539,7 +541,7 @@ void main() {
     addTearDown(router.dispose);
 
     await tester.pumpWidget(_testMaterialApp(router: router));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     expect(find.text('Tool Alpha'), findsOneWidget);
     expect(find.text('utilities'), findsNothing);
@@ -592,15 +594,15 @@ void main() {
     addTearDown(router.dispose);
 
     await tester.pumpWidget(_testMaterialApp(router: router));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     expect(find.text('Work'), findsOneWidget);
     await tester.tap(find.text('Work'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     expect(find.text('Tool Alpha'), findsOneWidget);
     await tester.tap(find.text('Tool Alpha'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     expect(find.text('Runtime Page'), findsOneWidget);
   });
 
@@ -628,7 +630,7 @@ void main() {
       find.byType(SingleChildScrollView).first,
       const Offset(0, -500),
     );
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.ensureVisible(find.byKey(const Key('folder-icon-education')));
     await tester.tap(find.byKey(const Key('folder-icon-education')));
     await tester.ensureVisible(find.text('Create folder'));
@@ -682,14 +684,14 @@ void main() {
       addTearDown(router.dispose);
 
       await tester.pumpWidget(_testMaterialApp(router: router));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       expect(find.byType(InstalledToolCard), findsOneWidget);
 
       await tester.longPress(find.text('Tool Alpha'));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       expect(find.text('Remove from folder'), findsOneWidget);
       await tester.tap(find.text('Remove from folder'));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       expect(
         harness.controller.installedTools
@@ -723,10 +725,10 @@ void main() {
     );
 
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.enterText(find.byType(TextField), 'alpha');
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     expect(find.text('Tool Alpha'), findsOneWidget);
     expect(find.text('Work'), findsOneWidget);
@@ -764,7 +766,7 @@ void main() {
       addTearDown(router.dispose);
 
       await tester.pumpWidget(_testMaterialApp(router: router));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       final appBar = tester.widget<AppBar>(find.byType(AppBar));
       final appBarContext = tester.element(find.byType(AppBar));
@@ -799,15 +801,15 @@ void main() {
     await harness.controller.recordInstall(secondInstall);
 
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     expect(find.text('Add folder'), findsOneWidget);
     expect(find.text('Folder'), findsNothing);
 
     await tester.tap(find.byTooltip('Sort tools'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.tap(find.text('Name Z-A'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     expect(harness.controller.homeSortMode, HomeSortMode.nameDesc);
   });
 
@@ -817,10 +819,10 @@ void main() {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.tap(find.text('Add folder'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     expect(FolderUiCatalog.iconKeys.length, 28);
     expect(FolderUiCatalog.iconKeys.length % 7, 0);
@@ -841,17 +843,17 @@ void main() {
       );
 
       await tester.pumpWidget(_testMaterialApp(home: harness.page));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       await tester.drag(find.byType(ListView).first, const Offset(0, -120));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       await tester.longPress(
         find.byType(InstalledToolCard).first,
         warnIfMissed: false,
       );
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       await tester.tap(find.text('Move to folder'));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       expect(find.text('Create new folder'), findsOneWidget);
       expect(find.text('Work'), findsWidgets);
@@ -865,30 +867,30 @@ void main() {
       addTearDown(harness.dispose);
 
       await tester.pumpWidget(_testMaterialApp(home: harness.page));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       await tester.longPress(find.byType(InstalledToolCard).first);
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       await tester.tap(find.text('Move to folder'));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       expect(find.text('Create new folder'), findsOneWidget);
       expect(_countDimmedBarriers(tester), 1);
 
       await tester.tap(find.text('Create new folder'));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       expect(find.byType(TextFormField), findsOneWidget);
       expect(_countDimmedBarriers(tester), 1);
 
       await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       expect(find.text('Move to folder'), findsOneWidget);
 
       await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       expect(find.text('Launch tool'), findsOneWidget);
 
       await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
       expect(find.text('Launch tool'), findsNothing);
     },
   );
@@ -900,10 +902,10 @@ void main() {
     addTearDown(harness.dispose);
 
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.longPress(find.byType(InstalledToolCard).first);
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.tap(find.text('Move to folder'));
     await tester.pump(const Duration(milliseconds: 120));
     expect(find.text('Launch tool'), findsNothing);
@@ -918,20 +920,20 @@ void main() {
     addTearDown(harness.dispose);
 
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.ensureVisible(find.byType(InstalledToolCard).first);
     await tester.longPress(find.byType(InstalledToolCard).first);
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.tap(find.text('Move to folder'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.tap(find.text('Create new folder'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.enterText(find.byType(TextFormField), 'Fresh');
     await tester.ensureVisible(find.text('Create folder'));
     await tester.tap(find.text('Create folder'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     final createdFolder = harness.controller.folders.firstWhere(
       (folder) => folder.name == 'Fresh',
@@ -949,18 +951,18 @@ void main() {
     addTearDown(harness.dispose);
 
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.ensureVisible(find.byType(InstalledToolCard).first);
     await tester.longPress(find.byType(InstalledToolCard).first);
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.tap(find.text('Move to folder'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.tap(find.text('Create new folder'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.tapAt(const Offset(8, 8));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     final tool = harness.controller.installedTools.firstWhere(
       (item) => item.pluginSlug == 'tool-alpha',
@@ -974,10 +976,10 @@ void main() {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.tap(find.text('Add folder'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.enterText(find.byType(TextFormField), 'ABCDEFGHIJKLMNOPQ');
     final nameField = tester.widget<TextFormField>(find.byType(TextFormField));
     expect(nameField.controller?.text.length, 16);
@@ -989,19 +991,19 @@ void main() {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.longPress(find.byType(InstalledToolCard).first);
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.tap(find.text('Move to folder'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.tap(find.text('Create new folder'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.enterText(find.byType(TextFormField), 'ABCDEFGHIJKLMNOPQ');
     await tester.ensureVisible(find.text('Create folder'));
     await tester.tap(find.text('Create folder'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     final createdFolder = harness.controller.folders.firstWhere(
       (folder) => folder.name == 'ABCDEFGHIJKLMNOP',
@@ -1047,10 +1049,10 @@ void main() {
     addTearDown(router.dispose);
 
     await tester.pumpWidget(_testMaterialApp(router: router));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.longPress(find.text('Tool Alpha'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     expect(find.text('Move to folder'), findsOneWidget);
   });
 
@@ -1087,10 +1089,10 @@ void main() {
     );
 
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.enterText(find.byType(TextField), 'long');
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     expect(find.textContaining('Very Long Tool Name'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -1129,9 +1131,9 @@ void main() {
     );
 
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.enterText(find.byType(TextField), 'tool');
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     final cards = find.byType(InstalledToolCard);
     expect(cards, findsNWidgets(2));
@@ -1158,9 +1160,9 @@ void main() {
     );
 
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.enterText(find.byType(TextField), 'alpha');
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     final badge = tester.widget<Container>(
       find.byKey(const Key('folder-badge-tool-alpha')),
@@ -1181,12 +1183,12 @@ void main() {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.tap(find.text('Add folder'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.tapAt(const Offset(8, 8));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     final textField = tester.widget<TextField>(_homeSearchField());
     expect(textField.focusNode?.hasFocus ?? false, isFalse);
@@ -1198,12 +1200,12 @@ void main() {
     final harness = await _InstallsHarness.create();
     addTearDown(harness.dispose);
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.tap(find.byTooltip('Sort tools'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.tap(find.text('Last used'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     final textField = tester.widget<TextField>(_homeSearchField());
     expect(textField.focusNode?.hasFocus ?? false, isFalse);
@@ -1226,10 +1228,10 @@ void main() {
     );
 
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.longPress(find.text('1 tools'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     expect(find.text('Save folder'), findsOneWidget);
   });
 
@@ -1250,7 +1252,7 @@ void main() {
       );
 
       await tester.pumpWidget(_testMaterialApp(home: harness.page));
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       final shortCenter = tester.getCenter(
         find.byKey(Key('folder-tile-icon-${short.id}')),
@@ -1285,13 +1287,13 @@ void main() {
     addTearDown(harness.dispose);
 
     await tester.pumpWidget(_testMaterialApp(home: harness.page));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.longPress(find.text('Legacy Folder Name Too Long'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
     await tester.ensureVisible(find.text('Save folder'));
     await tester.tap(find.text('Save folder'));
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     expect(tester.takeException(), isNull);
     expect(

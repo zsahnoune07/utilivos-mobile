@@ -22,6 +22,7 @@ import '../../installs/application/installed_tools_controller.dart';
 import '../../installs/presentation/folder_detail_page.dart';
 import '../../installs/data/installs_api.dart';
 import '../../installs/data/models/install_models.dart';
+import '../application/catalog_search_ranker.dart';
 import '../data/catalog_api.dart';
 import '../data/models/catalog_models.dart';
 
@@ -100,6 +101,8 @@ class _DiscoverPageState extends State<DiscoverPage>
   List<CatalogCategory> _categories = const <CatalogCategory>[];
   List<CatalogPlugin> _browsePlugins = const <CatalogPlugin>[];
   List<CatalogPlugin> _searchPlugins = const <CatalogPlugin>[];
+  /// All search API pages merged for the active query (used with client-side ranking).
+  List<CatalogPlugin> _searchApiAccumulated = const <CatalogPlugin>[];
   String? _selectedCategory;
   final Set<String> _selectedFilterTags = <String>{};
   String? _browseNextCursor;
@@ -643,6 +646,7 @@ class _DiscoverPageState extends State<DiscoverPage>
     if (q.isEmpty) {
       setState(() {
         _searchPlugins = const <CatalogPlugin>[];
+        _searchApiAccumulated = const <CatalogPlugin>[];
         _searchNextCursor = null;
         _searchLoading = false;
       });
@@ -663,8 +667,21 @@ class _DiscoverPageState extends State<DiscoverPage>
       if (!mounted || _disposed || requestToken != _searchRequestGeneration) {
         return;
       }
+      final cacheUnion = await widget.catalogApi.collectCachedPluginsUnion();
+      if (!mounted || _disposed || requestToken != _searchRequestGeneration) {
+        return;
+      }
+      final ranked = buildDiscoverSearchResults(
+        query: q,
+        apiAccumulatedPageItems: page.items,
+        cacheUnion: cacheUnion,
+      );
+      if (!mounted || _disposed || requestToken != _searchRequestGeneration) {
+        return;
+      }
       setState(() {
-        _searchPlugins = page.items;
+        _searchApiAccumulated = List<CatalogPlugin>.from(page.items);
+        _searchPlugins = ranked;
         _searchNextCursor = page.nextCursor;
         _searchLoading = false;
       });
@@ -712,15 +729,35 @@ class _DiscoverPageState extends State<DiscoverPage>
       if (!mounted || _disposed) {
         return;
       }
-      setState(() {
-        if (isSearch) {
-          _searchPlugins = <CatalogPlugin>[..._searchPlugins, ...page.items];
+      if (isSearch) {
+        final q = _searchController.text.trim();
+        final nextAccumulated = <CatalogPlugin>[
+          ..._searchApiAccumulated,
+          ...page.items,
+        ];
+        final cacheUnion = await widget.catalogApi.collectCachedPluginsUnion();
+        if (!mounted || _disposed) {
+          return;
+        }
+        final ranked = buildDiscoverSearchResults(
+          query: q,
+          apiAccumulatedPageItems: nextAccumulated,
+          cacheUnion: cacheUnion,
+        );
+        if (!mounted || _disposed) {
+          return;
+        }
+        setState(() {
+          _searchApiAccumulated = nextAccumulated;
+          _searchPlugins = ranked;
           _searchNextCursor = page.nextCursor;
-        } else {
+        });
+      } else {
+        setState(() {
           _browsePlugins = <CatalogPlugin>[..._browsePlugins, ...page.items];
           _browseNextCursor = page.nextCursor;
-        }
-      });
+        });
+      }
     } on NetworkException catch (error) {
       developer.log(
         'Catalog load more failed.',
@@ -1530,9 +1567,6 @@ class _PluginListTile extends StatelessWidget {
                         imageUrl: plugin.catalogListIconRef,
                         localPath: localIconPath,
                         baseUrl: iconBaseUrl,
-                        debugToolSlug: plugin.slug,
-                        debugThumbnailUrl: plugin.thumbnailUrl,
-                        debugIconUrl: plugin.iconUrl,
                         fallbackIcon: Icons.extension,
                         size: 52,
                         borderRadius: 12,

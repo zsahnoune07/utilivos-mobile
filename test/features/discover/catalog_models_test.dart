@@ -137,5 +137,29 @@ void main() {
       );
       expect(plugin.catalogListIconRef, 'https://cdn.example/thumbs/last.png');
     });
+
+    test('fromJson parses tags as list or comma-separated string', () {
+      final fromList = CatalogPlugin.fromJson(<String, dynamic>{
+        'id': 't1',
+        'slug': 's',
+        'name': 'N',
+        'category_slug': 'c',
+        'category_name': 'C',
+        'pricing_type': 'free',
+        'tags': <String>['a', 'b'],
+      });
+      expect(fromList.tags, <String>['a', 'b']);
+
+      final fromCsv = CatalogPlugin.fromJson(<String, dynamic>{
+        'id': 't2',
+        'slug': 's2',
+        'name': 'N2',
+        'category_slug': 'c',
+        'category_name': 'C',
+        'pricing_type': 'free',
+        'tags': 'x, y ,z',
+      });
+      expect(fromCsv.tags, <String>['x', 'y', 'z']);
+    });
   });
 }

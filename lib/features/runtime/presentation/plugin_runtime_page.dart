@@ -4,9 +4,14 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' show Random;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
@@ -27,7 +32,10 @@ import '../../../core/sessions/session_snapshot_normalizer.dart';
 import '../../../core/sessions/tool_launch_context.dart';
 import '../../../core/sessions/tool_session_service.dart';
 import '../../../core/sessions/tool_widget_service.dart';
+import '../../../core/permissions/tool_permission_coordinator.dart';
 import '../../../core/theme/app_design_tokens.dart';
+import '../../../core/tool_manifest/tool_manifest_reader.dart';
+import '../../../core/versioning/app_version_compare.dart';
 import '../../../core/versioning/plugin_version_compare.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/app_state_views.dart';
@@ -97,6 +105,9 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
   bool _isPreparing = false;
   bool _previewMode = false;
   bool _mandatoryUpdateBlocked = false;
+  bool _hostAppUpdateBlocked = false;
+  bool _permissionLaunchBlocked = false;
+  bool _permissionLaunchPermanent = false;
   bool _clearedSessionStorageForThisLaunch = false;
   String? _namedSessionBarTitle;
   String? _namedSessionBaselineJson;
@@ -254,6 +265,9 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
 
     setState(() {
       _mandatoryUpdateBlocked = false;
+      _hostAppUpdateBlocked = false;
+      _permissionLaunchBlocked = false;
+      _permissionLaunchPermanent = false;
       _viewState = AppViewState.loading;
       _statusMessage = 'Preparing tool runtime...';
       _errorMessage = null;
@@ -297,6 +311,79 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         return;
       case ToolLaunchPrepared.ok:
         break;
+    }
+
+    final l10nBase =
+        AppLocalizations.of(context) ?? lookupAppLocalizations(const Locale('en'));
+
+    final localRunnable = await widget.toolBundleDownloadService
+        .findRunnableBundle(widget.pluginSlug);
+    if (!mounted) {
+      _isPreparing = false;
+      return;
+    }
+    if (localRunnable == null) {
+      setState(() {
+        _viewState = AppViewState.error;
+        _errorMessage =
+            'Tool files were removed. Reinstall this tool from the Tool Library.';
+        _isPreparing = false;
+      });
+      return;
+    }
+
+    try {
+      await _assertBundleLaunchAllowed(localRunnable);
+    } on _RuntimeLaunchException catch (error) {
+      if (!mounted) {
+        _isPreparing = false;
+        return;
+      }
+      setState(() {
+        _viewState = AppViewState.error;
+        _errorMessage = error.message;
+        _isPreparing = false;
+      });
+      return;
+    }
+
+    final manifest = await const ToolManifestReader().readForBundle(
+      localRunnable,
+    );
+    final packageInfo = await PackageInfo.fromPlatform();
+    if (!mounted) {
+      _isPreparing = false;
+      return;
+    }
+    if (isHostAppBelowMinimum(
+      currentAppVersion: packageInfo.version,
+      minimumVersion: manifest.minAppVersion,
+    )) {
+      setState(() {
+        _hostAppUpdateBlocked = true;
+        _isPreparing = false;
+      });
+      return;
+    }
+
+    final permissionOutcome = await ToolPermissionCoordinator()
+        .ensureSystemPermissions(
+          context: context,
+          manifest: manifest,
+          l10n: l10nBase,
+        );
+    if (!mounted) {
+      _isPreparing = false;
+      return;
+    }
+    if (permissionOutcome != ToolPermissionFlowResult.granted) {
+      setState(() {
+        _permissionLaunchBlocked = true;
+        _permissionLaunchPermanent =
+            permissionOutcome == ToolPermissionFlowResult.permanentlyDenied;
+        _isPreparing = false;
+      });
+      return;
     }
 
     try {
@@ -349,7 +436,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         }
       }
 
-      final preparedBundle = await _resolveBundle();
+      final preparedBundle = await _resolveBundle(seed: localRunnable);
       _assertRuntimeContractCompatible(preparedBundle);
       final entryFilePath = preparedBundle.entryFilePath;
       if (entryFilePath == null || entryFilePath.trim().isEmpty) {
@@ -439,6 +526,8 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
             unawaited(_handleHostMessage(message.message));
           },
         );
+      await _configureAndroidToolWebViewFileSelector(webViewController);
+      await _configureAndroidToolWebViewMediaPermissions(webViewController);
       webViewController.setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (_) {
@@ -515,7 +604,19 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     }
   }
 
-  Future<DownloadedToolBundle> _resolveBundle() async {
+  Future<DownloadedToolBundle> _resolveBundle({
+    DownloadedToolBundle? seed,
+  }) async {
+    if (seed != null) {
+      await _assertBundleLaunchAllowed(seed);
+      if (mounted) {
+        setState(() {
+          _statusMessage = 'Loading local plugin bundle...';
+        });
+      }
+      return seed;
+    }
+
     final cached = await widget.toolBundleDownloadService.findRunnableBundle(
       widget.pluginSlug,
     );
@@ -669,6 +770,112 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     final displayName = bundle.pluginName ?? widget.initialToolName;
     await _injectThemeIntoWebView(controller);
     await _injectHostBootstrap(controller, bundle, displayName);
+  }
+
+  /// Android WebView does not open `<input type="file">` without a file chooser handler.
+  Future<void> _configureAndroidToolWebViewFileSelector(
+    WebViewController controller,
+  ) async {
+    if (!Platform.isAndroid) {
+      return;
+    }
+    final Object platform = controller.platform;
+    if (platform is! AndroidWebViewController) {
+      return;
+    }
+    await platform.setOnShowFileSelector(_onAndroidToolWebViewShowFileSelector);
+  }
+
+  Future<List<String>> _onAndroidToolWebViewShowFileSelector(
+    FileSelectorParams params,
+  ) async {
+    if (params.mode == FileSelectorMode.save) {
+      return <String>[];
+    }
+    if (!mounted) {
+      return <String>[];
+    }
+    try {
+      final picker = ImagePicker();
+      final XFile? file = await picker.pickImage(source: ImageSource.gallery);
+      if (file == null || !mounted) {
+        return <String>[];
+      }
+      final String path = file.path;
+      if (path.startsWith('content://') || path.startsWith('file://')) {
+        return <String>[path];
+      }
+      return <String>[Uri.file(path).toString()];
+    } catch (_) {
+      return <String>[];
+    }
+  }
+
+  /// Without this, Android WebView denies [getUserMedia] even when the app already
+  /// has [Permission.camera] — the page must receive [PermissionRequest.grant].
+  Future<void> _configureAndroidToolWebViewMediaPermissions(
+    WebViewController controller,
+  ) async {
+    if (!Platform.isAndroid) {
+      return;
+    }
+    final Object platform = controller.platform;
+    if (platform is! AndroidWebViewController) {
+      return;
+    }
+    await platform.setOnPlatformPermissionRequest(_onToolWebViewPermissionRequest);
+  }
+
+  void _onToolWebViewPermissionRequest(PlatformWebViewPermissionRequest request) {
+    unawaited(_handleToolWebViewPermissionRequest(request));
+  }
+
+  Future<void> _handleToolWebViewPermissionRequest(
+    PlatformWebViewPermissionRequest request,
+  ) async {
+    if (kDebugMode) {
+      developer.log(
+        'types=${request.types}',
+        name: 'utilivo.tool_webview.permission',
+      );
+    }
+    final wantsCamera =
+        request.types.contains(WebViewPermissionResourceType.camera);
+    final wantsMic =
+        request.types.contains(WebViewPermissionResourceType.microphone);
+    if (wantsMic) {
+      await request.deny();
+      return;
+    }
+    if (!wantsCamera) {
+      await request.deny();
+      return;
+    }
+    if (!mounted) {
+      await request.deny();
+      return;
+    }
+    var status = await Permission.camera.status;
+    if (kDebugMode) {
+      developer.log(
+        'camera status=$status',
+        name: 'utilivo.tool_webview.permission',
+      );
+    }
+    if (!status.isGranted) {
+      status = await Permission.camera.request();
+      if (kDebugMode) {
+        developer.log(
+          'camera after request=$status',
+          name: 'utilivo.tool_webview.permission',
+        );
+      }
+    }
+    if (status.isGranted) {
+      await request.grant();
+    } else {
+      await request.deny();
+    }
   }
 
   Future<void> _disableToolWebViewZoom(WebViewController controller) async {
@@ -972,6 +1179,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
       'runtimeContractVersion': bundle.runtimeContractVersion,
       'designSystemVersion': bundle.designSystemVersion,
       'sdkVersion': bundle.sdkVersion,
+      'debugToolRuntime': kDebugMode,
     };
     final snapshotJson = jsonEncode(snapshot);
     final hostPayloadJson = jsonEncode(<String, Object?>{
@@ -1707,7 +1915,11 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
                 _shouldShowNamedSessionSubBar)
               _buildNamedSessionSubBar(context, l10n),
             Expanded(
-              child: _mandatoryUpdateBlocked
+              child: _hostAppUpdateBlocked
+                  ? _buildHostAppUpdateGate(context, l10n)
+                  : _permissionLaunchBlocked
+                  ? _buildPermissionLaunchGate(context, l10n)
+                  : _mandatoryUpdateBlocked
                   ? _buildMandatoryUpdateGate(context)
                   : AppStateBody(
                       state: _viewState,
@@ -1769,6 +1981,138 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
             TextButton(
               onPressed: () => context.pop(),
               child: const Text('Back'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHostAppUpdateGate(BuildContext context, AppLocalizations l10n) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              Icons.system_update_rounded,
+              size: 48,
+              color: colorScheme.primary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.runtimeHostAppUpdateTitle,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.runtimeHostAppUpdateBody,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => unawaited(_openAppStoreListing(context, l10n)),
+              icon: const Icon(Icons.download_outlined),
+              label: Text(l10n.runtimeHostAppUpdateCta),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => context.pop(),
+              child: Text(l10n.cancel),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openAppStoreListing(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) async {
+    final Uri? target = Platform.isIOS
+        ? widget.config.iosAppStoreListingUri
+        : widget.config.androidPlayStoreListingUri;
+    if (target == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(l10n.runtimeHostAppUpdateNoStoreUrl)),
+        );
+      }
+      return;
+    }
+    try {
+      if (await canLaunchUrl(target)) {
+        await launchUrl(target, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+  }
+
+  Widget _buildPermissionLaunchGate(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              Icons.privacy_tip_outlined,
+              size: 48,
+              color: colorScheme.primary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.runtimePermissionRequiredTitle,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.runtimePermissionDeniedBody,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            if (_permissionLaunchPermanent) ...<Widget>[
+              FilledButton.icon(
+                onPressed: () async {
+                  await openAppSettings();
+                },
+                icon: const Icon(Icons.settings_outlined),
+                label: Text(l10n.runtimePermissionOpenSettingsCta),
+              ),
+              const SizedBox(height: 8),
+            ],
+            FilledButton(
+              onPressed: () {
+                setState(() {
+                  _permissionLaunchBlocked = false;
+                  _permissionLaunchPermanent = false;
+                });
+                unawaited(_prepareAndLoad());
+              },
+              child: Text(l10n.runtimePermissionRetryCta),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => context.pop(),
+              child: Text(l10n.cancel),
             ),
           ],
         ),

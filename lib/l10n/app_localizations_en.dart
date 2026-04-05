@@ -310,4 +310,38 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get catalogSearchEmptyMessage =>
       'Try different words or clear filters.';
+
+  @override
+  String get runtimeHostAppUpdateTitle => 'Update Required';
+
+  @override
+  String get runtimeHostAppUpdateBody =>
+      'This tool requires a newer version of the app.';
+
+  @override
+  String get runtimeHostAppUpdateCta => 'Update App';
+
+  @override
+  String get runtimeHostAppUpdateNoStoreUrl =>
+      'Store link is not configured for this build.';
+
+  @override
+  String get runtimePermissionRequiredTitle => 'Permission Required';
+
+  @override
+  String get runtimePermissionContinueCta => 'Continue';
+
+  @override
+  String get runtimePermissionDefaultRationale =>
+      'This tool needs additional access to your device to run correctly.';
+
+  @override
+  String get runtimePermissionDeniedBody =>
+      'This tool cannot run without the permissions it needs.';
+
+  @override
+  String get runtimePermissionRetryCta => 'Try again';
+
+  @override
+  String get runtimePermissionOpenSettingsCta => 'Open settings';
 }

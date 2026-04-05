@@ -112,5 +112,15 @@
   "checkingUpdates": "Checking for updates…",
   "latestVersionLabel": "Latest version",
   "catalogSearchEmptyTitle": "No tools found",
-  "catalogSearchEmptyMessage": "Try different words or clear filters."
+  "catalogSearchEmptyMessage": "Try different words or clear filters.",
+  "runtimeHostAppUpdateTitle": "Update Required",
+  "runtimeHostAppUpdateBody": "This tool requires a newer version of the app.",
+  "runtimeHostAppUpdateCta": "Update App",
+  "runtimeHostAppUpdateNoStoreUrl": "Store link is not configured for this build.",
+  "runtimePermissionRequiredTitle": "Permission Required",
+  "runtimePermissionContinueCta": "Continue",
+  "runtimePermissionDefaultRationale": "This tool needs additional access to your device to run correctly.",
+  "runtimePermissionDeniedBody": "This tool cannot run without the permissions it needs.",
+  "runtimePermissionRetryCta": "Try again",
+  "runtimePermissionOpenSettingsCta": "Open settings"
 }

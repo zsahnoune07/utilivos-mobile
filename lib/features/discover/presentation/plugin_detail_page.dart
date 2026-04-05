@@ -527,9 +527,6 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
               imageUrl: plugin.catalogIconRef,
               localPath: _localIconPath,
               baseUrl: widget.config.apiBaseUrl,
-              debugToolSlug: plugin.slug,
-              debugThumbnailUrl: plugin.thumbnailUrl,
-              debugIconUrl: plugin.iconUrl,
               size: 58,
               borderRadius: 12,
               fallbackIcon: hardProLock

@@ -35,6 +35,8 @@ import 'package:utilivo_mobile/features/installs/data/installs_organization_stor
 import 'package:utilivo_mobile/features/installs/data/models/install_models.dart';
 import 'package:utilivo_mobile/features/installs/data/models/installs_organization_models.dart';
 
+import '../../support/pump_tool_thumbnail_ui.dart';
+
 void main() {
   testWidgets(
     'Pro-locked detail shows upgrade CTA and disabled Open Tool when purchase is unavailable',
@@ -48,7 +50,7 @@ void main() {
       addTearDown(harness.dispose);
 
       await tester.pumpWidget(harness.widget);
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       expect(find.text('Pro required'), findsOneWidget);
       expect(find.text('Go Pro'), findsOneWidget);
@@ -80,7 +82,7 @@ void main() {
       addTearDown(harness.dispose);
 
       await tester.pumpWidget(harness.widget);
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       expect(find.text('Go Pro'), findsOneWidget);
       expect(find.text('Install'), findsNothing);
@@ -99,7 +101,7 @@ void main() {
       addTearDown(harness.dispose);
 
       await tester.pumpWidget(harness.widget);
-      await tester.pumpAndSettle();
+      await pumpToolThumbnailUiSettled(tester);
 
       final upgradeButton = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Go Pro'),
@@ -119,7 +121,7 @@ void main() {
     addTearDown(harness.dispose);
 
     await tester.pumpWidget(harness.widget);
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     expect(find.text('Pro active'), findsOneWidget);
     expect(find.text('Install'), findsOneWidget);
@@ -142,7 +144,7 @@ void main() {
     addTearDown(harness.dispose);
 
     await tester.pumpWidget(harness.widget);
-    await tester.pumpAndSettle();
+    await pumpToolThumbnailUiSettled(tester);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Install'));
     await tester.pump(const Duration(milliseconds: 300));

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/navigation/app_routes.dart';
+import '../../../core/search/install_search_ranker.dart';
 import '../../../core/search/recent_search_store.dart';
 import '../../../core/pro/paywall_coordinator.dart';
 import '../../../core/pro/paywall_models.dart';
@@ -151,21 +152,15 @@ class _InstallsPageState extends State<InstallsPage> {
   HomeGroupedInstalls _filteredGroupedData(
     InstalledToolsController controller,
   ) {
-    final query = _searchController.text.trim().toLowerCase();
+    final query = _searchController.text.trim();
     final grouped = controller.groupedHomeData;
     if (query.isEmpty) {
       return grouped;
     }
-    final matches = controller.installedTools
-        .where(
-          (tool) =>
-              tool.displayName.toLowerCase().contains(query) ||
-              tool.pluginSlug.toLowerCase().contains(query) ||
-              (tool.pluginDescription?.toLowerCase().contains(query) ??
-                  false) ||
-              (tool.categoryName?.toLowerCase().contains(query) ?? false),
-        )
-        .toList(growable: false);
+    final matches = rankDeviceInstallsForSearch(
+      installs: controller.installedTools,
+      query: query,
+    );
 
     final pinnedMatches = matches
         .where((DeviceInstallRecord tool) => tool.pinned)

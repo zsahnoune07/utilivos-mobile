@@ -11,6 +11,7 @@ class AppConfig {
     this.localToolBundleSlug,
     this.localToolBundleVersion,
     this.toolReportSubmitUrl,
+    this.iosAppStoreId,
   });
 
   final String appName;
@@ -28,6 +29,9 @@ class AppConfig {
 
   /// Future HTTP endpoint for tool issue reports (optional until backend exists).
   final String? toolReportSubmitUrl;
+
+  /// Numeric App Store id for "Update app" links (e.g. `123456789`). Optional.
+  final String? iosAppStoreId;
 
   factory AppConfig.fromEnvironment() {
     const appName = String.fromEnvironment(
@@ -70,6 +74,9 @@ class AppConfig {
     const toolReportSubmitUrl = String.fromEnvironment(
       'TOOL_REPORT_SUBMIT_URL',
     );
+    const iosAppStoreId = String.fromEnvironment(
+      'IOS_APP_STORE_ID',
+    );
 
     return AppConfig(
       appName: appName.trim().isEmpty ? 'Utilivo' : appName.trim(),
@@ -91,7 +98,24 @@ class AppConfig {
       localToolBundleSlug: _normalizeOptional(localToolBundleSlug),
       localToolBundleVersion: _normalizeOptional(localToolBundleVersion),
       toolReportSubmitUrl: _normalizeOptional(toolReportSubmitUrl),
+      iosAppStoreId: _normalizeOptional(iosAppStoreId),
     );
+  }
+
+  /// Google Play deep link for this app.
+  Uri get androidPlayStoreListingUri {
+    return Uri.parse(
+      'https://play.google.com/store/apps/details?id=${Uri.encodeComponent(androidPackageName)}',
+    );
+  }
+
+  /// App Store HTTPS link when [iosAppStoreId] is configured.
+  Uri? get iosAppStoreListingUri {
+    final id = iosAppStoreId?.trim();
+    if (id == null || id.isEmpty) {
+      return null;
+    }
+    return Uri.parse('https://apps.apple.com/app/id$id');
   }
 
   static String _normalizeBaseUrl(String value) {

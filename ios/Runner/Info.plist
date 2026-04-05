@@ -45,5 +45,18 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Some tools need camera access to work.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Some tools need access to your photo library to import images.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Some tools need microphone access to work.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Some tools need your location while you use them.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+	</array>
 </dict>
 </plist>

@@ -371,9 +371,34 @@ class CatalogApi {
       longDescription: incoming.longDescription ?? previous.longDescription,
       currentVersionId: incoming.currentVersionId ?? previous.currentVersionId,
       thumbnailUrl: incoming.thumbnailUrl ?? previous.thumbnailUrl,
+      iconUrl: incoming.iconUrl ?? previous.iconUrl,
       categoryColor: incoming.categoryColor ?? previous.categoryColor,
       proPreview: incoming.proPreview || previous.proPreview,
+      tags: incoming.tags.isNotEmpty ? incoming.tags : previous.tags,
     );
+  }
+
+  /// All distinct plugins currently in the catalog disk cache (browse pages + detail entries).
+  Future<List<CatalogPlugin>> collectCachedPluginsUnion() async {
+    final snapshot = await _readCacheSnapshot();
+    final bySlug = <String, CatalogPlugin>{};
+    void take(CatalogPlugin p) {
+      final k = p.slug.trim().toLowerCase();
+      if (k.isEmpty) {
+        return;
+      }
+      bySlug[k] = p;
+    }
+
+    for (final page in snapshot.pluginPages.values) {
+      for (final p in page.items) {
+        take(p);
+      }
+    }
+    for (final detail in snapshot.pluginDetails.values) {
+      take(detail.plugin);
+    }
+    return bySlug.values.toList(growable: false);
   }
 
   String _pluginPageCacheKey({
