@@ -23,4 +23,8 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.2.20" apply false
 }
 
+// Avoid default root name "android" (directory name), which triggers
+// "A project with the name android already exists" in IDE Java/Gradle sync.
+rootProject.name = "utilivos_mobile"
+
 include(":app")

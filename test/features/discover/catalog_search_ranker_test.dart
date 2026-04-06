@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/features/discover/application/catalog_search_ranker.dart';
-import 'package:utilivo_mobile/features/discover/data/models/catalog_models.dart';
+import 'package:utilivos_mobile/features/discover/application/catalog_search_ranker.dart';
+import 'package:utilivos_mobile/features/discover/data/models/catalog_models.dart';
 
 CatalogPlugin _p({
   required String slug,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/theme/app_design_tokens.dart';
+import 'package:utilivos_mobile/core/theme/app_design_tokens.dart';
 
 void main() {
   test('builds light web theme payload from Flutter design tokens', () {

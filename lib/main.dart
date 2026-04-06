@@ -31,7 +31,7 @@ Future<void> main() async {
   }
   if (Platform.isAndroid) {
     try {
-      const MethodChannel ch = MethodChannel('com.utilivo.utilivo_mobile/runtime');
+      const MethodChannel ch = MethodChannel('com.utilivos.utilivos_mobile/runtime');
       final int? pending = await ch.invokeMethod<int>('getPendingWidgetConfigureId');
       if (pending != null) {
         deepLinkRoute =
@@ -46,7 +46,7 @@ Future<void> main() async {
       overrides: <Override>[
         appDatabaseProvider.overrideWithValue(appDatabase),
       ],
-      child: UtilivoApp(
+      child: UtilivosApp(
         freeTierUsageStore: usageStore,
         appDatabase: appDatabase,
         initialDeepLinkRoute: deepLinkRoute,

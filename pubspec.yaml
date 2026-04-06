@@ -1,5 +1,5 @@
-name: utilivo_mobile
-description: "Utilivo is a modular utility library that lets you discover, install, and use powerful tools on your phone. Each tool runs securely and offline, giving you fast access to calculators, converters, and productivity helpers in one lightweight app."
+name: utilivos_mobile
+description: "Utilivos is a modular utility library that lets you discover, install, and use powerful tools on your phone. Each tool runs securely and offline, giving you fast access to calculators, converters, and productivity helpers in one lightweight app."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev

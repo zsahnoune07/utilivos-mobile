@@ -203,9 +203,9 @@ class ToolWidgets extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
-  /// Production DB under app documents (`utilivo_app.sqlite`).
+  /// Production DB under app documents (`utilivos_app.sqlite`).
   factory AppDatabase.createPersistent() {
-    return AppDatabase(driftDatabase(name: 'utilivo_app'));
+    return AppDatabase(driftDatabase(name: 'utilivos_app'));
   }
 
   /// In-memory DB for tests.

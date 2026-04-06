@@ -4,20 +4,20 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/networking/api_client.dart';
-import 'package:utilivo_mobile/features/discover/data/catalog_api.dart';
-import 'package:utilivo_mobile/features/downloads/application/tool_bundle_download_service.dart';
-import 'package:utilivo_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
-import 'package:utilivo_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
-import 'package:utilivo_mobile/features/installs/application/installed_tools_controller.dart';
-import 'package:utilivo_mobile/features/installs/data/installed_tools_read_result.dart';
-import 'package:utilivo_mobile/features/installs/data/installed_tools_store.dart';
-import 'package:utilivo_mobile/features/installs/data/local_install_removals_store.dart';
-import 'package:utilivo_mobile/features/installs/data/installs_sync_meta_store.dart';
-import 'package:utilivo_mobile/features/installs/data/installs_api.dart';
-import 'package:utilivo_mobile/features/installs/data/installs_organization_store.dart';
-import 'package:utilivo_mobile/features/installs/data/models/install_models.dart';
-import 'package:utilivo_mobile/features/installs/data/models/installs_organization_models.dart';
+import 'package:utilivos_mobile/core/networking/api_client.dart';
+import 'package:utilivos_mobile/features/discover/data/catalog_api.dart';
+import 'package:utilivos_mobile/features/downloads/application/tool_bundle_download_service.dart';
+import 'package:utilivos_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
+import 'package:utilivos_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
+import 'package:utilivos_mobile/features/installs/application/installed_tools_controller.dart';
+import 'package:utilivos_mobile/features/installs/data/installed_tools_read_result.dart';
+import 'package:utilivos_mobile/features/installs/data/installed_tools_store.dart';
+import 'package:utilivos_mobile/features/installs/data/local_install_removals_store.dart';
+import 'package:utilivos_mobile/features/installs/data/installs_sync_meta_store.dart';
+import 'package:utilivos_mobile/features/installs/data/installs_api.dart';
+import 'package:utilivos_mobile/features/installs/data/installs_organization_store.dart';
+import 'package:utilivos_mobile/features/installs/data/models/install_models.dart';
+import 'package:utilivos_mobile/features/installs/data/models/installs_organization_models.dart';
 
 void main() {
   test(

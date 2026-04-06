@@ -11,7 +11,7 @@ class SecureInstallsOrganizationStore implements InstallsOrganizationStore {
     this.storageKey = _defaultStorageKey,
   }) : _storage = storage ?? const FlutterSecureStorage();
 
-  static const String _defaultStorageKey = 'utilivo_installs_organization';
+  static const String _defaultStorageKey = 'utilivos_installs_organization';
 
   final FlutterSecureStorage _storage;
   final String storageKey;

@@ -5,14 +5,14 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/auth/access_token_store.dart';
-import 'package:utilivo_mobile/core/auth/auth_api.dart';
-import 'package:utilivo_mobile/core/auth/models/auth_tokens.dart';
-import 'package:utilivo_mobile/core/auth/refresh_token_store.dart';
-import 'package:utilivo_mobile/core/auth/session_manager.dart';
-import 'package:utilivo_mobile/core/networking/api_client.dart';
-import 'package:utilivo_mobile/core/networking/interceptors/auth_interceptor.dart';
-import 'package:utilivo_mobile/core/networking/interceptors/request_id_interceptor.dart';
+import 'package:utilivos_mobile/core/auth/access_token_store.dart';
+import 'package:utilivos_mobile/core/auth/auth_api.dart';
+import 'package:utilivos_mobile/core/auth/models/auth_tokens.dart';
+import 'package:utilivos_mobile/core/auth/refresh_token_store.dart';
+import 'package:utilivos_mobile/core/auth/session_manager.dart';
+import 'package:utilivos_mobile/core/networking/api_client.dart';
+import 'package:utilivos_mobile/core/networking/interceptors/auth_interceptor.dart';
+import 'package:utilivos_mobile/core/networking/interceptors/request_id_interceptor.dart';
 
 void main() {
   test('attaches bearer token and request-id header', () async {

@@ -135,10 +135,10 @@ class RecentSearchStore {
   static const int _maxEntries = 12;
 
   /// Legacy string-list key (queries only). Migrated on first read of [loadHomeSync].
-  static const String _keyHomeLegacy = 'utilivo_recent_searches_home';
-  static const String _keyHomeV2 = 'utilivo_home_search_history_v2';
-  static const String _keyDiscoverLegacy = 'utilivo_recent_searches_discover';
-  static const String _keyDiscoverV2 = 'utilivo_discover_search_history_v2';
+  static const String _keyHomeLegacy = 'utilivos_recent_searches_home';
+  static const String _keyHomeV2 = 'utilivos_home_search_history_v2';
+  static const String _keyDiscoverLegacy = 'utilivos_recent_searches_discover';
+  static const String _keyDiscoverV2 = 'utilivos_discover_search_history_v2';
 
   static Future<RecentSearchStore> open() async {
     final prefs = await SharedPreferences.getInstance();

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/device/device_id_store.dart';
-import 'package:utilivo_mobile/core/device/device_identity_manager.dart';
+import 'package:utilivos_mobile/core/device/device_id_store.dart';
+import 'package:utilivos_mobile/core/device/device_identity_manager.dart';
 
 void main() {
   test('creates and persists device id when store is empty', () async {

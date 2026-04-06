@@ -12,7 +12,7 @@ import 'package:network_image_mock/src/network_image_mock.dart';
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  HttpOverrides.global = _UtilivoTestHttpOverrides();
+  HttpOverrides.global = _UtilivosTestHttpOverrides();
 
   const permissions = MethodChannel('flutter.baseflow.com/permissions/methods');
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -42,8 +42,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(packageInfo, (MethodCall call) async {
     return <String, dynamic>{
-      'appName': 'Utilivo',
-      'packageName': 'com.utilivo.utilivo_mobile',
+      'appName': 'Utilivos',
+      'packageName': 'com.utilivos.utilivos_mobile',
       'version': '1.0.0',
       'buildNumber': '1',
       'buildSignature': '',
@@ -69,7 +69,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
 }
 
 /// [IOClient] uses [HttpClient.openUrl]; [Image.network] uses [HttpClient.getUrl].
-class _UtilivoTestHttpOverrides extends HttpOverrides {
+class _UtilivosTestHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     final inner = createMockImageHttpClient();

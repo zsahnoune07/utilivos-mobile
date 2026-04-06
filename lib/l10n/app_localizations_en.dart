@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Utilivo';
+  String get appTitle => 'Utilivos';
 
   @override
   String get tools => 'Tools';
@@ -104,7 +104,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get discoverSubtitle =>
-      'Browse categories and discover tools from utilivo-api.';
+      'Browse categories and discover tools from utilivos-api.';
 
   @override
   String get loadMore => 'Load More';
@@ -244,7 +244,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get runtimeHomeWidgetProRequired =>
-      'This widget is not set up in the app. Open Utilivo and add the widget again, or unlock Pro for unlimited widgets.';
+      'This widget is not set up in the app. Open Utilivos and add the widget again, or unlock Pro for unlimited widgets.';
 
   @override
   String get runtimeUpToDateTitle => 'Up to date';

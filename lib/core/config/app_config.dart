@@ -36,7 +36,7 @@ class AppConfig {
   factory AppConfig.fromEnvironment() {
     const appName = String.fromEnvironment(
       'APP_NAME',
-      defaultValue: 'Utilivo',
+      defaultValue: 'Utilivos',
     );
     const configuredBaseUrl = String.fromEnvironment(
       'API_BASE_URL',
@@ -44,15 +44,15 @@ class AppConfig {
     );
     const androidPackageName = String.fromEnvironment(
       'ANDROID_PACKAGE_NAME',
-      defaultValue: 'com.utilivo.utilivo_mobile',
+      defaultValue: 'com.utilivos.utilivos_mobile',
     );
     const proOneTimeProductId = String.fromEnvironment(
       'PREMIUM_ONE_TIME_PRODUCT_ID',
-      defaultValue: 'utilivo_pro_one_time',
+      defaultValue: 'utilivos_pro_one_time',
     );
     const proSubscriptionProductId = String.fromEnvironment(
       'PREMIUM_SUBSCRIPTION_PRODUCT_ID',
-      defaultValue: 'utilivo_pro_subscription',
+      defaultValue: 'utilivos_pro_subscription',
     );
     const proSubscriptionMonthlyProductId = String.fromEnvironment(
       'PREMIUM_SUBSCRIPTION_MONTHLY_PRODUCT_ID',
@@ -79,15 +79,15 @@ class AppConfig {
     );
 
     return AppConfig(
-      appName: appName.trim().isEmpty ? 'Utilivo' : appName.trim(),
+      appName: appName.trim().isEmpty ? 'Utilivos' : appName.trim(),
       apiBaseUrl: _normalizeBaseUrl(configuredBaseUrl),
       androidPackageName: _normalizeNonEmpty(
         androidPackageName,
-        fallback: 'com.utilivo.utilivo_mobile',
+        fallback: 'com.utilivos.utilivos_mobile',
       ),
       proOneTimeProductId: _normalizeNonEmpty(
         proOneTimeProductId,
-        fallback: 'utilivo_pro_one_time',
+        fallback: 'utilivos_pro_one_time',
       ),
       proSubscriptionProductId: proSubscriptionProductId.trim(),
       proSubscriptionMonthlyProductId:

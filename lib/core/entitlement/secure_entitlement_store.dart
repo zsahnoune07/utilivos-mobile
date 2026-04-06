@@ -11,7 +11,7 @@ class SecureEntitlementStore implements EntitlementStore {
     this.storageKey = _defaultStorageKey,
   }) : _storage = storage ?? const FlutterSecureStorage();
 
-  static const String _defaultStorageKey = 'utilivo_pro_entitlement';
+  static const String _defaultStorageKey = 'utilivos_pro_entitlement';
 
   final FlutterSecureStorage _storage;
   final String storageKey;

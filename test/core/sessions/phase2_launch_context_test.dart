@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/navigation/app_routes.dart';
-import 'package:utilivo_mobile/core/navigation/deep_link_parser.dart';
-import 'package:utilivo_mobile/core/sessions/tool_launch_context.dart';
+import 'package:utilivos_mobile/core/navigation/app_routes.dart';
+import 'package:utilivos_mobile/core/navigation/deep_link_parser.dart';
+import 'package:utilivos_mobile/core/sessions/tool_launch_context.dart';
 
 void main() {
   test('ToolLaunchContext ephemeral uses ephemeral persistence flags', () {
@@ -39,7 +39,7 @@ void main() {
 
   test('parseAppDeepLink forwards widget query', () {
     final route = parseAppDeepLink(
-      Uri.parse('utilivo://tool/my-tool?widget=wid1'),
+      Uri.parse('utilivos://tool/my-tool?widget=wid1'),
     );
     expect(route, isNotNull);
     expect(route, contains('widget=wid1'));
@@ -68,7 +68,7 @@ void main() {
 
   test('parseAppDeepLink forwards session query', () {
     final route = parseAppDeepLink(
-      Uri.parse('utilivo://tool/my-tool?session=sid1'),
+      Uri.parse('utilivos://tool/my-tool?session=sid1'),
     );
     expect(route, isNotNull);
     expect(route, contains('session=sid1'));
@@ -77,7 +77,7 @@ void main() {
 
   test('parseAppDeepLink forwards name query', () {
     final route = parseAppDeepLink(
-      Uri.parse('utilivo://tool/demo?widget=w1&name=My%20Tool'),
+      Uri.parse('utilivos://tool/demo?widget=w1&name=My%20Tool'),
     );
     expect(route, isNotNull);
     expect(route, contains('name='));

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/persistence/app_database.dart';
-import 'package:utilivo_mobile/features/installs/data/drift_installed_tools_store.dart';
-import 'package:utilivo_mobile/features/installs/data/models/install_models.dart';
+import 'package:utilivos_mobile/core/persistence/app_database.dart';
+import 'package:utilivos_mobile/features/installs/data/drift_installed_tools_store.dart';
+import 'package:utilivos_mobile/features/installs/data/models/install_models.dart';
 
 void main() {
   test('DriftInstalledToolsStore round-trips installs', () async {

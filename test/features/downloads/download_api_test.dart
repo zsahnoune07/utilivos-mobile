@@ -4,8 +4,8 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/networking/api_client.dart';
-import 'package:utilivo_mobile/features/downloads/data/download_api.dart';
+import 'package:utilivos_mobile/core/networking/api_client.dart';
+import 'package:utilivos_mobile/features/downloads/data/download_api.dart';
 
 void main() {
   test(

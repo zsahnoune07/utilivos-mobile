@@ -7,20 +7,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:utilivo_mobile/app.dart';
-import 'package:utilivo_mobile/core/billing/billing_gateway.dart';
-import 'package:utilivo_mobile/core/billing/models/billing_models.dart';
-import 'package:utilivo_mobile/core/device/device_id_store.dart';
-import 'package:utilivo_mobile/core/di/app_dependencies.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
-import 'package:utilivo_mobile/core/pro/free_tier_usage_store.dart';
-import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
-import 'package:utilivo_mobile/core/navigation/app_routes.dart';
-import 'package:utilivo_mobile/features/discover/data/catalog_cache_store.dart';
-import 'package:utilivo_mobile/features/discover/data/models/catalog_cache_snapshot.dart';
-import 'package:utilivo_mobile/features/installs/data/installed_tools_read_result.dart';
-import 'package:utilivo_mobile/features/installs/data/installed_tools_store.dart';
-import 'package:utilivo_mobile/features/installs/data/models/install_models.dart';
+import 'package:utilivos_mobile/app.dart';
+import 'package:utilivos_mobile/core/billing/billing_gateway.dart';
+import 'package:utilivos_mobile/core/billing/models/billing_models.dart';
+import 'package:utilivos_mobile/core/device/device_id_store.dart';
+import 'package:utilivos_mobile/core/di/app_dependencies.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_store.dart';
+import 'package:utilivos_mobile/core/pro/free_tier_usage_store.dart';
+import 'package:utilivos_mobile/core/entitlement/models/pro_entitlement.dart';
+import 'package:utilivos_mobile/core/navigation/app_routes.dart';
+import 'package:utilivos_mobile/features/discover/data/catalog_cache_store.dart';
+import 'package:utilivos_mobile/features/discover/data/models/catalog_cache_snapshot.dart';
+import 'package:utilivos_mobile/features/installs/data/installed_tools_read_result.dart';
+import 'package:utilivos_mobile/features/installs/data/installed_tools_store.dart';
+import 'package:utilivos_mobile/features/installs/data/models/install_models.dart';
 
 void main() {
   setUp(() {
@@ -33,13 +33,13 @@ void main() {
     final dependencies = await _createDependencies();
     addTearDown(dependencies.dispose);
 
-    await tester.pumpWidget(UtilivoApp(dependencies: dependencies));
+    await tester.pumpWidget(UtilivosApp(dependencies: dependencies));
 
-    expect(find.text('Preparing Utilivo...'), findsOneWidget);
-    await _pumpUtilivoReady(tester);
+    expect(find.text('Preparing Utilivos...'), findsOneWidget);
+    await _pumpUtilivosReady(tester);
 
     // Home app bar uses a wordmark SVG; app name is exposed via semantics only.
-    expect(find.bySemanticsLabel('Utilivo'), findsOneWidget);
+    expect(find.bySemanticsLabel('Utilivos'), findsOneWidget);
     expect(find.byIcon(Icons.storefront_outlined), findsOneWidget);
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
   });
@@ -50,8 +50,8 @@ void main() {
     final dependencies = await _createDependencies();
     addTearDown(dependencies.dispose);
 
-    await tester.pumpWidget(UtilivoApp(dependencies: dependencies));
-    await _pumpUtilivoReady(tester);
+    await tester.pumpWidget(UtilivosApp(dependencies: dependencies));
+    await _pumpUtilivosReady(tester);
 
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.theme?.brightness, Brightness.light);
@@ -68,13 +68,13 @@ void main() {
     addTearDown(dependencies.dispose);
 
     await tester.pumpWidget(
-      UtilivoApp(
+      UtilivosApp(
         dependencies: dependencies,
         initialLocation: AppRoutes.settings,
       ),
     );
 
-    await _pumpUtilivoReady(tester);
+    await _pumpUtilivosReady(tester);
     expect(find.text('Settings'), findsAtLeastNWidgets(1));
     expect(find.text('Anonymous Device ID'), findsOneWidget);
     expect(find.textContaining('dev-widget-settings'), findsOneWidget);
@@ -87,19 +87,19 @@ void main() {
     addTearDown(dependencies.dispose);
 
     await tester.pumpWidget(
-      UtilivoApp(
+      UtilivosApp(
         dependencies: dependencies,
         initialLocation: AppRoutes.settings,
       ),
     );
-    await _pumpUtilivoReady(tester);
+    await _pumpUtilivosReady(tester);
 
     expect(find.text('Settings'), findsAtLeastNWidgets(1));
 
     await tester.binding.handlePopRoute();
-    await _pumpUtilivoReady(tester);
+    await _pumpUtilivosReady(tester);
 
-    expect(find.bySemanticsLabel('Utilivo'), findsOneWidget);
+    expect(find.bySemanticsLabel('Utilivos'), findsOneWidget);
   });
 
   testWidgets('settings opened from home returns to home on back', (
@@ -108,20 +108,20 @@ void main() {
     final dependencies = await _createDependencies();
     addTearDown(dependencies.dispose);
 
-    await tester.pumpWidget(UtilivoApp(dependencies: dependencies));
-    await _pumpUtilivoReady(tester);
+    await tester.pumpWidget(UtilivosApp(dependencies: dependencies));
+    await _pumpUtilivosReady(tester);
 
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pump();
-    await _pumpUtilivoReady(tester);
+    await _pumpUtilivosReady(tester);
 
     expect(find.text('Settings'), findsAtLeastNWidgets(1));
 
     await tester.binding.handlePopRoute();
     await tester.pump();
-    await _pumpUtilivoReady(tester);
+    await _pumpUtilivosReady(tester);
 
-    expect(find.bySemanticsLabel('Utilivo'), findsOneWidget);
+    expect(find.bySemanticsLabel('Utilivos'), findsOneWidget);
   });
 
   testWidgets('system back from discover returns to home', (
@@ -131,20 +131,20 @@ void main() {
     addTearDown(dependencies.dispose);
 
     await tester.pumpWidget(
-      UtilivoApp(
+      UtilivosApp(
         dependencies: dependencies,
         initialLocation: AppRoutes.discover,
       ),
     );
-    await _pumpUtilivoReady(tester);
+    await _pumpUtilivosReady(tester);
 
     expect(find.text('Tool Library'), findsAtLeastNWidgets(1));
 
     await tester.binding.handlePopRoute();
     await tester.pump();
-    await _pumpUtilivoReady(tester);
+    await _pumpUtilivosReady(tester);
 
-    expect(find.bySemanticsLabel('Utilivo'), findsOneWidget);
+    expect(find.bySemanticsLabel('Utilivos'), findsOneWidget);
   });
 
   testWidgets('discover debug route keeps Android back-stack behavior', (
@@ -154,18 +154,18 @@ void main() {
     addTearDown(dependencies.dispose);
 
     await tester.pumpWidget(
-      UtilivoApp(
+      UtilivosApp(
         dependencies: dependencies,
         initialLocation: AppRoutes.discoverDebug,
       ),
     );
 
-    await _pumpUtilivoReady(tester);
+    await _pumpUtilivosReady(tester);
     expect(find.text('Phase 1 Debug Console'), findsOneWidget);
 
     await tester.binding.handlePopRoute();
     await tester.pump();
-    await _pumpUtilivoReady(tester);
+    await _pumpUtilivosReady(tester);
     expect(find.text('Search tools'), findsOneWidget);
   });
 
@@ -176,12 +176,12 @@ void main() {
     addTearDown(dependencies.dispose);
 
     await tester.pumpWidget(
-      UtilivoApp(
+      UtilivosApp(
         dependencies: dependencies,
         initialLocation: AppRoutes.discover,
       ),
     );
-    await _pumpUtilivoReady(tester);
+    await _pumpUtilivosReady(tester);
 
     expect(find.text('No tools found'), findsOneWidget);
     expect(
@@ -197,7 +197,7 @@ Future<void> _pumpPastIndeterminateSplash(WidgetTester tester) async {
   await tester.pump();
   for (var i = 0; i < 80; i++) {
     await tester.pump(const Duration(milliseconds: 50));
-    if (find.text('Preparing Utilivo...').evaluate().isEmpty) {
+    if (find.text('Preparing Utilivos...').evaluate().isEmpty) {
       break;
     }
   }
@@ -206,11 +206,11 @@ Future<void> _pumpPastIndeterminateSplash(WidgetTester tester) async {
 
 /// Home ([InstallsPage]) SVG assets keep the frame pipeline busy, so avoid
 /// [pumpAndSettle] after bootstrap; pump until the shell is recognizable.
-Future<void> _pumpUtilivoReady(WidgetTester tester) async {
+Future<void> _pumpUtilivosReady(WidgetTester tester) async {
   await _pumpPastIndeterminateSplash(tester);
   for (var i = 0; i < 80; i++) {
     await tester.pump(const Duration(milliseconds: 50));
-    if (find.bySemanticsLabel('Utilivo').evaluate().isNotEmpty) {
+    if (find.bySemanticsLabel('Utilivos').evaluate().isNotEmpty) {
       return;
     }
     if (find.text('Settings').evaluate().isNotEmpty) {

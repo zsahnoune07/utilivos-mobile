@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/sessions/session_snapshot_normalizer.dart';
-import 'package:utilivo_mobile/core/sessions/session_state_envelope.dart';
+import 'package:utilivos_mobile/core/sessions/session_snapshot_normalizer.dart';
+import 'package:utilivos_mobile/core/sessions/session_state_envelope.dart';
 
 void main() {
   group('SessionStateEnvelope.tryParseRelaxed', () {

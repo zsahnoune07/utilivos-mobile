@@ -1,10 +1,10 @@
-# utilivo-mobile
+# utilivos-mobile
 
-Flutter client for the Utilivo marketplace. **Ships for Android and iOS only** (not web or desktop).
+Flutter client for the Utilivos marketplace. **Ships for Android and iOS only** (not web or desktop).
 
 ## Product Scope (Current)
 
-`utilivo-mobile` now follows the marketplace MVP direction in `PLAN.md`:
+`utilivos-mobile` now follows the marketplace MVP direction in `PLAN.md`:
 
 - anonymous usage (no login/register/profile route in active app flow)
 - purchase-based Pro access
@@ -89,7 +89,7 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080
 Optional:
 
 ```bash
-flutter run --dart-define=APP_NAME=Utilivo --dart-define=API_BASE_URL=http://localhost:8080
+flutter run --dart-define=APP_NAME=Utilivos --dart-define=API_BASE_URL=http://localhost:8080
 ```
 
 Run with a local `.ubb` tool deliverable pre-seeded on startup:
@@ -112,7 +112,7 @@ Billing-related defines:
 flutter run \
   --dart-define=PREMIUM_ONE_TIME_PRODUCT_ID=utilivo_pro_one_time \
   --dart-define=PREMIUM_SUBSCRIPTION_PRODUCT_ID=utilivo_pro_subscription \
-  --dart-define=ANDROID_PACKAGE_NAME=com.utilivo.utilivo_mobile
+  --dart-define=ANDROID_PACKAGE_NAME=com.utilivos.utilivo_mobile
 ```
 
 ## Quality Checks

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/versioning/app_version_compare.dart';
+import 'package:utilivos_mobile/core/versioning/app_version_compare.dart';
 
 void main() {
   group('normalizeAppVersionLabel', () {

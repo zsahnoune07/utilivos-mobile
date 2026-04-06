@@ -1,8 +1,8 @@
-# utilivo-mobile PLAN.md
+# utilivos-mobile PLAN.md
 
 This plan is written so each phase can be delivered end-to-end with Codex. Milestones are concrete, testable, and sized for iterative shipping.
 
-Scope: utilivo-mobile is the Flutter client for the Utilivo marketplace. **Release targets are Android and iOS only** (no web or desktop). The app has no login, no account creation, and no user profile flows. Pro access is a global store entitlement (one-time or subscription) that unlocks the full Pro tool catalog.
+Scope: utilivos-mobile is the Flutter client for the Utilivos marketplace. **Release targets are Android and iOS only** (no web or desktop). The app has no login, no account creation, and no user profile flows. Pro access is a global store entitlement (one-time or subscription) that unlocks the full Pro tool catalog.
 
 ---
 
@@ -40,7 +40,7 @@ Pick and standardize:
 - Billing: `in_app_purchase`
 
 Acceptance
-- Decisions documented in `utilivo-mobile/README.md`.
+- Decisions documented in `utilivos-mobile/README.md`.
 - A minimal app run works on Android and iOS simulators.
 
 ---
@@ -60,7 +60,7 @@ Acceptance
 - Dev flavor launches locally.
 
 Suggested Codex prompt
-"Implement Phase 0.1 for utilivo-mobile: enforce core/features/shared structure, tighten analysis rules, add CI for format/analyze/test, and keep dev/staging/prod environment configuration working."
+"Implement Phase 0.1 for utilivos-mobile: enforce core/features/shared structure, tighten analysis rules, add CI for format/analyze/test, and keep dev/staging/prod environment configuration working."
 
 ---
 
@@ -88,7 +88,7 @@ Acceptance
 - Device id persists across app restarts and is available to API client.
 
 Suggested Codex prompt
-"Implement Phase 1 for utilivo-mobile: add a typed dio API client with interceptors/error mapping and an anonymous device-id store used in API request headers or payloads."
+"Implement Phase 1 for utilivos-mobile: add a typed dio API client with interceptors/error mapping and an anonymous device-id store used in API request headers or payloads."
 
 ---
 
@@ -120,7 +120,7 @@ Acceptance
 - Shared states are reused, not duplicated per screen.
 
 Suggested Codex prompt
-"Implement Phase 2 for utilivo-mobile: add go_router shell (Home/Browse/Settings) with Home-first startup behavior, plus shared UI components for loading, empty, and error states."
+"Implement Phase 2 for utilivos-mobile: add go_router shell (Home/Browse/Settings) with Home-first startup behavior, plus shared UI components for loading, empty, and error states."
 
 ---
 
@@ -148,7 +148,7 @@ Acceptance
 - Tool detail opens from list and reflects Pro lock state correctly.
 
 Suggested Codex prompt
-"Implement Phase 3 for utilivo-mobile: build browse catalog + tool detail screens with category filtering, search, pagination, and Pro lock state rendering for Pro tools."
+"Implement Phase 3 for utilivos-mobile: build browse catalog + tool detail screens with category filtering, search, pagination, and Pro lock state rendering for Pro tools."
 
 ---
 
@@ -178,7 +178,7 @@ Acceptance
 - Successful purchase updates UI without requiring app restart.
 
 Suggested Codex prompt
-"Implement Phase 4 for utilivo-mobile: integrate store billing (Google Play and App Store) with Go Pro and Restore flows, persist entitlement state in secure storage, and gate Pro tool UI until entitlement is active."
+"Implement Phase 4 for utilivos-mobile: integrate store billing (Google Play and App Store) with Go Pro and Restore flows, persist entitlement state in secure storage, and gate Pro tool UI until entitlement is active."
 
 ---
 
@@ -205,7 +205,7 @@ Acceptance
 - App degrades to locked Pro state once grace expires.
 
 Suggested Codex prompt
-"Implement Phase 5 for utilivo-mobile: add entitlement verification calls to utilivo-api, store short-lived entitlement assertions, and implement offline grace-period logic with background re-verification."
+"Implement Phase 5 for utilivos-mobile: add entitlement verification calls to utilivos-api, store short-lived entitlement assertions, and implement offline grace-period logic with background re-verification."
 
 ---
 
@@ -243,7 +243,7 @@ Acceptance
 Tasks
 - Add a plugin runtime route:
   - `/runtime/:slug`
-- Extract downloaded `.utilivo.zip` bundles locally.
+- Extract downloaded `.utilivos.zip` bundles locally.
 - Parse `manifest.json` and resolve local `entry` file path.
 - Launch plugin UI inside an in-app WebView from local files.
 - Add run CTA from Home installed-tools cards.
@@ -255,7 +255,7 @@ Acceptance
 - Runtime launch gracefully reports missing/invalid bundle metadata.
 
 Suggested Codex prompt
-"Implement Phase 6 for utilivo-mobile: make Home installed-tools offline-first, add browse/install CTA from Home, sync installs and update checks when online, and keep Pro-gated downloads entitlement-protected."
+"Implement Phase 6 for utilivos-mobile: make Home installed-tools offline-first, add browse/install CTA from Home, sync installs and update checks when online, and keep Pro-gated downloads entitlement-protected."
 
 ---
 
@@ -281,7 +281,7 @@ Acceptance
 - Interaction and scroll performance meet target baseline.
 
 Suggested Codex prompt
-"Implement Phase 7 for utilivo-mobile: add offline cache for catalog/detail data, entitlement metadata, and installed tools, then optimize rendering and loading UX for smooth mid-tier Android performance."
+"Implement Phase 7 for utilivos-mobile: add offline cache for catalog/detail data, entitlement metadata, and installed tools, then optimize rendering and loading UX for smooth mid-tier Android performance."
 
 ---
 
@@ -315,7 +315,7 @@ Acceptance
 - Integration test runs on at least one CI target.
 
 Suggested Codex prompt
-"Implement Phase 8 for utilivo-mobile: add unit/widget tests for entitlement and Pro lock behavior, plus an integration smoke test covering discover, verification success, and Pro bundle download request."
+"Implement Phase 8 for utilivos-mobile: add unit/widget tests for entitlement and Pro lock behavior, plus an integration smoke test covering discover, verification success, and Pro bundle download request."
 
 ---
 

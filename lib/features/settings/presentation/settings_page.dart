@@ -235,7 +235,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Deep link example: utilivo://tool/{slug}?restore=1',
+                      'Deep link example: utilivos://tool/{slug}?restore=1',
                       style: TextStyle(fontSize: 12),
                     ),
                     const SizedBox(height: 12),

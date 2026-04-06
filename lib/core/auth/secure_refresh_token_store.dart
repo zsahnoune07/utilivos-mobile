@@ -8,7 +8,7 @@ class SecureRefreshTokenStore implements RefreshTokenStore {
     this.storageKey = _defaultStorageKey,
   }) : _storage = storage ?? const FlutterSecureStorage();
 
-  static const String _defaultStorageKey = 'utilivo_refresh_token';
+  static const String _defaultStorageKey = 'utilivos_refresh_token';
 
   final FlutterSecureStorage _storage;
   final String storageKey;

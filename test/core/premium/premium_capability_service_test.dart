@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
-import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
-import 'package:utilivo_mobile/core/pro/free_tier_usage_store.dart';
-import 'package:utilivo_mobile/core/pro/freemium_limits.dart';
-import 'package:utilivo_mobile/core/pro/pro_capability_service.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_controller.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_store.dart';
+import 'package:utilivos_mobile/core/entitlement/models/pro_entitlement.dart';
+import 'package:utilivos_mobile/core/pro/free_tier_usage_store.dart';
+import 'package:utilivos_mobile/core/pro/freemium_limits.dart';
+import 'package:utilivos_mobile/core/pro/pro_capability_service.dart';
 
 void main() {
   test('free user respects pin and folder caps and storage quota', () async {

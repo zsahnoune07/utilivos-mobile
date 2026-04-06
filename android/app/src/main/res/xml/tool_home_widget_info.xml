@@ -10,7 +10,7 @@
     android:targetCellHeight="1"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_tool_overlay"
-    android:configure="com.utilivo.utilivo_mobile.WidgetConfigureActivity"
+    android:configure="com.utilivos.utilivos_mobile.WidgetConfigureActivity"
     android:resizeMode="horizontal"
     android:widgetCategory="home_screen"
     android:widgetFeatures="reconfigurable" />

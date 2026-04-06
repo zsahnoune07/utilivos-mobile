@@ -97,7 +97,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'Utilivo'**
+  /// **'Utilivos'**
   String get appTitle;
 
   /// No description provided for @tools.
@@ -271,7 +271,7 @@ abstract class AppLocalizations {
   /// No description provided for @discoverSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Browse categories and discover tools from utilivo-api.'**
+  /// **'Browse categories and discover tools from utilivos-api.'**
   String get discoverSubtitle;
 
   /// No description provided for @loadMore.
@@ -529,7 +529,7 @@ abstract class AppLocalizations {
   /// No description provided for @runtimeHomeWidgetProRequired.
   ///
   /// In en, this message translates to:
-  /// **'This widget is not set up in the app. Open Utilivo and add the widget again, or unlock Pro for unlimited widgets.'**
+  /// **'This widget is not set up in the app. Open Utilivos and add the widget again, or unlock Pro for unlimited widgets.'**
   String get runtimeHomeWidgetProRequired;
 
   /// No description provided for @runtimeUpToDateTitle.

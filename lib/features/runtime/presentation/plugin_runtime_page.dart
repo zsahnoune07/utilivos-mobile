@@ -91,7 +91,7 @@ class PluginRuntimePage extends StatefulWidget {
 
 class _PluginRuntimePageState extends State<PluginRuntimePage> {
   static const MethodChannel _runtimeChannel = MethodChannel(
-    'com.utilivo.utilivo_mobile/runtime',
+    'com.utilivos.utilivos_mobile/runtime',
   );
 
   AppViewState _viewState = AppViewState.loading;
@@ -237,7 +237,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
 (function(){
   try {
     const detail = $detailJson;
-    document.dispatchEvent(new CustomEvent('utilivo-restore-request', { detail: detail }));
+    document.dispatchEvent(new CustomEvent('utilivos-restore-request', { detail: detail }));
   } catch (e) {}
 })();
 ''',
@@ -521,7 +521,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(surfaceColor)
         ..addJavaScriptChannel(
-          'UtilivoHost',
+          'UtilivosHost',
           onMessageReceived: (JavaScriptMessage message) {
             unawaited(_handleHostMessage(message.message));
           },
@@ -836,7 +836,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     if (kDebugMode) {
       developer.log(
         'types=${request.types}',
-        name: 'utilivo.tool_webview.permission',
+        name: 'utilivos.tool_webview.permission',
       );
     }
     final wantsCamera =
@@ -859,7 +859,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     if (kDebugMode) {
       developer.log(
         'camera status=$status',
-        name: 'utilivo.tool_webview.permission',
+        name: 'utilivos.tool_webview.permission',
       );
     }
     if (!status.isGranted) {
@@ -867,7 +867,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
       if (kDebugMode) {
         developer.log(
           'camera after request=$status',
-          name: 'utilivo.tool_webview.permission',
+          name: 'utilivos.tool_webview.permission',
         );
       }
     }
@@ -1068,7 +1068,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     final encoded = jsonEncode(detail);
     unawaited(
       controller.runJavaScript(
-        'document.dispatchEvent(new CustomEvent("utilivo-host-reply", { detail: $encoded }));',
+        'document.dispatchEvent(new CustomEvent("utilivos-host-reply", { detail: $encoded }));',
       ),
     );
   }
@@ -1118,7 +1118,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     }
     try {
       await webViewController.runJavaScript(
-        r"try { document.dispatchEvent(new CustomEvent('utilivo-host-ready')); } catch (e) {}",
+        r"try { document.dispatchEvent(new CustomEvent('utilivos-host-ready')); } catch (e) {}",
       );
     } catch (_) {}
   }
@@ -1148,7 +1148,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
       root.style.setProperty(key, value.trim());
     });
   }
-  window.UtilivoUI?.applyThemePayload?.(payload);
+  window.UtilivosUI?.applyThemePayload?.(payload);
 ''';
   }
 
@@ -1210,29 +1210,29 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
 ${_javaScriptApplyWebThemeUsingPayloadConst()}
   const snapshot = $snapshotJson;
   const hostPayload = $hostPayloadJson;
-  const bridge = (typeof window.UtilivoHost === 'object' && window.UtilivoHost)
-    ? window.UtilivoHost
+  const bridge = (typeof window.UtilivosHost === 'object' && window.UtilivosHost)
+    ? window.UtilivosHost
     : {};
   bridge.mode = hostPayload.mode;
   bridge.manifest = hostPayload.manifest;
   bridge.runtime = hostPayload.runtime;
   bridge.theme = hostPayload.theme;
   bridge.capabilities = hostPayload.capabilities;
-  window.UtilivoHost = bridge;
+  window.UtilivosHost = bridge;
   window.__UTILIVO_HOST__ = hostPayload;
   window.__UTILIVO_INITIAL_STATE__ = null;
-  if (!window.utilivo) {
-    window.utilivo = {
+  if (!window.utilivos) {
+    window.utilivos = {
       requestGate(action) {
         return new Promise((resolve) => {
           const id = String(Math.random()).slice(2);
           function onReply(e) {
             if (!e || !e.detail || e.detail.id !== id) return;
-            document.removeEventListener('utilivo-host-reply', onReply);
+            document.removeEventListener('utilivos-host-reply', onReply);
             resolve(!!e.detail.allowed);
           }
-          document.addEventListener('utilivo-host-reply', onReply);
-          UtilivoHost.postMessage(JSON.stringify({ type: 'gate', id, action: String(action || '') }));
+          document.addEventListener('utilivos-host-reply', onReply);
+          UtilivosHost.postMessage(JSON.stringify({ type: 'gate', id, action: String(action || '') }));
         });
       },
       persistState(payload) {
@@ -1240,11 +1240,11 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
           const id = String(Math.random()).slice(2);
           function onReply(e) {
             if (!e || !e.detail || e.detail.id !== id) return;
-            document.removeEventListener('utilivo-host-reply', onReply);
+            document.removeEventListener('utilivos-host-reply', onReply);
             resolve(!!e.detail.ok);
           }
-          document.addEventListener('utilivo-host-reply', onReply);
-          UtilivoHost.postMessage(JSON.stringify({ type: 'persistState', id, payload: typeof payload === 'string' ? payload : JSON.stringify(payload) }));
+          document.addEventListener('utilivos-host-reply', onReply);
+          UtilivosHost.postMessage(JSON.stringify({ type: 'persistState', id, payload: typeof payload === 'string' ? payload : JSON.stringify(payload) }));
         });
       },
       loadState() {
@@ -1252,11 +1252,11 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
           const id = String(Math.random()).slice(2);
           function onReply(e) {
             if (!e || !e.detail || e.detail.id !== id) return;
-            document.removeEventListener('utilivo-host-reply', onReply);
+            document.removeEventListener('utilivos-host-reply', onReply);
             resolve(e.detail.payload != null ? e.detail.payload : null);
           }
-          document.addEventListener('utilivo-host-reply', onReply);
-          UtilivoHost.postMessage(JSON.stringify({ type: 'loadState', id }));
+          document.addEventListener('utilivos-host-reply', onReply);
+          UtilivosHost.postMessage(JSON.stringify({ type: 'loadState', id }));
         });
       },
       recordStorageAction() {
@@ -1264,11 +1264,11 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
           const id = String(Math.random()).slice(2);
           function onReply(e) {
             if (!e || !e.detail || e.detail.id !== id) return;
-            document.removeEventListener('utilivo-host-reply', onReply);
+            document.removeEventListener('utilivos-host-reply', onReply);
             resolve(!!e.detail.ok);
           }
-          document.addEventListener('utilivo-host-reply', onReply);
-          UtilivoHost.postMessage(JSON.stringify({ type: 'recordStorage', id }));
+          document.addEventListener('utilivos-host-reply', onReply);
+          UtilivosHost.postMessage(JSON.stringify({ type: 'recordStorage', id }));
         });
       },
       requestPinHomeShortcut(label) {
@@ -1276,15 +1276,15 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
           const id = String(Math.random()).slice(2);
           function onReply(e) {
             if (!e || !e.detail || e.detail.id !== id) return;
-            document.removeEventListener('utilivo-host-reply', onReply);
+            document.removeEventListener('utilivos-host-reply', onReply);
             resolve(!!e.detail.ok);
           }
-          document.addEventListener('utilivo-host-reply', onReply);
-          UtilivoHost.postMessage(JSON.stringify({ type: 'pinHomeShortcut', id, label: label || '' }));
+          document.addEventListener('utilivos-host-reply', onReply);
+          UtilivosHost.postMessage(JSON.stringify({ type: 'pinHomeShortcut', id, label: label || '' }));
         });
       },
       reportRestoreAck(restoreId, ok, error) {
-        UtilivoHost.postMessage(JSON.stringify({
+        UtilivosHost.postMessage(JSON.stringify({
           type: 'restoreAck',
           id: String(restoreId || ''),
           ok: !!ok,
@@ -1293,9 +1293,9 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
       }
     };
   }
-  if (window.utilivo && typeof window.utilivo.reportRestoreAck !== 'function') {
-    window.utilivo.reportRestoreAck = function(restoreId, ok, error) {
-      UtilivoHost.postMessage(JSON.stringify({
+  if (window.utilivos && typeof window.utilivos.reportRestoreAck !== 'function') {
+    window.utilivos.reportRestoreAck = function(restoreId, ok, error) {
+      UtilivosHost.postMessage(JSON.stringify({
         type: 'restoreAck',
         id: String(restoreId || ''),
         ok: !!ok,

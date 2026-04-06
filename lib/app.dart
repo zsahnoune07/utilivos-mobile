@@ -18,8 +18,8 @@ import 'core/pro/free_tier_usage_store.dart';
 import 'core/theme/app_theme.dart';
 import 'features/installs/data/models/install_models.dart';
 
-class UtilivoApp extends StatefulWidget {
-  const UtilivoApp({
+class UtilivosApp extends StatefulWidget {
+  const UtilivosApp({
     super.key,
     this.dependencies,
     this.freeTierUsageStore,
@@ -42,10 +42,10 @@ class UtilivoApp extends StatefulWidget {
   final String? initialDeepLinkRoute;
 
   @override
-  State<UtilivoApp> createState() => _UtilivoAppState();
+  State<UtilivosApp> createState() => _UtilivosAppState();
 }
 
-class _UtilivoAppState extends State<UtilivoApp> {
+class _UtilivosAppState extends State<UtilivosApp> {
   late final AppDependencies _dependencies =
       widget.dependencies ??
       AppDependencies.create(
@@ -209,7 +209,7 @@ class _UtilivoAppState extends State<UtilivoApp> {
   }
 
   late final WidgetsBindingObserver _lifecycleObserver =
-      _UtilivoLifecycleObserver(onResumed: _onAppResumed);
+      _UtilivosLifecycleObserver(onResumed: _onAppResumed);
 
   void _onAppResumed() {
     _dependencies.entitlementController.onAppResumed();
@@ -310,8 +310,8 @@ class _UtilivoAppState extends State<UtilivoApp> {
   }
 }
 
-class _UtilivoLifecycleObserver extends WidgetsBindingObserver {
-  _UtilivoLifecycleObserver({required this.onResumed});
+class _UtilivosLifecycleObserver extends WidgetsBindingObserver {
+  _UtilivosLifecycleObserver({required this.onResumed});
 
   final VoidCallback onResumed;
 

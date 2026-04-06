@@ -1,4 +1,4 @@
-package com.utilivo.utilivo_mobile
+package com.utilivos.utilivos_mobile
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -77,7 +77,7 @@ class ToolHomeWidgetProvider : HomeWidgetProvider() {
         bindConfiguredIcon(context, appWidgetManager, widgetId, views, oneByOne, iconPath)
         val uri =
             Uri.parse(
-                "utilivo://tool/$slug?widget=$widgetId&name=${Uri.encode(title)}",
+                "utilivos://tool/$slug?widget=$widgetId&name=${Uri.encode(title)}",
             )
         val pending =
             HomeWidgetLaunchIntent.getActivity(
@@ -100,9 +100,9 @@ class ToolHomeWidgetProvider : HomeWidgetProvider() {
   ) {
     val bmp = BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher) ?: return
     if (oneByOne) {
-      val side = UtilivoWidgetIcons.widgetMinSidePx(context, appWidgetManager, widgetId)
-      val radius = UtilivoWidgetIcons.cornerRadiusPx(context, 12f)
-      val rounded = UtilivoWidgetIcons.roundedSquareBitmap(bmp, side, radius)
+      val side = UtilivosWidgetIcons.widgetMinSidePx(context, appWidgetManager, widgetId)
+      val radius = UtilivosWidgetIcons.cornerRadiusPx(context, 12f)
+      val rounded = UtilivosWidgetIcons.roundedSquareBitmap(bmp, side, radius)
       views.setImageViewBitmap(R.id.widget_tool_icon, rounded)
     } else {
       views.setImageViewBitmap(R.id.widget_tool_icon, bmp)
@@ -133,9 +133,9 @@ class ToolHomeWidgetProvider : HomeWidgetProvider() {
       return
     }
     if (oneByOne) {
-      val side = UtilivoWidgetIcons.widgetMinSidePx(context, appWidgetManager, widgetId)
-      val radius = UtilivoWidgetIcons.cornerRadiusPx(context, 12f)
-      val rounded = UtilivoWidgetIcons.roundedSquareBitmap(source, side, radius)
+      val side = UtilivosWidgetIcons.widgetMinSidePx(context, appWidgetManager, widgetId)
+      val radius = UtilivosWidgetIcons.cornerRadiusPx(context, 12f)
+      val rounded = UtilivosWidgetIcons.roundedSquareBitmap(source, side, radius)
       views.setImageViewBitmap(R.id.widget_tool_icon, rounded)
     } else {
       views.setImageViewBitmap(R.id.widget_tool_icon, source)

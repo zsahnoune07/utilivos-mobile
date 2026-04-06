@@ -17,7 +17,7 @@ class EntitlementController extends ChangeNotifier {
     required EntitlementStore store,
     EntitlementVerificationApi? verificationApi,
     String platform = 'android',
-    String packageName = 'com.utilivo.utilivo_mobile',
+    String packageName = 'com.utilivos.utilivos_mobile',
     Duration offlineGracePeriod = const Duration(days: 3),
     Duration backgroundReverifyInterval = const Duration(minutes: 10),
   }) : _store = store,

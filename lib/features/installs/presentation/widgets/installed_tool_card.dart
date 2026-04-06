@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:utilivo_mobile/shared/widgets/home_tool_card_layout.dart';
-import 'package:utilivo_mobile/shared/widgets/tool_thumbnail.dart';
+import 'package:utilivos_mobile/shared/widgets/home_tool_card_layout.dart';
+import 'package:utilivos_mobile/shared/widgets/tool_thumbnail.dart';
 
 import '../../data/models/install_models.dart';
 

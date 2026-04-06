@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_verification_api.dart';
-import 'package:utilivo_mobile/core/entitlement/models/entitlement_verification_result.dart';
-import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
-import 'package:utilivo_mobile/core/networking/network_exception.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_controller.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_store.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_verification_api.dart';
+import 'package:utilivos_mobile/core/entitlement/models/entitlement_verification_result.dart';
+import 'package:utilivos_mobile/core/entitlement/models/pro_entitlement.dart';
+import 'package:utilivos_mobile/core/networking/network_exception.dart';
 
 void main() {
   test('bootstrap restores persisted entitlement', () async {
@@ -14,7 +14,7 @@ void main() {
         proActive: true,
         updatedAt: now,
         entitlementType: 'one_time',
-        productId: 'utilivo_pro_one_time',
+        productId: 'utilivos_pro_one_time',
       ),
     );
     final controller = EntitlementController(store: store);
@@ -23,7 +23,7 @@ void main() {
 
     expect(controller.isReady, true);
     expect(controller.hasProAccess, true);
-    expect(controller.entitlement.productId, 'utilivo_pro_one_time');
+    expect(controller.entitlement.productId, 'utilivos_pro_one_time');
   });
 
   test(
@@ -46,7 +46,7 @@ void main() {
       await controller.bootstrap();
 
       final outcome = await controller.activateFromBillingPurchase(
-        productId: 'utilivo_pro_one_time',
+        productId: 'utilivos_pro_one_time',
         purchaseToken: 'purchase-token-abc',
       );
 
@@ -71,7 +71,7 @@ void main() {
     await controller.bootstrap();
 
     final outcome = await controller.activateFromBillingPurchase(
-      productId: 'utilivo_pro_one_time',
+      productId: 'utilivos_pro_one_time',
       purchaseToken: 'purchase-token-abc',
     );
 
@@ -89,7 +89,7 @@ void main() {
             proActive: true,
             updatedAt: now,
             entitlementType: 'one_time',
-            productId: 'utilivo_pro_one_time',
+            productId: 'utilivos_pro_one_time',
             purchaseToken: 'purchase-token-abc',
             graceExpiresAt: now.add(const Duration(hours: 1)),
             lastVerificationAt: now,
@@ -124,7 +124,7 @@ void main() {
             proActive: true,
             updatedAt: now,
             entitlementType: 'one_time',
-            productId: 'utilivo_pro_one_time',
+            productId: 'utilivos_pro_one_time',
             purchaseToken: 'purchase-token-abc',
             graceExpiresAt: now.subtract(const Duration(minutes: 1)),
             lastVerificationAt: now.subtract(const Duration(minutes: 10)),
@@ -151,7 +151,7 @@ void main() {
     final controller = EntitlementController(store: store);
     await controller.bootstrap();
     await controller.activateFromBillingPurchase(
-      productId: 'utilivo_pro_one_time',
+      productId: 'utilivos_pro_one_time',
       purchaseToken: 'purchase-token-abc',
     );
 

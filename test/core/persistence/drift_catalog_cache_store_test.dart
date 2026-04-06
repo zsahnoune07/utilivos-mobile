@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/persistence/app_database.dart';
-import 'package:utilivo_mobile/features/discover/data/drift_catalog_cache_store.dart';
-import 'package:utilivo_mobile/features/discover/data/models/catalog_cache_snapshot.dart';
-import 'package:utilivo_mobile/features/discover/data/models/catalog_models.dart';
+import 'package:utilivos_mobile/core/persistence/app_database.dart';
+import 'package:utilivos_mobile/features/discover/data/drift_catalog_cache_store.dart';
+import 'package:utilivos_mobile/features/discover/data/models/catalog_cache_snapshot.dart';
+import 'package:utilivos_mobile/features/discover/data/models/catalog_models.dart';
 
 void main() {
   test('DriftCatalogCacheStore round-trips snapshot', () async {

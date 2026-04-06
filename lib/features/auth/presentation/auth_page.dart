@@ -122,7 +122,7 @@ class _AuthPageState extends State<AuthPage> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
-          'Utilivo Auth',
+          'Utilivos Auth',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w800,
                 fontSize: 22,
@@ -146,7 +146,7 @@ class _AuthPageState extends State<AuthPage> {
                   children: <Widget>[
                     Text(
                       _mode == _AuthMode.login
-                          ? 'Login to Utilivo'
+                          ? 'Login to Utilivos'
                           : 'Create your account',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),

@@ -1,4 +1,4 @@
-package com.utilivo.utilivo_mobile
+package com.utilivos.utilivos_mobile
 
 import android.appwidget.AppWidgetManager
 import kotlin.math.max

@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/networking/interceptors/device_id_interceptor.dart';
+import 'package:utilivos_mobile/core/networking/interceptors/device_id_interceptor.dart';
 
 void main() {
   test('attaches X-Device-ID header when id exists', () async {

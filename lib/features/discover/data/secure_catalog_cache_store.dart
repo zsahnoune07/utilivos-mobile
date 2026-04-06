@@ -11,7 +11,7 @@ class SecureCatalogCacheStore implements CatalogCacheStore {
     this.storageKey = _defaultStorageKey,
   }) : _storage = storage ?? const FlutterSecureStorage();
 
-  static const String _defaultStorageKey = 'utilivo_catalog_cache';
+  static const String _defaultStorageKey = 'utilivos_catalog_cache';
 
   final FlutterSecureStorage _storage;
   final String storageKey;

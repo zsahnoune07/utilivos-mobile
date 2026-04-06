@@ -11,7 +11,7 @@ class SecureDownloadedToolBundleStore implements DownloadedToolBundleStore {
     this.storageKey = _defaultStorageKey,
   }) : _storage = storage ?? const FlutterSecureStorage();
 
-  static const String _defaultStorageKey = 'utilivo_downloaded_tool_bundles';
+  static const String _defaultStorageKey = 'utilivos_downloaded_tool_bundles';
 
   final FlutterSecureStorage _storage;
   final String storageKey;

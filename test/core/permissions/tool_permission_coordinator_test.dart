@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:utilivo_mobile/core/permissions/system_permission_port.dart';
-import 'package:utilivo_mobile/core/permissions/tool_permission_coordinator.dart';
-import 'package:utilivo_mobile/core/tool_manifest/tool_manifest_models.dart';
-import 'package:utilivo_mobile/l10n/app_localizations.dart';
-import 'package:utilivo_mobile/l10n/app_localizations_en.dart';
+import 'package:utilivos_mobile/core/permissions/system_permission_port.dart';
+import 'package:utilivos_mobile/core/permissions/tool_permission_coordinator.dart';
+import 'package:utilivos_mobile/core/tool_manifest/tool_manifest_models.dart';
+import 'package:utilivos_mobile/l10n/app_localizations.dart';
+import 'package:utilivos_mobile/l10n/app_localizations_en.dart';
 
 class _FakePort implements SystemPermissionPort {
   _FakePort(this.initial, {this.requestResult});

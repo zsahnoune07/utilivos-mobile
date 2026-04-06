@@ -50,7 +50,7 @@ class SplashPage extends StatelessWidget {
                 children: <Widget>[
                   CircularProgressIndicator(),
                   SizedBox(height: 16),
-                  Text('Preparing Utilivo...'),
+                  Text('Preparing Utilivos...'),
                 ],
               );
             },

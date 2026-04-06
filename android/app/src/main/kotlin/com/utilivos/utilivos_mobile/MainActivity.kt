@@ -1,4 +1,4 @@
-package com.utilivo.utilivo_mobile
+package com.utilivos.utilivos_mobile
 
 import android.app.Activity
 import android.appwidget.AppWidgetManager
@@ -27,7 +27,7 @@ open class MainActivity : FlutterActivity() {
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            "com.utilivo.utilivo_mobile/runtime",
+            "com.utilivos.utilivos_mobile/runtime",
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "configureToolRuntimeWebView" -> {
@@ -78,13 +78,13 @@ open class MainActivity : FlutterActivity() {
                         result.success(false)
                         return@setMethodCallHandler
                     }
-                    val uri = Uri.parse("utilivo://tool/$slug?restore=1")
+                    val uri = Uri.parse("utilivos://tool/$slug?restore=1")
                     val launchIntent =
                         Intent(Intent.ACTION_VIEW, uri, this, MainActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
                     val shortcut =
-                        ShortcutInfo.Builder(this, "utilivo_tool_${slug.hashCode()}")
+                        ShortcutInfo.Builder(this, "utilivos_tool_${slug.hashCode()}")
                             .setShortLabel(toolName.take(12))
                             .setLongLabel(toolName)
                             .setIcon(Icon.createWithResource(this, android.R.drawable.ic_menu_compass))

@@ -4,8 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:utilivo_mobile/shared/cache/tool_icon_cache_manager.dart';
-import 'package:utilivo_mobile/shared/widgets/tool_thumbnail.dart';
+import 'package:utilivos_mobile/shared/cache/tool_icon_cache_manager.dart';
+import 'package:utilivos_mobile/shared/widgets/tool_thumbnail.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -91,16 +91,16 @@ class _TestPathProviderPlatform extends PathProviderPlatform {
 
   @override
   Future<String?> getTemporaryPath() async {
-    return _makeTempPath('utilivo-cache-test');
+    return _makeTempPath('utilivos-cache-test');
   }
 
   @override
   Future<String?> getApplicationSupportPath() async {
-    return _makeTempPath('utilivo-support-test');
+    return _makeTempPath('utilivos-support-test');
   }
 
   @override
   Future<String?> getApplicationCachePath() async {
-    return _makeTempPath('utilivo-app-cache-test');
+    return _makeTempPath('utilivos-app-cache-test');
   }
 }

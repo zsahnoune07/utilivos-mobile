@@ -11,7 +11,7 @@ class ToolWidgetService {
   final ToolWidgetRepository _repository;
 
   static const String _androidWidgetProvider =
-      'com.utilivo.utilivo_mobile.ToolHomeWidgetProvider';
+      'com.utilivos.utilivos_mobile.ToolHomeWidgetProvider';
 
   Future<List<ToolHomeWidgetRecord>> listWidgets() {
     return _repository.listAll();

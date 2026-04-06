@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/tool_manifest/tool_manifest_models.dart';
-import 'package:utilivo_mobile/core/tool_manifest/tool_manifest_reader.dart';
+import 'package:utilivos_mobile/core/tool_manifest/tool_manifest_models.dart';
+import 'package:utilivos_mobile/core/tool_manifest/tool_manifest_reader.dart';
 
 void main() {
   group('parseManifestMap', () {

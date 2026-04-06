@@ -9,7 +9,7 @@ class ToolIconCacheManager {
 
   static final CacheManager instance = CacheManager(
     Config(
-      'utilivo-tool-icon-cache',
+      'utilivos-tool-icon-cache',
       stalePeriod: const Duration(days: 14),
       maxNrOfCacheObjects: 400,
     ),

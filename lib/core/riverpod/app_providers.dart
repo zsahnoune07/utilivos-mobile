@@ -8,11 +8,11 @@ import '../../features/installs/data/models/install_models.dart';
 /// Open Drift database; overridden from [main] with the app SQLite file.
 final appDatabaseProvider = Provider<AppDatabase?>((ref) => null);
 
-/// Scoped under [UtilivoApp] so any [Consumer] can reach the live dependency graph.
+/// Scoped under [UtilivosApp] so any [Consumer] can reach the live dependency graph.
 final appDependenciesProvider = Provider<AppDependencies>((ref) {
   throw StateError(
     'appDependenciesProvider is not overridden. '
-    'UtilivoApp wraps the router with a nested ProviderScope.',
+    'UtilivosApp wraps the router with a nested ProviderScope.',
   );
 });
 

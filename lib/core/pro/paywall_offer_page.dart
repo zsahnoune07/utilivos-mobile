@@ -25,7 +25,7 @@ class PaywallOfferPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Utilivo Pro'),
+        title: const Text('Utilivos Pro'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () {

@@ -37,7 +37,7 @@ class WidgetConfigurePage extends StatefulWidget {
   final PaywallCoordinator paywallCoordinator;
 
   static const MethodChannel _channel = MethodChannel(
-    'com.utilivo.utilivo_mobile/runtime',
+    'com.utilivos.utilivos_mobile/runtime',
   );
 
   @override
@@ -110,7 +110,7 @@ class _WidgetConfigurePageState extends State<WidgetConfigurePage> {
     await HomeWidget.saveWidgetData<String>('tool_name_$wid', name);
     await HomeWidget.saveWidgetData<String?>('tool_icon_path_$wid', iconPath);
     await HomeWidget.updateWidget(
-      qualifiedAndroidName: 'com.utilivo.utilivo_mobile.ToolHomeWidgetProvider',
+      qualifiedAndroidName: 'com.utilivos.utilivos_mobile.ToolHomeWidgetProvider',
     );
     await widget.toolWidgetService.registerOrUpdateWidget(
       id: 'android_home_$wid',

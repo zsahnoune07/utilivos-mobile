@@ -5,17 +5,17 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:utilivo_mobile/features/downloads/application/tool_bundle_download_service.dart';
-import 'package:utilivo_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
-import 'package:utilivo_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
-import 'package:utilivo_mobile/features/downloads/data/models/plugin_download_grant.dart';
+import 'package:utilivos_mobile/features/downloads/application/tool_bundle_download_service.dart';
+import 'package:utilivos_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
+import 'package:utilivos_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
+import 'package:utilivos_mobile/features/downloads/data/models/plugin_download_grant.dart';
 
 void main() {
   test(
     'downloadBundle persists metadata and hash when checksum matches',
     () async {
       final tmpDir = await Directory.systemTemp.createTemp(
-        'utilivo-download-test-',
+        'utilivos-download-test-',
       );
       addTearDown(() async {
         if (await tmpDir.exists()) {
@@ -65,7 +65,7 @@ void main() {
 
   test('downloadBundle extracts icon metadata and accent color once', () async {
     final tmpDir = await Directory.systemTemp.createTemp(
-      'utilivo-download-test-',
+      'utilivos-download-test-',
     );
     addTearDown(() async {
       if (await tmpDir.exists()) {
@@ -112,7 +112,7 @@ void main() {
 
   test('downloadBundle throws integrity exception on hash mismatch', () async {
     final tmpDir = await Directory.systemTemp.createTemp(
-      'utilivo-download-test-',
+      'utilivos-download-test-',
     );
     addTearDown(() async {
       if (await tmpDir.exists()) {
@@ -157,7 +157,7 @@ void main() {
 
   test('downloadBundle rejects unsupported tier values', () async {
     final tmpDir = await Directory.systemTemp.createTemp(
-      'utilivo-download-test-',
+      'utilivos-download-test-',
     );
     addTearDown(() async {
       if (await tmpDir.exists()) {
@@ -202,7 +202,7 @@ void main() {
     'downloadBundle rejects Pro-tier grants without signature metadata',
     () async {
       final tmpDir = await Directory.systemTemp.createTemp(
-        'utilivo-download-test-',
+        'utilivos-download-test-',
       );
       addTearDown(() async {
         if (await tmpDir.exists()) {
@@ -248,7 +248,7 @@ void main() {
     'downloadBundle rejects premium-tier grants without signature metadata',
     () async {
       final tmpDir = await Directory.systemTemp.createTemp(
-        'utilivo-download-test-',
+        'utilivos-download-test-',
       );
       addTearDown(() async {
         if (await tmpDir.exists()) {
@@ -292,7 +292,7 @@ void main() {
 
   test('verifyBundleIntegrity detects tampered bundle archive', () async {
     final tmpDir = await Directory.systemTemp.createTemp(
-      'utilivo-download-test-',
+      'utilivos-download-test-',
     );
     addTearDown(() async {
       if (await tmpDir.exists()) {
@@ -337,7 +337,7 @@ void main() {
     'findRunnableBundle upgrades legacy stored metadata from local archive',
     () async {
       final tmpDir = await Directory.systemTemp.createTemp(
-        'utilivo-download-test-',
+        'utilivos-download-test-',
       );
       addTearDown(() async {
         if (await tmpDir.exists()) {
@@ -383,7 +383,7 @@ void main() {
     'importBundleFromFile persists runnable metadata from local .ubb',
     () async {
       final tmpDir = await Directory.systemTemp.createTemp(
-        'utilivo-import-test-',
+        'utilivos-import-test-',
       );
       addTearDown(() async {
         if (await tmpDir.exists()) {
@@ -421,7 +421,7 @@ void main() {
 
   test('importBundleFromFile rejects mismatched configured slug', () async {
     final tmpDir = await Directory.systemTemp.createTemp(
-      'utilivo-import-test-',
+      'utilivos-import-test-',
     );
     addTearDown(() async {
       if (await tmpDir.exists()) {
@@ -467,7 +467,7 @@ List<int> _buildBundleArchiveBytes({
     ..addFile(
       ArchiveFile.string('manifest.json', '''
 {
-  "id": "com.utilivo.plugin.$pluginSlug",
+  "id": "com.utilivos.plugin.$pluginSlug",
   "name": "$pluginName",
   "slug": "$pluginSlug",
   "version": "$version",

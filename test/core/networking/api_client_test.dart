@@ -3,8 +3,8 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/networking/api_client.dart';
-import 'package:utilivo_mobile/core/networking/network_exception.dart';
+import 'package:utilivos_mobile/core/networking/api_client.dart';
+import 'package:utilivos_mobile/core/networking/network_exception.dart';
 
 void main() {
   test('maps 5xx envelope errors to server NetworkException', () async {

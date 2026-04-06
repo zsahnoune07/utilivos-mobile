@@ -8,7 +8,7 @@ class SecureDeviceIdStore implements DeviceIdStore {
     this.storageKey = _defaultStorageKey,
   }) : _storage = storage ?? const FlutterSecureStorage();
 
-  static const String _defaultStorageKey = 'utilivo_device_id';
+  static const String _defaultStorageKey = 'utilivos_device_id';
 
   final FlutterSecureStorage _storage;
   final String storageKey;

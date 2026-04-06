@@ -26,9 +26,9 @@ GoRouter createAppRouter({
     initialLocation: initialLocation,
     refreshListenable: bootstrapController,
     redirect: (BuildContext context, GoRouterState state) {
-      // Home-screen widget / some Android intents deliver utilivo://tool/... as the
+      // Home-screen widget / some Android intents deliver utilivos://tool/... as the
       // route location; GoRouter only knows /runtime/... paths.
-      if (state.uri.scheme == 'utilivo' && state.uri.host == 'tool') {
+      if (state.uri.scheme == 'utilivos' && state.uri.host == 'tool') {
         final String? target = parseAppDeepLink(state.uri);
         if (target != null) {
           return target;

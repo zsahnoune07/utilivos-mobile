@@ -8,7 +8,7 @@ class SecureInstallsSyncMetaStore implements InstallsSyncMetaStore {
     this.storageKey = _defaultKey,
   }) : _storage = storage ?? const FlutterSecureStorage();
 
-  static const String _defaultKey = 'utilivo_installs_last_synced_at';
+  static const String _defaultKey = 'utilivos_installs_last_synced_at';
 
   final FlutterSecureStorage _storage;
   final String storageKey;

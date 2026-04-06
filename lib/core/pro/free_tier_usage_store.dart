@@ -9,10 +9,10 @@ class FreeTierUsageStore {
 
   final SharedPreferences _prefs;
 
-  static const _keyStorageDay = 'utilivo_ft_storage_day';
-  static const _keyStorageCount = 'utilivo_ft_storage_count';
-  static const _keyLaunchedTools = 'utilivo_ft_distinct_launches';
-  static const _keySoftDismissedAt = 'utilivo_ft_soft_paywall_dismissed_ms';
+  static const _keyStorageDay = 'utilivos_ft_storage_day';
+  static const _keyStorageCount = 'utilivos_ft_storage_count';
+  static const _keyLaunchedTools = 'utilivos_ft_distinct_launches';
+  static const _keySoftDismissedAt = 'utilivos_ft_soft_paywall_dismissed_ms';
 
   static Future<FreeTierUsageStore> open() async {
     final prefs = await SharedPreferences.getInstance();

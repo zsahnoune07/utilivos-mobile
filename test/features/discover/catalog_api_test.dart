@@ -3,11 +3,11 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/networking/api_client.dart';
-import 'package:utilivo_mobile/core/networking/network_exception.dart';
-import 'package:utilivo_mobile/features/discover/data/catalog_api.dart';
-import 'package:utilivo_mobile/features/discover/data/catalog_cache_store.dart';
-import 'package:utilivo_mobile/features/discover/data/models/catalog_cache_snapshot.dart';
+import 'package:utilivos_mobile/core/networking/api_client.dart';
+import 'package:utilivos_mobile/core/networking/network_exception.dart';
+import 'package:utilivos_mobile/features/discover/data/catalog_api.dart';
+import 'package:utilivos_mobile/features/discover/data/catalog_cache_store.dart';
+import 'package:utilivos_mobile/features/discover/data/models/catalog_cache_snapshot.dart';
 
 void main() {
   test(

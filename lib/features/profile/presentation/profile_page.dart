@@ -126,7 +126,7 @@ class _ProfilePageState extends State<ProfilePage> {
           const AppInfoTile(
             leading: Icons.account_circle_outlined,
             title: 'Account',
-            subtitle: 'Profile data from utilivo-api',
+            subtitle: 'Profile data from utilivos-api',
           ),
           const Divider(),
           AppInfoTile(

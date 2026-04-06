@@ -5,7 +5,7 @@ String? parseAppDeepLink(Uri? uri) {
   if (uri == null) {
     return null;
   }
-  if (uri.scheme == 'utilivo' && uri.host == 'tool') {
+  if (uri.scheme == 'utilivos' && uri.host == 'tool') {
     final segments = uri.pathSegments;
     final slug = segments.isNotEmpty ? segments.first.trim() : '';
     if (slug.isEmpty) {
@@ -25,7 +25,7 @@ String? parseAppDeepLink(Uri? uri) {
     );
   }
   if (uri.scheme == 'https' &&
-      (uri.host == 'app.utilivo.com' || uri.host == 'www.app.utilivo.com')) {
+      (uri.host == 'app.utilivos.com' || uri.host == 'www.app.utilivos.com')) {
     final parts = uri.pathSegments;
     if (parts.length >= 2 && parts[0] == 'tool') {
       final slug = parts[1].trim();

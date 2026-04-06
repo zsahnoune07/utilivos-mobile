@@ -113,7 +113,7 @@ class _PaywallOfferViewState extends State<PaywallOfferView> {
         children: <Widget>[
           if (!widget.compact) ...<Widget>[
             Text(
-              'Utilivo Pro',
+              'Utilivos Pro',
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w800,
               ),

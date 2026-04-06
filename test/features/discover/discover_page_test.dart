@@ -11,31 +11,31 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:utilivo_mobile/core/config/app_config.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
-import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
-import 'package:utilivo_mobile/core/billing/billing_gateway.dart';
-import 'package:utilivo_mobile/core/billing/models/billing_models.dart';
-import 'package:utilivo_mobile/core/pro/free_tier_usage_store.dart';
-import 'package:utilivo_mobile/core/pro/pro_capability_service.dart';
-import 'package:utilivo_mobile/core/pro/pro_purchase_controller.dart';
-import 'package:utilivo_mobile/core/navigation/app_routes.dart';
-import 'package:utilivo_mobile/core/networking/api_client.dart';
-import 'package:utilivo_mobile/features/discover/data/catalog_api.dart';
-import 'package:utilivo_mobile/features/discover/presentation/discover_page.dart';
-import 'package:utilivo_mobile/features/downloads/application/tool_bundle_download_service.dart';
-import 'package:utilivo_mobile/features/downloads/data/download_api.dart';
-import 'package:utilivo_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
-import 'package:utilivo_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
-import 'package:utilivo_mobile/features/installs/application/installed_tools_controller.dart';
-import 'package:utilivo_mobile/features/installs/data/installed_tools_read_result.dart';
-import 'package:utilivo_mobile/features/installs/data/installed_tools_store.dart';
-import 'package:utilivo_mobile/features/installs/data/installs_api.dart';
-import 'package:utilivo_mobile/features/installs/data/installs_organization_store.dart';
-import 'package:utilivo_mobile/features/installs/data/models/install_models.dart';
-import 'package:utilivo_mobile/features/installs/data/models/installs_organization_models.dart';
-import 'package:utilivo_mobile/l10n/app_localizations.dart';
+import 'package:utilivos_mobile/core/config/app_config.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_controller.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_store.dart';
+import 'package:utilivos_mobile/core/entitlement/models/pro_entitlement.dart';
+import 'package:utilivos_mobile/core/billing/billing_gateway.dart';
+import 'package:utilivos_mobile/core/billing/models/billing_models.dart';
+import 'package:utilivos_mobile/core/pro/free_tier_usage_store.dart';
+import 'package:utilivos_mobile/core/pro/pro_capability_service.dart';
+import 'package:utilivos_mobile/core/pro/pro_purchase_controller.dart';
+import 'package:utilivos_mobile/core/navigation/app_routes.dart';
+import 'package:utilivos_mobile/core/networking/api_client.dart';
+import 'package:utilivos_mobile/features/discover/data/catalog_api.dart';
+import 'package:utilivos_mobile/features/discover/presentation/discover_page.dart';
+import 'package:utilivos_mobile/features/downloads/application/tool_bundle_download_service.dart';
+import 'package:utilivos_mobile/features/downloads/data/download_api.dart';
+import 'package:utilivos_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
+import 'package:utilivos_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
+import 'package:utilivos_mobile/features/installs/application/installed_tools_controller.dart';
+import 'package:utilivos_mobile/features/installs/data/installed_tools_read_result.dart';
+import 'package:utilivos_mobile/features/installs/data/installed_tools_store.dart';
+import 'package:utilivos_mobile/features/installs/data/installs_api.dart';
+import 'package:utilivos_mobile/features/installs/data/installs_organization_store.dart';
+import 'package:utilivos_mobile/features/installs/data/models/install_models.dart';
+import 'package:utilivos_mobile/features/installs/data/models/installs_organization_models.dart';
+import 'package:utilivos_mobile/l10n/app_localizations.dart';
 
 const String _kSlug = 'json-toolkit';
 const String _kPluginName = 'JSON Toolkit';
@@ -333,10 +333,10 @@ class _DiscoverHarness {
       usageStore: usageStore,
     );
     const billingConfig = AppConfig(
-      appName: 'Utilivo',
+      appName: 'Utilivos',
       apiBaseUrl: 'https://api.example.test',
-      androidPackageName: 'com.utilivo.utilivo_mobile',
-      proOneTimeProductId: 'utilivo_pro_one_time',
+      androidPackageName: 'com.utilivos.utilivos_mobile',
+      proOneTimeProductId: 'utilivos_pro_one_time',
       proSubscriptionProductId: '',
       proSubscriptionMonthlyProductId: '',
       proSubscriptionAnnualProductId: '',
@@ -357,11 +357,11 @@ class _DiscoverHarness {
           builder: (BuildContext context, GoRouterState state) {
             return DiscoverPage(
               config: const AppConfig(
-                appName: 'Utilivo',
+                appName: 'Utilivos',
                 apiBaseUrl: 'https://api.example.test',
-                androidPackageName: 'com.utilivo.utilivo_mobile',
-                proOneTimeProductId: 'utilivo_pro_one_time',
-                proSubscriptionProductId: 'utilivo_pro_subscription',
+                androidPackageName: 'com.utilivos.utilivos_mobile',
+                proOneTimeProductId: 'utilivos_pro_one_time',
+                proSubscriptionProductId: 'utilivos_pro_subscription',
                 proSubscriptionMonthlyProductId: '',
                 proSubscriptionAnnualProductId: '',
               ),
@@ -598,7 +598,7 @@ List<int> _buildBundleArchiveBytes({
     ..addFile(
       ArchiveFile.string('manifest.json', '''
 {
-  "id": "com.utilivo.plugin.$pluginSlug",
+  "id": "com.utilivos.plugin.$pluginSlug",
   "name": "$pluginName",
   "slug": "$pluginSlug",
   "version": "$version",

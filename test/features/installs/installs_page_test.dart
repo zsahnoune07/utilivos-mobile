@@ -8,37 +8,37 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:utilivo_mobile/core/billing/billing_gateway.dart';
-import 'package:utilivo_mobile/core/billing/models/billing_models.dart';
-import 'package:utilivo_mobile/core/config/app_config.dart';
-import 'package:utilivo_mobile/core/networking/api_client.dart';
-import 'package:utilivo_mobile/core/pro/free_tier_usage_store.dart';
-import 'package:utilivo_mobile/core/pro/paywall_coordinator.dart';
-import 'package:utilivo_mobile/core/pro/pro_analytics.dart';
-import 'package:utilivo_mobile/core/pro/pro_capability_service.dart';
-import 'package:utilivo_mobile/core/pro/pro_purchase_controller.dart';
-import 'package:utilivo_mobile/features/discover/data/catalog_api.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_verification_api.dart';
-import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
-import 'package:utilivo_mobile/features/downloads/application/tool_bundle_download_service.dart';
-import 'package:utilivo_mobile/features/downloads/data/download_api.dart';
-import 'package:utilivo_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
-import 'package:utilivo_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
-import 'package:utilivo_mobile/features/installs/application/installed_tools_controller.dart';
-import 'package:utilivo_mobile/features/installs/data/installed_tools_read_result.dart';
-import 'package:utilivo_mobile/features/installs/data/installed_tools_store.dart';
-import 'package:utilivo_mobile/features/installs/data/installs_api.dart';
-import 'package:utilivo_mobile/features/installs/data/installs_organization_store.dart';
-import 'package:utilivo_mobile/features/installs/data/models/install_models.dart';
-import 'package:utilivo_mobile/features/installs/data/models/installs_organization_models.dart';
-import 'package:utilivo_mobile/features/installs/presentation/installs_page.dart';
-import 'package:utilivo_mobile/features/installs/presentation/folder_detail_page.dart';
-import 'package:utilivo_mobile/features/installs/presentation/widgets/folder_ui_catalog.dart';
-import 'package:utilivo_mobile/features/installs/presentation/widgets/installed_tool_card.dart';
-import 'package:utilivo_mobile/core/navigation/app_routes.dart';
-import 'package:utilivo_mobile/l10n/app_localizations.dart';
+import 'package:utilivos_mobile/core/billing/billing_gateway.dart';
+import 'package:utilivos_mobile/core/billing/models/billing_models.dart';
+import 'package:utilivos_mobile/core/config/app_config.dart';
+import 'package:utilivos_mobile/core/networking/api_client.dart';
+import 'package:utilivos_mobile/core/pro/free_tier_usage_store.dart';
+import 'package:utilivos_mobile/core/pro/paywall_coordinator.dart';
+import 'package:utilivos_mobile/core/pro/pro_analytics.dart';
+import 'package:utilivos_mobile/core/pro/pro_capability_service.dart';
+import 'package:utilivos_mobile/core/pro/pro_purchase_controller.dart';
+import 'package:utilivos_mobile/features/discover/data/catalog_api.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_controller.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_store.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_verification_api.dart';
+import 'package:utilivos_mobile/core/entitlement/models/pro_entitlement.dart';
+import 'package:utilivos_mobile/features/downloads/application/tool_bundle_download_service.dart';
+import 'package:utilivos_mobile/features/downloads/data/download_api.dart';
+import 'package:utilivos_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
+import 'package:utilivos_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
+import 'package:utilivos_mobile/features/installs/application/installed_tools_controller.dart';
+import 'package:utilivos_mobile/features/installs/data/installed_tools_read_result.dart';
+import 'package:utilivos_mobile/features/installs/data/installed_tools_store.dart';
+import 'package:utilivos_mobile/features/installs/data/installs_api.dart';
+import 'package:utilivos_mobile/features/installs/data/installs_organization_store.dart';
+import 'package:utilivos_mobile/features/installs/data/models/install_models.dart';
+import 'package:utilivos_mobile/features/installs/data/models/installs_organization_models.dart';
+import 'package:utilivos_mobile/features/installs/presentation/installs_page.dart';
+import 'package:utilivos_mobile/features/installs/presentation/folder_detail_page.dart';
+import 'package:utilivos_mobile/features/installs/presentation/widgets/folder_ui_catalog.dart';
+import 'package:utilivos_mobile/features/installs/presentation/widgets/installed_tool_card.dart';
+import 'package:utilivos_mobile/core/navigation/app_routes.dart';
+import 'package:utilivos_mobile/l10n/app_localizations.dart';
 
 import '../../support/pump_tool_thumbnail_ui.dart';
 
@@ -141,7 +141,7 @@ void main() {
     await tester.pumpWidget(
       _testMaterialApp(
         home: InstallsPage(
-          appName: 'Utilivo',
+          appName: 'Utilivos',
           apiBaseUrl: 'https://api.example.test',
           installedToolsController: controller,
           downloadApi: downloadApi,
@@ -228,7 +228,7 @@ void main() {
     await tester.pumpWidget(
       _testMaterialApp(
         home: InstallsPage(
-          appName: 'Utilivo',
+          appName: 'Utilivos',
           apiBaseUrl: 'https://api.example.test',
           installedToolsController: controller,
           downloadApi: downloadApi,
@@ -1335,10 +1335,10 @@ class _ProSidecar {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final usage = await FreeTierUsageStore.open();
     const config = AppConfig(
-      appName: 'Utilivo',
+      appName: 'Utilivos',
       apiBaseUrl: 'https://api.example.test',
       androidPackageName: 'com.test.app',
-      proOneTimeProductId: 'utilivo_pro_one_time',
+      proOneTimeProductId: 'utilivos_pro_one_time',
       proSubscriptionProductId: '',
       proSubscriptionMonthlyProductId: '',
       proSubscriptionAnnualProductId: '',
@@ -1486,7 +1486,7 @@ class _InstallsHarness {
     );
     final pro = await _ProSidecar.create(entitlementController);
     final page = InstallsPage(
-      appName: 'Utilivo',
+      appName: 'Utilivos',
       apiBaseUrl: 'https://api.example.test',
       installedToolsController: controller,
       downloadApi: DownloadApi(apiClient),

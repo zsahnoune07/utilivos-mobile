@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/billing/billing_gateway.dart';
-import 'package:utilivo_mobile/core/billing/models/billing_models.dart';
-import 'package:utilivo_mobile/core/config/app_config.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_controller.dart';
-import 'package:utilivo_mobile/core/entitlement/entitlement_store.dart';
-import 'package:utilivo_mobile/core/entitlement/models/pro_entitlement.dart';
-import 'package:utilivo_mobile/core/pro/pro_purchase_controller.dart';
+import 'package:utilivos_mobile/core/billing/billing_gateway.dart';
+import 'package:utilivos_mobile/core/billing/models/billing_models.dart';
+import 'package:utilivos_mobile/core/config/app_config.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_controller.dart';
+import 'package:utilivos_mobile/core/entitlement/entitlement_store.dart';
+import 'package:utilivos_mobile/core/entitlement/models/pro_entitlement.dart';
+import 'package:utilivos_mobile/core/pro/pro_purchase_controller.dart';
 
 void main() {
   test('initialize loads billing products when store is available', () async {
@@ -15,8 +15,8 @@ void main() {
       available: true,
       products: const <BillingProduct>[
         BillingProduct(
-          id: 'utilivo_pro_one_time',
-          title: 'Utilivo Pro',
+          id: 'utilivos_pro_one_time',
+          title: 'Utilivos Pro',
           description: 'Unlock Pro tools',
           price: '\$9.99',
         ),
@@ -46,8 +46,8 @@ void main() {
       available: true,
       products: const <BillingProduct>[
         BillingProduct(
-          id: 'utilivo_pro_one_time',
-          title: 'Utilivo Pro',
+          id: 'utilivos_pro_one_time',
+          title: 'Utilivos Pro',
           description: 'Unlock Pro tools',
           price: '\$9.99',
         ),
@@ -69,7 +69,7 @@ void main() {
     gateway.emit(
       const BillingPurchaseUpdate(
         status: BillingPurchaseStatus.purchased,
-        productId: 'utilivo_pro_one_time',
+        productId: 'utilivos_pro_one_time',
         purchaseToken: 'purchase-token-1',
       ),
     );
@@ -78,7 +78,7 @@ void main() {
     expect(entitlementController.hasProAccess, true);
     expect(
       entitlementController.entitlement.productId,
-      'utilivo_pro_one_time',
+      'utilivos_pro_one_time',
     );
     expect(
       controller.statusMessage,
@@ -91,8 +91,8 @@ void main() {
       available: true,
       products: const <BillingProduct>[
         BillingProduct(
-          id: 'utilivo_pro_subscription',
-          title: 'Utilivo Pro (monthly)',
+          id: 'utilivos_pro_subscription',
+          title: 'Utilivos Pro (monthly)',
           description: 'Monthly Pro access',
           price: '\$4.99',
         ),
@@ -114,7 +114,7 @@ void main() {
     gateway.emit(
       const BillingPurchaseUpdate(
         status: BillingPurchaseStatus.restored,
-        productId: 'utilivo_pro_subscription',
+        productId: 'utilivos_pro_subscription',
         purchaseToken: 'restore-token-1',
       ),
     );
@@ -131,11 +131,11 @@ void main() {
 
 AppConfig _config() {
   return const AppConfig(
-    appName: 'Utilivo',
+    appName: 'Utilivos',
     apiBaseUrl: 'https://api.example.test',
-    androidPackageName: 'com.utilivo.utilivo_mobile',
-    proOneTimeProductId: 'utilivo_pro_one_time',
-    proSubscriptionProductId: 'utilivo_pro_subscription',
+    androidPackageName: 'com.utilivos.utilivos_mobile',
+    proOneTimeProductId: 'utilivos_pro_one_time',
+    proSubscriptionProductId: 'utilivos_pro_subscription',
     proSubscriptionMonthlyProductId: '',
     proSubscriptionAnnualProductId: '',
   );

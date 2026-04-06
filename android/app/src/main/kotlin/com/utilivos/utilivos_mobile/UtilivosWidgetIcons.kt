@@ -1,4 +1,4 @@
-package com.utilivo.utilivo_mobile
+package com.utilivos.utilivos_mobile
 
 import android.appwidget.AppWidgetManager
 import android.content.Context
@@ -11,7 +11,7 @@ import android.graphics.RectF
 import android.util.TypedValue
 import kotlin.math.min
 
-internal object UtilivoWidgetIcons {
+internal object UtilivosWidgetIcons {
 
   fun cornerRadiusPx(context: Context, cornerDp: Float): Float =
       TypedValue.applyDimension(

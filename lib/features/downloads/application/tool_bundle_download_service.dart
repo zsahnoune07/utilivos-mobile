@@ -82,7 +82,7 @@ class ToolBundleDownloadService {
       await bundlesDir.create(recursive: true);
     }
 
-    final filePath = '${bundlesDir.path}/$safeSlug-$safeVersion.utilivo.zip';
+    final filePath = '${bundlesDir.path}/$safeSlug-$safeVersion.utilivos.zip';
     final uri = Uri.parse(grant.url);
     final downloader = _downloadFile ?? _downloadWithDio;
     await downloader(uri, filePath, (int received, int total) {
@@ -875,7 +875,7 @@ class ToolBundleDownloadService {
     if (extension == '.zip') {
       return '.zip';
     }
-    return '.utilivo.zip';
+    return '.utilivos.zip';
   }
 
   String _safeFilePart(String raw) {

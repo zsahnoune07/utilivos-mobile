@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:utilivo_mobile/core/persistence/app_database.dart';
-import 'package:utilivo_mobile/core/sessions/drift_ephemeral_runtime_state_repository.dart';
-import 'package:utilivo_mobile/core/sessions/drift_tool_session_repository.dart';
-import 'package:utilivo_mobile/core/sessions/runtime_state_scope_service.dart';
-import 'package:utilivo_mobile/core/sessions/session_snapshot_normalizer.dart';
-import 'package:utilivo_mobile/core/sessions/tool_session_service.dart';
+import 'package:utilivos_mobile/core/persistence/app_database.dart';
+import 'package:utilivos_mobile/core/sessions/drift_ephemeral_runtime_state_repository.dart';
+import 'package:utilivos_mobile/core/sessions/drift_tool_session_repository.dart';
+import 'package:utilivos_mobile/core/sessions/runtime_state_scope_service.dart';
+import 'package:utilivos_mobile/core/sessions/session_snapshot_normalizer.dart';
+import 'package:utilivos_mobile/core/sessions/tool_session_service.dart';
 
 /// In-place session load must overwrite ephemeral storage for a fixed
 /// launch token (same runtime instance), not create a new token.
