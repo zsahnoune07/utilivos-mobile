@@ -34,6 +34,7 @@ import '../../features/discover/data/drift_catalog_cache_store.dart';
 import '../../features/downloads/application/tool_bundle_download_service.dart';
 import '../../features/downloads/data/download_api.dart';
 import '../../features/downloads/data/downloaded_tool_bundle_store.dart';
+import '../../features/downloads/data/meta_api.dart';
 import '../../features/home/data/health_api.dart';
 import '../../features/installs/application/installed_tools_controller.dart';
 import '../../features/installs/data/drift_installed_tools_store.dart';
@@ -183,11 +184,14 @@ class AppDependencies {
       cacheStore: resolvedCatalogCacheStore,
     );
     final downloadApi = DownloadApi(apiClient);
+    final metaApi = MetaApi(apiClient);
     final resolvedDownloadedToolBundleStore =
         downloadedToolBundleStore ?? SecureDownloadedToolBundleStore();
     final toolBundleDownloadService = ToolBundleDownloadService(
       dio: resolvedDio,
       store: resolvedDownloadedToolBundleStore,
+      metaApi: metaApi,
+      pinnedSigningRootPublicKey: resolvedConfig.pinnedSigningRootPublicKey,
     );
     final installsApi = InstallsApi(apiClient);
     final InstalledToolsStore resolvedInstalledToolsStore =
@@ -196,12 +200,15 @@ class AppDependencies {
         installsOrganizationStore ?? SecureInstallsOrganizationStore();
     final InstallsSyncMetaStore resolvedInstallsSyncMetaStore =
         installsSyncMetaStore ?? DriftInstallsSyncMetaStore(resolvedDb);
-    final localInstallRemovalsStore =
-        DriftLocalInstallRemovalsStore(resolvedDb);
-    final toolSessionService =
-        ToolSessionService(DriftToolSessionRepository(resolvedDb));
-    final toolWidgetService =
-        ToolWidgetService(DriftToolWidgetRepository(resolvedDb));
+    final localInstallRemovalsStore = DriftLocalInstallRemovalsStore(
+      resolvedDb,
+    );
+    final toolSessionService = ToolSessionService(
+      DriftToolSessionRepository(resolvedDb),
+    );
+    final toolWidgetService = ToolWidgetService(
+      DriftToolWidgetRepository(resolvedDb),
+    );
     final installedToolsController = InstalledToolsController(
       installsApi: installsApi,
       catalogApi: catalogApi,

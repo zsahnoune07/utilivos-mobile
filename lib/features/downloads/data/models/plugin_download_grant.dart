@@ -9,6 +9,7 @@ class PluginDownloadGrant {
     this.signature,
     this.signatureAlgorithm,
     this.signingPublicKey,
+    this.signingPublicKeyId,
     this.signaturePayload,
     this.entitlementVerifiedAt,
     this.runtimeMode,
@@ -26,6 +27,7 @@ class PluginDownloadGrant {
   final String? signature;
   final String? signatureAlgorithm;
   final String? signingPublicKey;
+  final String? signingPublicKeyId;
   final BundleSignaturePayload? signaturePayload;
   final DateTime? entitlementVerifiedAt;
   final String? runtimeMode;
@@ -61,19 +63,20 @@ class PluginDownloadGrant {
       signingPublicKey: _readOptionalString(json, const <String>[
         'signing_public_key',
       ]),
+      signingPublicKeyId: _readOptionalString(json, const <String>[
+        'signing_public_key_id',
+      ]),
       signaturePayload: _readOptionalSigningPayload(json['signature_payload']),
       entitlementVerifiedAt: _readOptionalDateTime(
         json['entitlement_verified_at'],
       ),
       runtimeMode: _readOptionalString(json, const <String>['runtime_mode']),
-      runtimeContractVersion: _readOptionalInt(
-        json,
-        const <String>['runtime_contract_version'],
-      ),
-      designSystemVersion: _readOptionalInt(
-        json,
-        const <String>['design_system_version'],
-      ),
+      runtimeContractVersion: _readOptionalInt(json, const <String>[
+        'runtime_contract_version',
+      ]),
+      designSystemVersion: _readOptionalInt(json, const <String>[
+        'design_system_version',
+      ]),
       sdkVersion: _readOptionalString(json, const <String>['sdk_version']),
     );
   }

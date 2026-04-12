@@ -112,7 +112,8 @@ Billing-related defines:
 flutter run \
   --dart-define=PREMIUM_ONE_TIME_PRODUCT_ID=utilivo_pro_one_time \
   --dart-define=PREMIUM_SUBSCRIPTION_PRODUCT_ID=utilivo_pro_subscription \
-  --dart-define=ANDROID_PACKAGE_NAME=com.utilivos.utilivo_mobile
+  --dart-define=ANDROID_PACKAGE_NAME=com.utilivos.utilivo_mobile \
+  --dart-define=PINNED_SIGNING_ROOT_PUBLIC_KEY="$(cat signing-root-public.pem)"
 ```
 
 ## Quality Checks

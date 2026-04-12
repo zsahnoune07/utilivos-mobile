@@ -1013,6 +1013,40 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         await widget.proCapabilityService.recordStorageActionConsumed();
         _emitHostReply(<String, Object?>{'id': id, 'ok': true});
         return;
+      case 'notificationPermission':
+        PermissionStatus status;
+        try {
+          status = await Permission.notification.status;
+          if (!status.isGranted) {
+            status = await Permission.notification.request();
+          }
+          _emitHostReply(<String, Object?>{
+            'id': id,
+            'permission': status.isGranted ? 'granted' : 'denied',
+          });
+        } catch (_) {
+          _emitHostReply(<String, Object?>{'id': id, 'permission': 'unsupported'});
+        }
+        return;
+      case 'notify':
+        final title =
+            data['title']?.toString().trim().isNotEmpty == true
+                ? data['title'].toString().trim()
+                : (widget.initialToolName ?? widget.pluginSlug);
+        final body = data['body']?.toString() ?? '';
+        try {
+          final ok = await _runtimeChannel.invokeMethod<bool>(
+            'showRuntimeNotification',
+            <String, Object>{
+              'title': title,
+              'body': body,
+            },
+          );
+          _emitHostReply(<String, Object?>{'id': id, 'ok': ok ?? false});
+        } catch (_) {
+          _emitHostReply(<String, Object?>{'id': id, 'ok': false});
+        }
+        return;
       case 'pinHomeShortcut':
         if (!widget.proCapabilityService.canAddHomeScreenLaunchers) {
           await widget.paywallCoordinator.show(
@@ -1269,6 +1303,41 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
           }
           document.addEventListener('utilivos-host-reply', onReply);
           UtilivosHost.postMessage(JSON.stringify({ type: 'recordStorage', id }));
+        });
+      },
+      requestNotificationPermission() {
+        return new Promise((resolve) => {
+          const id = String(Math.random()).slice(2);
+          function onReply(e) {
+            if (!e || !e.detail || e.detail.id !== id) return;
+            document.removeEventListener('utilivos-host-reply', onReply);
+            resolve(
+              typeof e.detail.permission === 'string' && e.detail.permission
+                ? e.detail.permission
+                : 'unsupported'
+            );
+          }
+          document.addEventListener('utilivos-host-reply', onReply);
+          UtilivosHost.postMessage(JSON.stringify({ type: 'notificationPermission', id }));
+        });
+      },
+      sendNotification(title, body) {
+        return new Promise((resolve) => {
+          const id = String(Math.random()).slice(2);
+          function onReply(e) {
+            if (!e || !e.detail || e.detail.id !== id) return;
+            document.removeEventListener('utilivos-host-reply', onReply);
+            resolve(!!e.detail.ok);
+          }
+          document.addEventListener('utilivos-host-reply', onReply);
+          UtilivosHost.postMessage(
+            JSON.stringify({
+              type: 'notify',
+              id,
+              title: typeof title === 'string' ? title : '',
+              body: typeof body === 'string' ? body : '',
+            })
+          );
         });
       },
       requestPinHomeShortcut(label) {

@@ -7,6 +7,7 @@ class AppConfig {
     required this.proSubscriptionProductId,
     required this.proSubscriptionMonthlyProductId,
     required this.proSubscriptionAnnualProductId,
+    this.pinnedSigningRootPublicKey,
     this.localToolBundlePath,
     this.localToolBundleSlug,
     this.localToolBundleVersion,
@@ -23,6 +24,7 @@ class AppConfig {
   final String proSubscriptionProductId;
   final String proSubscriptionMonthlyProductId;
   final String proSubscriptionAnnualProductId;
+  final String? pinnedSigningRootPublicKey;
   final String? localToolBundlePath;
   final String? localToolBundleSlug;
   final String? localToolBundleVersion;
@@ -62,6 +64,9 @@ class AppConfig {
       'PREMIUM_SUBSCRIPTION_ANNUAL_PRODUCT_ID',
       defaultValue: '',
     );
+    const pinnedSigningRootPublicKey = String.fromEnvironment(
+      'PINNED_SIGNING_ROOT_PUBLIC_KEY',
+    );
     const localToolBundlePath = String.fromEnvironment(
       'LOCAL_TOOL_BUNDLE_PATH',
     );
@@ -74,9 +79,7 @@ class AppConfig {
     const toolReportSubmitUrl = String.fromEnvironment(
       'TOOL_REPORT_SUBMIT_URL',
     );
-    const iosAppStoreId = String.fromEnvironment(
-      'IOS_APP_STORE_ID',
-    );
+    const iosAppStoreId = String.fromEnvironment('IOS_APP_STORE_ID');
 
     return AppConfig(
       appName: appName.trim().isEmpty ? 'Utilivos' : appName.trim(),
@@ -90,10 +93,11 @@ class AppConfig {
         fallback: 'utilivos_pro_one_time',
       ),
       proSubscriptionProductId: proSubscriptionProductId.trim(),
-      proSubscriptionMonthlyProductId:
-          proSubscriptionMonthlyProductId.trim(),
-      proSubscriptionAnnualProductId:
-          proSubscriptionAnnualProductId.trim(),
+      proSubscriptionMonthlyProductId: proSubscriptionMonthlyProductId.trim(),
+      proSubscriptionAnnualProductId: proSubscriptionAnnualProductId.trim(),
+      pinnedSigningRootPublicKey: _normalizeOptional(
+        pinnedSigningRootPublicKey,
+      ),
       localToolBundlePath: _normalizeOptional(localToolBundlePath),
       localToolBundleSlug: _normalizeOptional(localToolBundleSlug),
       localToolBundleVersion: _normalizeOptional(localToolBundleVersion),

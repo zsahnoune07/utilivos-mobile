@@ -12,9 +12,11 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../data/meta_api.dart';
 import '../data/downloaded_tool_bundle_store.dart';
 import '../data/models/downloaded_tool_bundle.dart';
 import '../data/models/plugin_download_grant.dart';
+import '../data/models/signing_metadata.dart';
 
 typedef BundleDownloadProgress = void Function(double progress);
 typedef BundleFileDownloader =
@@ -55,15 +57,21 @@ class ToolBundleDownloadService {
   ToolBundleDownloadService({
     required Dio dio,
     required DownloadedToolBundleStore store,
+    required MetaApi metaApi,
+    String? pinnedSigningRootPublicKey,
     BundleFileDownloader? downloadFile,
     BundleBaseDirectoryProvider? baseDirectoryProvider,
   }) : _dio = dio,
        _store = store,
+       _metaApi = metaApi,
+       _pinnedSigningRootPublicKey = pinnedSigningRootPublicKey,
        _downloadFile = downloadFile,
        _baseDirectoryProvider = baseDirectoryProvider;
 
   final Dio _dio;
   final DownloadedToolBundleStore _store;
+  final MetaApi _metaApi;
+  final String? _pinnedSigningRootPublicKey;
   final BundleFileDownloader? _downloadFile;
   final BundleBaseDirectoryProvider? _baseDirectoryProvider;
   List<DownloadedToolBundle>? _cachedBundles;
@@ -569,7 +577,10 @@ class ToolBundleDownloadService {
     return raw.trim();
   }
 
-  String? _readOptionalManifestField(Map<String, dynamic> manifest, String key) {
+  String? _readOptionalManifestField(
+    Map<String, dynamic> manifest,
+    String key,
+  ) {
     final raw = manifest[key];
     if (raw is! String) {
       return null;
@@ -578,7 +589,10 @@ class ToolBundleDownloadService {
     return value.isEmpty ? null : value;
   }
 
-  int? _readOptionalManifestIntField(Map<String, dynamic> manifest, String key) {
+  int? _readOptionalManifestIntField(
+    Map<String, dynamic> manifest,
+    String key,
+  ) {
     final raw = manifest[key];
     if (raw is int) {
       return raw;
@@ -700,10 +714,9 @@ class ToolBundleDownloadService {
       signatureVerifiedAt: signatureVerifiedAt,
       signatureSchemaVersion: grant?.signaturePayload?.schemaVersion,
       entitlementVerifiedAt: grant?.entitlementVerifiedAt,
-      runtimeMode:
-          (manifest.runtimeMode?.trim().isNotEmpty ?? false)
-              ? manifest.runtimeMode?.trim()
-              : grant?.runtimeMode,
+      runtimeMode: (manifest.runtimeMode?.trim().isNotEmpty ?? false)
+          ? manifest.runtimeMode?.trim()
+          : grant?.runtimeMode,
       runtimeContractVersion:
           manifest.runtimeContractVersion ?? grant?.runtimeContractVersion,
       designSystemVersion:
@@ -723,12 +736,12 @@ class ToolBundleDownloadService {
     if (normalized == 'free') {
       return 'free';
     }
-    if (normalized == 'pro' || normalized == 'premium' || normalized == 'paid') {
+    if (normalized == 'pro' ||
+        normalized == 'premium' ||
+        normalized == 'paid') {
       return 'pro';
     }
-    throw ToolBundleFormatException(
-      'Unsupported pricing tier "$normalized".',
-    );
+    throw ToolBundleFormatException('Unsupported pricing tier "$normalized".');
   }
 
   Future<DateTime?> _verifyDownloadGrantSignature({
@@ -742,12 +755,7 @@ class ToolBundleDownloadService {
     }
     final payload = grant.signaturePayload;
     final signature = grant.signature?.trim();
-    final signingPublicKey = grant.signingPublicKey?.trim();
-    if (payload == null ||
-        signature == null ||
-        signature.isEmpty ||
-        signingPublicKey == null ||
-        signingPublicKey.isEmpty) {
+    if (payload == null || signature == null || signature.isEmpty) {
       if (_normalizeTier(grantTier: grant.tier) == 'pro') {
         throw const ToolBundleFormatException(
           'Pro bundle is missing signature metadata.',
@@ -755,6 +763,7 @@ class ToolBundleDownloadService {
       }
       return null;
     }
+    final signingPublicKey = await _resolveTrustedSigningPublicKey(grant);
     final normalizedPayloadTier = _normalizeTier(grantTier: payload.tier);
     final normalizedGrantTier = _normalizeTier(grantTier: grant.tier);
     if (payload.slug != pluginSlug ||
@@ -790,6 +799,79 @@ class ToolBundleDownloadService {
       );
     }
     return DateTime.now().toUtc();
+  }
+
+  Future<String> _resolveTrustedSigningPublicKey(
+    PluginDownloadGrant grant,
+  ) async {
+    final pinnedRootPublicKey = _pinnedSigningRootPublicKey?.trim();
+    final grantSigningPublicKey = grant.signingPublicKey?.trim();
+    if (pinnedRootPublicKey == null || pinnedRootPublicKey.isEmpty) {
+      if (grantSigningPublicKey == null || grantSigningPublicKey.isEmpty) {
+        throw const ToolBundleFormatException(
+          'Signing key is missing in download metadata.',
+        );
+      }
+      return grantSigningPublicKey;
+    }
+
+    final meta = await _metaApi.fetchSigningMetadata();
+    await _verifySigningMetadataAgainstPinnedRoot(
+      signingMetadata: meta,
+      pinnedRootPublicKey: pinnedRootPublicKey,
+    );
+
+    if (grantSigningPublicKey != null &&
+        grantSigningPublicKey.isNotEmpty &&
+        grantSigningPublicKey != meta.signingPublicKey) {
+      throw const ToolBundleFormatException(
+        'Download signing key does not match trusted meta key.',
+      );
+    }
+    if (grant.signingPublicKeyId != null &&
+        grant.signingPublicKeyId!.trim().isNotEmpty &&
+        grant.signingPublicKeyId!.trim() != meta.signingPublicKeyId) {
+      throw const ToolBundleFormatException(
+        'Download signing key id does not match trusted meta key.',
+      );
+    }
+    return meta.signingPublicKey;
+  }
+
+  Future<void> _verifySigningMetadataAgainstPinnedRoot({
+    required SigningMetadata signingMetadata,
+    required String pinnedRootPublicKey,
+  }) async {
+    final payload = signingMetadata.publicKeySignaturePayload;
+    if (payload.schemaVersion != 1 ||
+        payload.keyPurpose != 'bundle_signing_leaf' ||
+        payload.keyAlgorithm != 'ECDSA_P256_SHA256' ||
+        payload.keyId != signingMetadata.signingPublicKeyId ||
+        payload.publicKeyPem != signingMetadata.signingPublicKey ||
+        signingMetadata.signingPublicKeyAlgorithm != 'ECDSA_P256_SHA256' ||
+        signingMetadata.publicKeySignatureAlgorithm != 'ECDSA_P256_SHA256') {
+      throw const ToolBundleFormatException('Signing metadata is invalid.');
+    }
+
+    final canonicalPayload = jsonEncode(<String, dynamic>{
+      'schema_version': payload.schemaVersion,
+      'key_purpose': payload.keyPurpose,
+      'key_algorithm': payload.keyAlgorithm,
+      'key_id': payload.keyId,
+      'public_key_pem': payload.publicKeyPem,
+    });
+    final rootKeyBytes = _extractEcPublicKeyBytesFromPem(pinnedRootPublicKey);
+    final rootPublicKey = SimplePublicKey(rootKeyBytes, type: KeyPairType.p256);
+    final signatureBytes = base64Decode(signingMetadata.publicKeySignature);
+    final didVerify = await Ecdsa.p256(Sha256()).verify(
+      utf8.encode(canonicalPayload),
+      signature: Signature(signatureBytes, publicKey: rootPublicKey),
+    );
+    if (!didVerify) {
+      throw const ToolBundleFormatException(
+        'Trusted signing metadata verification failed.',
+      );
+    }
   }
 
   List<int> _extractEcPublicKeyBytesFromPem(String pem) {

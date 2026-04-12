@@ -26,6 +26,7 @@ import 'package:utilivos_mobile/features/discover/presentation/plugin_detail_pag
 import 'package:utilivos_mobile/features/downloads/application/tool_bundle_download_service.dart';
 import 'package:utilivos_mobile/features/downloads/data/download_api.dart';
 import 'package:utilivos_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
+import 'package:utilivos_mobile/features/downloads/data/meta_api.dart';
 import 'package:utilivos_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
 import 'package:utilivos_mobile/features/installs/application/installed_tools_controller.dart';
 import 'package:utilivos_mobile/features/installs/data/installed_tools_read_result.dart';
@@ -327,6 +328,7 @@ class _PluginDetailHarness {
         toolBundleDownloadService: ToolBundleDownloadService(
           dio: dio,
           store: _InMemoryDownloadedToolBundleStore(),
+          metaApi: MetaApi(apiClient),
           baseDirectoryProvider: () async => Directory.systemTemp,
           downloadFile:
               (

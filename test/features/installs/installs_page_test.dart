@@ -25,6 +25,7 @@ import 'package:utilivos_mobile/core/entitlement/models/pro_entitlement.dart';
 import 'package:utilivos_mobile/features/downloads/application/tool_bundle_download_service.dart';
 import 'package:utilivos_mobile/features/downloads/data/download_api.dart';
 import 'package:utilivos_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
+import 'package:utilivos_mobile/features/downloads/data/meta_api.dart';
 import 'package:utilivos_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
 import 'package:utilivos_mobile/features/installs/application/installed_tools_controller.dart';
 import 'package:utilivos_mobile/features/installs/data/installed_tools_read_result.dart';
@@ -124,6 +125,7 @@ void main() {
     final toolBundleDownloadService = ToolBundleDownloadService(
       dio: dio,
       store: bundleStore,
+      metaApi: MetaApi(apiClient),
     );
     final installsApi = InstallsApi(apiClient);
     final entitlementStore = _InMemoryEntitlementStore();
@@ -211,6 +213,7 @@ void main() {
     final toolBundleDownloadService = ToolBundleDownloadService(
       dio: dio,
       store: bundleStore,
+      metaApi: MetaApi(apiClient),
     );
     final installsApi = InstallsApi(apiClient);
     final entitlementStore = _InMemoryEntitlementStore();
@@ -1493,6 +1496,7 @@ class _InstallsHarness {
       toolBundleDownloadService: ToolBundleDownloadService(
         dio: bundleStoreDio,
         store: _InMemoryDownloadedToolBundleStore(),
+        metaApi: MetaApi(apiClient),
       ),
       installsApi: InstallsApi(apiClient),
       entitlementController: entitlementController,

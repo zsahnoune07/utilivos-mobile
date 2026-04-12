@@ -8,6 +8,7 @@ import 'package:utilivos_mobile/core/networking/api_client.dart';
 import 'package:utilivos_mobile/features/discover/data/catalog_api.dart';
 import 'package:utilivos_mobile/features/downloads/application/tool_bundle_download_service.dart';
 import 'package:utilivos_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
+import 'package:utilivos_mobile/features/downloads/data/meta_api.dart';
 import 'package:utilivos_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
 import 'package:utilivos_mobile/features/installs/application/installed_tools_controller.dart';
 import 'package:utilivos_mobile/features/installs/data/installed_tools_read_result.dart';
@@ -307,6 +308,7 @@ void main() {
         toolBundleDownloadService: ToolBundleDownloadService(
           dio: Dio(),
           store: bundleStore,
+          metaApi: MetaApi(ApiClient(Dio())),
         ),
       );
 

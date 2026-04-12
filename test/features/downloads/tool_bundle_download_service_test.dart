@@ -5,8 +5,10 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:utilivos_mobile/core/networking/api_client.dart';
 import 'package:utilivos_mobile/features/downloads/application/tool_bundle_download_service.dart';
 import 'package:utilivos_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
+import 'package:utilivos_mobile/features/downloads/data/meta_api.dart';
 import 'package:utilivos_mobile/features/downloads/data/models/downloaded_tool_bundle.dart';
 import 'package:utilivos_mobile/features/downloads/data/models/plugin_download_grant.dart';
 
@@ -33,6 +35,7 @@ void main() {
       final service = ToolBundleDownloadService(
         dio: Dio(),
         store: store,
+        metaApi: MetaApi(ApiClient(Dio())),
         baseDirectoryProvider: () async => tmpDir,
         downloadFile:
             (
@@ -85,6 +88,7 @@ void main() {
     final service = ToolBundleDownloadService(
       dio: Dio(),
       store: store,
+      metaApi: MetaApi(ApiClient(Dio())),
       baseDirectoryProvider: () async => tmpDir,
       downloadFile:
           (
@@ -129,6 +133,7 @@ void main() {
     final service = ToolBundleDownloadService(
       dio: Dio(),
       store: store,
+      metaApi: MetaApi(ApiClient(Dio())),
       baseDirectoryProvider: () async => tmpDir,
       downloadFile:
           (
@@ -174,6 +179,7 @@ void main() {
     final service = ToolBundleDownloadService(
       dio: Dio(),
       store: store,
+      metaApi: MetaApi(ApiClient(Dio())),
       baseDirectoryProvider: () async => tmpDir,
       downloadFile:
           (
@@ -219,6 +225,7 @@ void main() {
       final service = ToolBundleDownloadService(
         dio: Dio(),
         store: store,
+        metaApi: MetaApi(ApiClient(Dio())),
         baseDirectoryProvider: () async => tmpDir,
         downloadFile:
             (
@@ -265,6 +272,7 @@ void main() {
       final service = ToolBundleDownloadService(
         dio: Dio(),
         store: store,
+        metaApi: MetaApi(ApiClient(Dio())),
         baseDirectoryProvider: () async => tmpDir,
         downloadFile:
             (
@@ -309,6 +317,7 @@ void main() {
     final service = ToolBundleDownloadService(
       dio: Dio(),
       store: store,
+      metaApi: MetaApi(ApiClient(Dio())),
       baseDirectoryProvider: () async => tmpDir,
       downloadFile:
           (
@@ -365,6 +374,7 @@ void main() {
       final service = ToolBundleDownloadService(
         dio: Dio(),
         store: store,
+        metaApi: MetaApi(ApiClient(Dio())),
         baseDirectoryProvider: () async => tmpDir,
       );
 
@@ -403,6 +413,7 @@ void main() {
       final service = ToolBundleDownloadService(
         dio: Dio(),
         store: store,
+        metaApi: MetaApi(ApiClient(Dio())),
         baseDirectoryProvider: () async => tmpDir,
       );
 
@@ -440,6 +451,7 @@ void main() {
     final service = ToolBundleDownloadService(
       dio: Dio(),
       store: _InMemoryDownloadedToolBundleStore(),
+      metaApi: MetaApi(ApiClient(Dio())),
       baseDirectoryProvider: () async => tmpDir,
     );
 
