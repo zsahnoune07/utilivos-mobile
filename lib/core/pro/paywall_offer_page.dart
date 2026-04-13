@@ -6,7 +6,7 @@ import 'paywall_offer_view.dart';
 import '../pro/pro_analytics.dart';
 import '../pro/pro_purchase_controller.dart';
 
-/// Full-screen Pro offer with comparison table (preferred over sheet for main CTAs).
+/// Full-screen Pro offer (preferred over sheet for main CTAs).
 class PaywallOfferPage extends StatelessWidget {
   const PaywallOfferPage({
     required this.request,
@@ -24,23 +24,12 @@ class PaywallOfferPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Utilivos Pro'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () {
-            analytics.paywallDismissed(request, converted: false);
-            Navigator.of(context).pop(PaywallResult.dismissed);
-          },
-        ),
-      ),
       body: SafeArea(
         child: PaywallOfferView(
           request: request,
           purchaseController: purchaseController,
           entitlementController: entitlementController,
           analytics: analytics,
-          showCompareTable: true,
           compact: false,
           onClose: (PaywallResult r) {
             Navigator.of(context).pop(r);

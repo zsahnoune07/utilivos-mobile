@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../billing/models/billing_models.dart';
 import '../entitlement/entitlement_controller.dart';
-import 'paywall_models.dart';
 import '../pro/pro_analytics.dart';
 import '../pro/pro_purchase_controller.dart';
+import 'paywall_models.dart';
 
-/// Shared paywall content: value props, Free vs Pro comparison, plan picker, CTAs.
+/// Shared paywall content: value props, plan picker, and CTAs.
 class PaywallOfferView extends StatefulWidget {
   const PaywallOfferView({
     required this.request,
@@ -14,9 +14,7 @@ class PaywallOfferView extends StatefulWidget {
     required this.entitlementController,
     required this.analytics,
     required this.onClose,
-    this.showCompareTable = true,
     this.compact = false,
-    this.onSeeFullPlans,
     super.key,
   });
 
@@ -26,14 +24,8 @@ class PaywallOfferView extends StatefulWidget {
   final ProAnalytics analytics;
   final void Function(PaywallResult result) onClose;
 
-  /// Full [PaywallOfferPage] sets true; bottom sheet may set false and link here.
-  final bool showCompareTable;
-
   /// Tighter spacing for modal sheet.
   final bool compact;
-
-  /// When set (e.g. compact sheet), opens full comparison without nesting sheets.
-  final VoidCallback? onSeeFullPlans;
 
   @override
   State<PaywallOfferView> createState() => _PaywallOfferViewState();
@@ -88,354 +80,747 @@ class _PaywallOfferViewState extends State<PaywallOfferView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final annualId = widget.purchaseController.resolvedAnnualProductId;
     final monthlyId = widget.purchaseController.resolvedMonthlyProductId;
     final annual = _productFor(annualId);
     final monthly = _productFor(monthlyId);
-    final oneTime = _productFor(widget.purchaseController.configuredOneTimeProductId);
+    final oneTime = _productFor(
+      widget.purchaseController.configuredOneTimeProductId,
+    );
 
     if (_selectedProductId == null || _productFor(_selectedProductId) == null) {
       _selectedProductId =
           annual?.id ?? monthly?.id ?? oneTime?.id ?? _selectedProductId;
     }
 
-    final msg = widget.request.contextMessage;
     final pad = widget.compact
-        ? const EdgeInsets.fromLTRB(16, 4, 16, 16)
-        : const EdgeInsets.fromLTRB(20, 8, 20, 24);
-    final gap = widget.compact ? 12.0 : 20.0;
+        ? const EdgeInsets.fromLTRB(16, 58, 16, 20)
+        : const EdgeInsets.fromLTRB(20, 66, 20, 28);
+    final gap = widget.compact ? 16.0 : 24.0;
+    final titleStyle =
+        (widget.compact
+                ? theme.textTheme.headlineSmall
+                : theme.textTheme.headlineMedium)
+            ?.copyWith(
+              fontWeight: FontWeight.w800,
+              height: 1.05,
+              letterSpacing: -0.7,
+            );
 
-    return SingleChildScrollView(
-      padding: pad,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          if (!widget.compact) ...<Widget>[
-            Text(
-              'Utilivos Pro',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
+    return ClipRect(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: <Color>[
+              Color.alphaBlend(
+                scheme.primary.withValues(alpha: isDark ? 0.28 : 0.14),
+                scheme.surface,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-          ],
-          Text(
-            'Speed, saved workflows, and power tools—without watering down the free tier.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
+              Color.alphaBlend(
+                scheme.secondary.withValues(alpha: isDark ? 0.22 : 0.10),
+                scheme.surface,
+              ),
+              Color.alphaBlend(
+                scheme.tertiary.withValues(alpha: isDark ? 0.18 : 0.06),
+                scheme.surface,
+              ),
+            ],
           ),
-          if (msg != null && msg.isNotEmpty) ...<Widget>[
-            SizedBox(height: gap * 0.5),
-            Text(
-              msg,
-              style: theme.textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ],
-          SizedBox(height: gap),
-          const _Bullet(text: 'Unlimited pinned tools'),
-          const _Bullet(text: 'Unlimited folders for organization'),
-          const _Bullet(text: 'Full access to Pro catalog tools'),
-          const _Bullet(text: 'Save and resume work across launches'),
-          const _Bullet(text: 'Unlimited exports and file actions'),
-          const _Bullet(text: 'Unlimited home screen widgets'),
-          const _Bullet(text: 'Home screen shortcuts for instant launch'),
-          if (widget.showCompareTable) ...<Widget>[
-            SizedBox(height: gap),
-            Text(
-              'Free vs Pro',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+        ),
+        child: Stack(
+          children: <Widget>[
+            Positioned.fill(
+              child: IgnorePointer(
+                child: _PaywallBackdrop(compact: widget.compact),
               ),
             ),
-            const SizedBox(height: 8),
-            const _CompareTable(),
-            const SizedBox(height: 6),
-            Text(
-              '* Pro tools are locked by default; the catalog can enable a free preview install per tool.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            SingleChildScrollView(
+              padding: pad,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const Align(
+                    child: _PillLabel(
+                      icon: Icons.workspace_premium_rounded,
+                      label: 'Utilivos Pro',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Unlock the full Utilivos toolkit',
+                    style: titleStyle,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 14),
+                  const _SectionCard(
+                    child: Column(
+                      children: <Widget>[
+                        _BenefitRow(
+                          icon: Icons.push_pin_rounded,
+                          text:
+                              'Pin as many tools as you want and keep your most-used workflows on top.',
+                        ),
+                        _BenefitDivider(),
+                        _BenefitRow(
+                          icon: Icons.folder_open_rounded,
+                          text:
+                              'Create unlimited folders and organize tools around real projects.',
+                        ),
+                        _BenefitDivider(),
+                        _BenefitRow(
+                          icon: Icons.extension_rounded,
+                          text:
+                              'Open every Pro catalog tool instead of stopping at preview mode.',
+                        ),
+                        _BenefitDivider(),
+                        _BenefitRow(
+                          icon: Icons.history_toggle_off_rounded,
+                          text:
+                              'Save your place and resume work exactly where you left off.',
+                        ),
+                        _BenefitDivider(),
+                        _BenefitRow(
+                          icon: Icons.file_download_done_rounded,
+                          text:
+                              'Export, save, and share files without free-tier daily limits.',
+                        ),
+                        _BenefitDivider(),
+                        _BenefitRow(
+                          icon: Icons.widgets_outlined,
+                          text:
+                              'Add home screen widgets and shortcuts for instant launch.',
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: gap),
+                  if (annual != null || monthly != null) ...<Widget>[
+                    Row(
+                      children: <Widget>[
+                        if (annual != null)
+                          Expanded(
+                            child: _PlanOptionButton(
+                              title: 'Yearly',
+                              price: annual.price,
+                              badgeLabel: 'BEST VALUE',
+                              selected: _selectedProductId == annual.id,
+                              highlighted: true,
+                              onTap: () => setState(
+                                () => _selectedProductId = annual.id,
+                              ),
+                            ),
+                          ),
+                        if (annual != null && monthly != null)
+                          const SizedBox(width: 12),
+                        if (monthly != null)
+                          Expanded(
+                            child: _PlanOptionButton(
+                              title: 'Monthly',
+                              price: monthly.price,
+                              selected: _selectedProductId == monthly.id,
+                              highlighted: false,
+                              onTap: () => setState(
+                                () => _selectedProductId = monthly.id,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                  ] else if (oneTime != null) ...<Widget>[
+                    _PlanOptionButton(
+                      title: 'Lifetime',
+                      price: oneTime.price,
+                      badgeLabel: 'ONE-TIME',
+                      selected: _selectedProductId == oneTime.id,
+                      highlighted: true,
+                      onTap: () =>
+                          setState(() => _selectedProductId = oneTime.id),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(56),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    onPressed:
+                        widget.purchaseController.isPurchaseInProgress ||
+                            !widget.purchaseController.canPurchase
+                        ? null
+                        : _selectedProductId == null
+                        ? null
+                        : () async {
+                            final id = _selectedProductId!;
+                            widget.analytics.conversionStarted(
+                              widget.request,
+                              productId: id,
+                            );
+                            await widget.purchaseController.purchaseProduct(id);
+                          },
+                    child: widget.purchaseController.isPurchaseInProgress
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Continue'),
+                  ),
+                  if (widget.purchaseController.isLoadingProducts) ...<Widget>[
+                    const SizedBox(height: 12),
+                    const _InfoBanner(
+                      icon: Icons.sync_rounded,
+                      text: 'Loading live pricing from the store...',
+                    ),
+                  ] else if (widget
+                      .purchaseController
+                      .availableProducts
+                      .isEmpty) ...<Widget>[
+                    const SizedBox(height: 12),
+                    const _InfoBanner(
+                      icon: Icons.storefront_rounded,
+                      text:
+                          'Store prices appear here when billing is available. Configure SKUs in AppConfig or use Settings > Developer to simulate Pro while testing.',
+                    ),
+                  ],
+                  if (widget.purchaseController.errorMessage !=
+                      null) ...<Widget>[
+                    const SizedBox(height: 12),
+                    _InfoBanner(
+                      icon: Icons.error_outline_rounded,
+                      text: widget.purchaseController.errorMessage!,
+                      tone: _BannerTone.error,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: widget.purchaseController.isRestoreInProgress
+                        ? null
+                        : () async {
+                            widget.analytics.conversionStarted(
+                              widget.request,
+                              productId: 'restore',
+                            );
+                            await widget.purchaseController.restorePurchases();
+                          },
+                    child: widget.purchaseController.isRestoreInProgress
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Restore purchases'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      widget.analytics.paywallDismissed(
+                        widget.request,
+                        converted: false,
+                      );
+                      widget.onClose(PaywallResult.dismissed);
+                    },
+                    child: const Text('Not now'),
+                  ),
+                  if (!widget.purchaseController.storeAvailable)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Billing is unavailable on this device. Pro may still apply if you subscribed elsewhere.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Positioned(
+              top: widget.compact ? 8 : 10,
+              left: widget.compact ? 12 : 16,
+              child: _CloseButton(
+                onPressed: () {
+                  widget.analytics.paywallDismissed(
+                    widget.request,
+                    converted: false,
+                  );
+                  widget.onClose(PaywallResult.dismissed);
+                },
               ),
             ),
           ],
-          SizedBox(height: gap),
-          if (annual != null)
-            _PlanCard(
-              title: 'Best value · Annual',
-              subtitle: annual.price,
-              selected: _selectedProductId == annual.id,
-              emphasized: true,
-              onTap: () => setState(() => _selectedProductId = annual.id),
-            ),
-          if (monthly != null) ...<Widget>[
-            const SizedBox(height: 10),
-            _PlanCard(
-              title: 'Monthly',
-              subtitle: monthly.price,
-              selected: _selectedProductId == monthly.id,
-              emphasized: false,
-              onTap: () => setState(() => _selectedProductId = monthly.id),
-            ),
-          ],
-          if (oneTime != null && annual == null && monthly == null) ...<Widget>[
-            const SizedBox(height: 10),
-            _PlanCard(
-              title: 'Lifetime',
-              subtitle: oneTime.price,
-              selected: _selectedProductId == oneTime.id,
-              emphasized: true,
-              onTap: () => setState(() => _selectedProductId = oneTime.id),
-            ),
-          ],
-          if (widget.purchaseController.availableProducts.isEmpty) ...<Widget>[
-            const SizedBox(height: 8),
-            Text(
-              'Store prices load when billing is available. Configure SKUs in AppConfig; '
-              'use Settings → Developer (debug) to simulate Pro without the store.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-          if (widget.purchaseController.errorMessage != null) ...<Widget>[
-            const SizedBox(height: 12),
-            Text(
-              widget.purchaseController.errorMessage!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-            ),
-          ],
-          SizedBox(height: gap * 0.8),
-          FilledButton(
-            onPressed: widget.purchaseController.isPurchaseInProgress ||
-                    !widget.purchaseController.storeAvailable
-                ? null
-                : _selectedProductId == null
-                    ? null
-                    : () async {
-                        final id = _selectedProductId!;
-                        widget.analytics.conversionStarted(
-                          widget.request,
-                          productId: id,
-                        );
-                        await widget.purchaseController.purchaseProduct(id);
-                      },
-            child: widget.purchaseController.isPurchaseInProgress
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Unlock Pro'),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: widget.purchaseController.isRestoreInProgress
-                ? null
-                : () async {
-                    widget.analytics.conversionStarted(
-                      widget.request,
-                      productId: 'restore',
-                    );
-                    await widget.purchaseController.restorePurchases();
-                  },
-            child: widget.purchaseController.isRestoreInProgress
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Restore purchases'),
-          ),
-          TextButton(
-            onPressed: () {
-              widget.analytics.paywallDismissed(
-                widget.request,
-                converted: false,
-              );
-              widget.onClose(PaywallResult.dismissed);
-            },
-            child: const Text('Not now'),
-          ),
-          if (!widget.purchaseController.storeAvailable)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'Billing is unavailable on this device. Pro may still apply if you subscribed elsewhere.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          if (widget.onSeeFullPlans != null) ...<Widget>[
-            const SizedBox(height: 4),
-            TextButton(
-              onPressed: widget.onSeeFullPlans,
-              child: const Text('See full comparison & details'),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
 }
 
-class _CompareTable extends StatelessWidget {
-  const _CompareTable();
+class _PaywallBackdrop extends StatelessWidget {
+  const _PaywallBackdrop({required this.compact});
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final side = BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5));
-    Widget cell(String text, {bool header = false, bool center = false}) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        alignment: center ? Alignment.center : Alignment.centerLeft,
-        child: Text(
-          text,
-          style: TextStyle(
-            fontWeight: header ? FontWeight.w700 : FontWeight.w400,
-            fontSize: header ? 13 : 12.5,
-          ),
-          textAlign: center ? TextAlign.center : TextAlign.start,
-        ),
-      );
-    }
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
-    TableRow row(String feature, String free, String pro) {
-      return TableRow(
-        children: <Widget>[
-          cell(feature),
-          cell(free, center: true),
-          cell(pro, center: true),
-        ],
-      );
-    }
-
-    return Table(
-      border: TableBorder(
-        left: side,
-        top: side,
-        right: side,
-        bottom: side,
-        horizontalInside: side,
-        verticalInside: side,
-      ),
-      columnWidths: const <int, TableColumnWidth>{
-        0: FlexColumnWidth(2.2),
-        1: FlexColumnWidth(1.4),
-        2: FlexColumnWidth(1.4),
-      },
-      children: <TableRow>[
-        TableRow(
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+    return Stack(
+      children: <Widget>[
+        Positioned(
+          top: compact ? -72 : -96,
+          left: compact ? -80 : -110,
+          child: _GlowOrb(
+            color: scheme.primary.withValues(alpha: isDark ? 0.30 : 0.20),
+            size: compact ? 220 : 300,
           ),
-          children: <Widget>[
-            cell('Feature', header: true),
-            cell('Free', header: true, center: true),
-            cell('Pro', header: true, center: true),
-          ],
         ),
-        row('Pinned tools', '3', 'Unlimited'),
-        row('Folders', '3', 'Unlimited'),
-        row('Pro catalog', 'Locked / preview*', 'Full access'),
-        row('Save & resume', '—', 'Yes'),
-        row('Exports & files / day', 'Limited', 'Unlimited'),
-        row('Home screen widgets', '1', 'Unlimited'),
-        row('Home shortcuts', '—', 'Yes'),
+        Positioned(
+          top: compact ? -12 : 0,
+          right: compact ? -90 : -120,
+          child: _GlowOrb(
+            color: scheme.tertiary.withValues(alpha: isDark ? 0.24 : 0.12),
+            size: compact ? 200 : 280,
+          ),
+        ),
+        Positioned(
+          top: compact ? 140 : 200,
+          left: compact ? -30 : -10,
+          child: _GlowOrb(
+            color: scheme.secondary.withValues(alpha: isDark ? 0.20 : 0.11),
+            size: compact ? 160 : 210,
+          ),
+        ),
+        Positioned(
+          bottom: compact ? -110 : -140,
+          right: compact ? -90 : -130,
+          child: _GlowOrb(
+            color: scheme.primary.withValues(alpha: isDark ? 0.18 : 0.10),
+            size: compact ? 240 : 320,
+          ),
+        ),
       ],
     );
   }
 }
 
-class _Bullet extends StatelessWidget {
-  const _Bullet({required this.text});
+class _GlowOrb extends StatelessWidget {
+  const _GlowOrb({required this.color, required this.size});
 
-  final String text;
+  final Color color;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Icon(
-            Icons.check_circle_outline,
-            size: 18,
-            color: Theme.of(context).colorScheme.primary,
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: <BoxShadow>[
+            BoxShadow(color: color, blurRadius: 38, spreadRadius: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CloseButton extends StatelessWidget {
+  const _CloseButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: Ink(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Color.alphaBlend(
+              scheme.surface.withValues(alpha: 0.80),
+              scheme.surfaceContainerHighest,
+            ),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.35),
+            ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: scheme.shadow.withValues(alpha: 0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(child: Text(text)),
+          child: Icon(Icons.close_rounded, color: scheme.onSurface),
+        ),
+      ),
+    );
+  }
+}
+
+class _PillLabel extends StatelessWidget {
+  const _PillLabel({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: scheme.primary.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 16, color: scheme.primary),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );
   }
 }
 
-class _PlanCard extends StatelessWidget {
-  const _PlanCard({
-    required this.title,
-    required this.subtitle,
-    required this.selected,
-    required this.emphasized,
-    required this.onTap,
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final backgroundColor = isDark
+        ? Color.alphaBlend(
+            scheme.primary.withValues(alpha: 0.08),
+            scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+          )
+        : Color.alphaBlend(
+            scheme.primary.withValues(alpha: 0.018),
+            scheme.surface.withValues(alpha: 0.98),
+          );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.42),
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: scheme.shadow.withValues(alpha: isDark ? 0.16 : 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(padding: const EdgeInsets.all(18), child: child),
+    );
+  }
+}
+
+enum _BannerTone { neutral, accent, error }
+
+class _InfoBanner extends StatelessWidget {
+  const _InfoBanner({
+    required this.icon,
+    required this.text,
+    this.tone = _BannerTone.neutral,
   });
 
-  final String title;
-  final String subtitle;
-  final bool selected;
-  final bool emphasized;
-  final VoidCallback onTap;
+  final IconData icon;
+  final String text;
+  final _BannerTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    late final Color background;
+    late final Color iconColor;
+
+    switch (tone) {
+      case _BannerTone.accent:
+        background = Color.alphaBlend(
+          scheme.primary.withValues(alpha: 0.12),
+          scheme.surfaceContainerHighest,
+        );
+        iconColor = scheme.primary;
+      case _BannerTone.error:
+        background = Color.alphaBlend(
+          scheme.error.withValues(alpha: 0.10),
+          scheme.surfaceContainerHighest,
+        );
+        iconColor = scheme.error;
+      case _BannerTone.neutral:
+        background = scheme.surfaceContainerHighest.withValues(alpha: 0.8);
+        iconColor = scheme.onSurfaceVariant;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(icon, size: 18, color: iconColor),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              textAlign: TextAlign.start,
+              style: theme.textTheme.bodySmall?.copyWith(
+                height: 1.4,
+                fontWeight: tone == _BannerTone.error ? FontWeight.w600 : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BenefitRow extends StatelessWidget {
+  const _BenefitRow({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          margin: const EdgeInsets.only(top: 2),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: scheme.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, size: 18, color: scheme.primary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(height: 1.45),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BenefitDivider extends StatelessWidget {
+  const _BenefitDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Divider(
+        height: 1,
+        color: Theme.of(
+          context,
+        ).colorScheme.outlineVariant.withValues(alpha: 0.35),
+      ),
+    );
+  }
+}
+
+class _PlanOptionButton extends StatelessWidget {
+  const _PlanOptionButton({
+    required this.title,
+    required this.price,
+    required this.selected,
+    required this.highlighted,
+    required this.onTap,
+    this.badgeLabel,
+  });
+
+  final String title;
+  final String price;
+  final bool selected;
+  final bool highlighted;
+  final VoidCallback onTap;
+  final String? badgeLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final bg = selected
+        ? Color.alphaBlend(
+            scheme.primary.withValues(alpha: 0.16),
+            scheme.surface,
+          )
+        : highlighted
+        ? Color.alphaBlend(
+            scheme.primary.withValues(alpha: 0.06),
+            scheme.surface,
+          )
+        : scheme.surface.withValues(alpha: 0.78);
+
     return Material(
-      color: emphasized
-          ? scheme.primaryContainer.withValues(alpha: 0.35)
-          : scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-      borderRadius: BorderRadius.circular(12),
+      color: bg,
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: <Widget>[
-              Icon(
-                selected
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_off,
-                color: scheme.primary,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected
+                  ? scheme.primary
+                  : highlighted
+                  ? scheme.primary.withValues(alpha: 0.34)
+                  : scheme.outlineVariant.withValues(alpha: 0.38),
+              width: selected ? 1.8 : 1,
+            ),
+            boxShadow: selected || highlighted
+                ? <BoxShadow>[
+                    BoxShadow(
+                      color: scheme.shadow.withValues(
+                        alpha: selected ? 0.08 : 0.04,
+                      ),
+                      blurRadius: selected ? 18 : 12,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : const <BoxShadow>[],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodySmall,
+                    const SizedBox(width: 8),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: selected ? scheme.primary : Colors.transparent,
+                        border: Border.all(
+                          color: selected
+                              ? scheme.primary
+                              : highlighted
+                              ? scheme.primary.withValues(alpha: 0.55)
+                              : scheme.outline,
+                          width: 2,
+                        ),
+                      ),
+                      child: selected
+                          ? Icon(
+                              Icons.check_rounded,
+                              size: 14,
+                              color: scheme.onPrimary,
+                            )
+                          : null,
                     ),
                   ],
                 ),
-              ),
-            ],
+                if (badgeLabel != null) ...<Widget>[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      badgeLabel!,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: scheme.onPrimary,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.35,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Text(
+                  price,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    height: 1.0,
+                  ),
+                ),
+                if (highlighted && !selected) ...<Widget>[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Recommended',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
