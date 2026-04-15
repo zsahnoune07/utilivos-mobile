@@ -3,6 +3,8 @@ class PluginDownloadGrant {
     required this.url,
     required this.version,
     this.expiresAt,
+    this.expiresInSeconds,
+    this.method,
     this.checksumSha256,
     this.tier,
     this.publisherId,
@@ -21,6 +23,10 @@ class PluginDownloadGrant {
   final String url;
   final String version;
   final DateTime? expiresAt;
+  /// Server-computed grant lifetime (optional; informational).
+  final int? expiresInSeconds;
+  /// HTTP method for [url], typically GET (optional).
+  final String? method;
   final String? checksumSha256;
   final String? tier;
   final String? publisherId;
@@ -49,6 +55,10 @@ class PluginDownloadGrant {
       url: url,
       version: version,
       expiresAt: _readOptionalDateTime(json['expires_at']),
+      expiresInSeconds: _readOptionalInt(json, const <String>[
+        'expires_in_seconds',
+      ]),
+      method: _readOptionalString(json, const <String>['method']),
       checksumSha256: _readOptionalString(json, const <String>[
         'checksum_sha256',
         'sha256',

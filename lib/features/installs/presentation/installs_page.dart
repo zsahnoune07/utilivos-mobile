@@ -874,6 +874,10 @@ class _InstallsPageState extends State<InstallsPage> {
       final bundle = await widget.toolBundleDownloadService.downloadBundle(
         pluginSlug: install.pluginSlug,
         grant: grant,
+        refetchGrant: () => widget.downloadApi.requestDownload(
+          pluginSlug: install.pluginSlug,
+          entitlementAssertionToken: assertionToken,
+        ),
       );
       if (!bundle.isRunnable) {
         messenger.showSnackBar(

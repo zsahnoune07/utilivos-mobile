@@ -79,6 +79,7 @@ class ToolBundleDownloadService {
   Future<DownloadedToolBundle> downloadBundle({
     required String pluginSlug,
     required PluginDownloadGrant grant,
+    Future<PluginDownloadGrant> Function()? refetchGrant,
     BundleDownloadProgress? onProgress,
   }) async {
     final normalizedSlug = pluginSlug.trim();
@@ -91,23 +92,41 @@ class ToolBundleDownloadService {
     }
 
     final filePath = '${bundlesDir.path}/$safeSlug-$safeVersion.utilivos.zip';
-    final uri = Uri.parse(grant.url);
     final downloader = _downloadFile ?? _downloadWithDio;
-    await downloader(uri, filePath, (int received, int total) {
-      if (onProgress == null || total <= 0) {
-        return;
+    var activeGrant = grant;
+    var retriedGrant = false;
+    while (true) {
+      try {
+        await downloader(Uri.parse(activeGrant.url), filePath, (
+          int received,
+          int total,
+        ) {
+          if (onProgress == null || total <= 0) {
+            return;
+          }
+          onProgress(received / total);
+        });
+        break;
+      } on DioException catch (e) {
+        if (!retriedGrant &&
+            refetchGrant != null &&
+            e.response?.statusCode == 403) {
+          retriedGrant = true;
+          activeGrant = await refetchGrant();
+          continue;
+        }
+        rethrow;
       }
-      onProgress(received / total);
-    });
+    }
 
     final archiveBytes = await File(filePath).readAsBytes();
     return _prepareAndPersistBundle(
       pluginSlug: normalizedSlug,
-      version: grant.version.trim(),
+      version: activeGrant.version.trim(),
       archivePath: filePath,
       archiveBytes: archiveBytes,
-      expectedSha256: grant.checksumSha256,
-      grant: grant,
+      expectedSha256: activeGrant.checksumSha256,
+      grant: activeGrant,
     );
   }
 

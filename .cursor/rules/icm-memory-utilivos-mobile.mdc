@@ -1,0 +1,40 @@
+---
+description: Save high-value mobile project knowledge to ICM
+alwaysApply: true
+---
+
+# ICM memory rules for utilivos-mobile
+
+This repository uses ICM to preserve important project knowledge.
+
+Before starting meaningful work, recall project memory when relevant:
+- `icm recall-project`
+- or `icm recall "utilivos mobile <topic>"`
+
+Store memory in ICM when any of the following happens:
+- an architectural decision is made
+- a bug root cause is identified
+- a non-obvious runtime behavior is confirmed
+- a workaround or fix is discovered
+- a recurring issue is solved
+- a backend/mobile contract assumption is corrected
+
+Do not store:
+- trivial edits
+- temporary debugging chatter
+- raw logs
+- secrets, tokens, or env values
+- obvious code changes with no lasting value
+
+When storing memory, keep it concise and durable.
+Preferred topic:
+- `utilivos-mobile`
+
+Use commands like:
+- `icm store --content "Tools run locally from extracted bundles in a webview host runtime." --topic utilivos-mobile --importance high`
+- `icm store --content "Entitlement mismatches can appear when backend assertion freshness and mobile gating drift." --topic utilivos-mobile --importance high`
+
+Before finishing a task, ask:
+- Should one durable memory be stored in ICM from this work?
+
+If yes, store exactly one high-value memory unless multiple distinct decisions were made.

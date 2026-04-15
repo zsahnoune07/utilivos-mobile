@@ -407,6 +407,10 @@ class _DiscoverPageState extends State<DiscoverPage>
       final bundle = await widget.toolBundleDownloadService.downloadBundle(
         pluginSlug: plugin.slug,
         grant: grant,
+        refetchGrant: () => widget.downloadApi.requestDownload(
+          pluginSlug: plugin.slug,
+          entitlementAssertionToken: assertionToken,
+        ),
       );
 
       if (!bundle.isRunnable) {

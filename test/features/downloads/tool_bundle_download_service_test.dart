@@ -66,6 +66,73 @@ void main() {
     },
   );
 
+  test('downloadBundle refetches grant once when CDN returns 403', () async {
+    final tmpDir = await Directory.systemTemp.createTemp(
+      'utilivos-download-test-',
+    );
+    addTearDown(() async {
+      if (await tmpDir.exists()) {
+        await tmpDir.delete(recursive: true);
+      }
+    });
+
+    final store = _InMemoryDownloadedToolBundleStore();
+    final bundleBytes = _buildBundleArchiveBytes(
+      pluginSlug: 'tool-alpha',
+      pluginName: 'Tool Alpha',
+      version: '1.0.0',
+    );
+    final bundleChecksum = sha256.convert(bundleBytes).toString();
+    var downloadAttempts = 0;
+    final service = ToolBundleDownloadService(
+      dio: Dio(),
+      store: store,
+      metaApi: MetaApi(ApiClient(Dio())),
+      baseDirectoryProvider: () async => tmpDir,
+      downloadFile:
+          (
+            Uri uri,
+            String savePath,
+            void Function(int received, int total)? onReceiveProgress,
+          ) async {
+            downloadAttempts++;
+            if (downloadAttempts == 1) {
+              throw DioException(
+                requestOptions: RequestOptions(path: uri.toString()),
+                response: Response<dynamic>(
+                  requestOptions: RequestOptions(),
+                  statusCode: 403,
+                ),
+              );
+            }
+            await File(savePath).writeAsBytes(bundleBytes, flush: true);
+            onReceiveProgress?.call(bundleBytes.length, bundleBytes.length);
+          },
+    );
+
+    var refetchCount = 0;
+    await service.downloadBundle(
+      pluginSlug: 'tool-alpha',
+      grant: PluginDownloadGrant(
+        url: 'https://cdn.example/expired',
+        version: '1.0.0',
+        checksumSha256: bundleChecksum,
+      ),
+      refetchGrant: () async {
+        refetchCount++;
+        return PluginDownloadGrant(
+          url: 'https://cdn.example/fresh',
+          version: '1.0.0',
+          checksumSha256: bundleChecksum,
+        );
+      },
+    );
+
+    expect(downloadAttempts, 2);
+    expect(refetchCount, 1);
+    expect((await store.read()), hasLength(1));
+  });
+
   test('downloadBundle extracts icon metadata and accent color once', () async {
     final tmpDir = await Directory.systemTemp.createTemp(
       'utilivos-download-test-',

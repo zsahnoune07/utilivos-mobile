@@ -328,6 +328,10 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
       final result = await widget.toolBundleDownloadService.downloadBundle(
         pluginSlug: plugin.slug,
         grant: grant,
+        refetchGrant: () => widget.downloadApi.requestDownload(
+          pluginSlug: plugin.slug,
+          entitlementAssertionToken: assertionToken,
+        ),
         onProgress: (double progress) {
           if (!mounted) {
             return;

@@ -662,6 +662,10 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     final downloaded = await widget.toolBundleDownloadService.downloadBundle(
       pluginSlug: widget.pluginSlug,
       grant: grant,
+      refetchGrant: () => widget.downloadApi.requestDownload(
+        pluginSlug: widget.pluginSlug,
+        entitlementAssertionToken: assertionToken,
+      ),
       onProgress: (double progress) {
         if (!mounted) {
           return;
