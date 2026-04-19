@@ -5,8 +5,8 @@ class AppConfig {
     required this.androidPackageName,
     required this.proOneTimeProductId,
     required this.proSubscriptionProductId,
-    required this.proSubscriptionMonthlyProductId,
-    required this.proSubscriptionAnnualProductId,
+    required this.proSubscriptionMonthlyBasePlanId,
+    required this.proSubscriptionAnnualBasePlanId,
     this.pinnedSigningRootPublicKey,
     this.localToolBundlePath,
     this.localToolBundleSlug,
@@ -20,12 +20,16 @@ class AppConfig {
   final String appName;
   final String apiBaseUrl;
   final String androidPackageName;
+
+  /// Optional lifetime SKU; empty disables one-time purchase in the catalog.
   final String proOneTimeProductId;
 
-  /// Legacy single subscription id; used as fallback when monthly/annual are empty.
+  /// Single Google Play subscription product id (multiple base plans under it).
   final String proSubscriptionProductId;
-  final String proSubscriptionMonthlyProductId;
-  final String proSubscriptionAnnualProductId;
+
+  /// Play Console base plan ids for [proSubscriptionProductId].
+  final String proSubscriptionMonthlyBasePlanId;
+  final String proSubscriptionAnnualBasePlanId;
   final String? pinnedSigningRootPublicKey;
   final String? localToolBundlePath;
   final String? localToolBundleSlug;
@@ -54,22 +58,22 @@ class AppConfig {
     );
     const androidPackageName = String.fromEnvironment(
       'ANDROID_PACKAGE_NAME',
-      defaultValue: 'com.utilivos.utilivos_mobile',
+      defaultValue: 'com.utilivos.app',
     );
     const proOneTimeProductId = String.fromEnvironment(
       'PREMIUM_ONE_TIME_PRODUCT_ID',
-      defaultValue: 'utilivos_pro_one_time',
+      defaultValue: '',
     );
     const proSubscriptionProductId = String.fromEnvironment(
       'PREMIUM_SUBSCRIPTION_PRODUCT_ID',
       defaultValue: 'utilivos_pro_subscription',
     );
-    const proSubscriptionMonthlyProductId = String.fromEnvironment(
-      'PREMIUM_SUBSCRIPTION_MONTHLY_PRODUCT_ID',
+    const proSubscriptionMonthlyBasePlanId = String.fromEnvironment(
+      'PREMIUM_SUBSCRIPTION_MONTHLY_BASE_PLAN_ID',
       defaultValue: '',
     );
-    const proSubscriptionAnnualProductId = String.fromEnvironment(
-      'PREMIUM_SUBSCRIPTION_ANNUAL_PRODUCT_ID',
+    const proSubscriptionAnnualBasePlanId = String.fromEnvironment(
+      'PREMIUM_SUBSCRIPTION_ANNUAL_BASE_PLAN_ID',
       defaultValue: '',
     );
     const pinnedSigningRootPublicKey = String.fromEnvironment(
@@ -100,15 +104,12 @@ class AppConfig {
       apiBaseUrl: _normalizeBaseUrl(configuredBaseUrl),
       androidPackageName: _normalizeNonEmpty(
         androidPackageName,
-        fallback: 'com.utilivos.utilivos_mobile',
+        fallback: 'com.utilivos.app',
       ),
-      proOneTimeProductId: _normalizeNonEmpty(
-        proOneTimeProductId,
-        fallback: 'utilivos_pro_one_time',
-      ),
+      proOneTimeProductId: proOneTimeProductId.trim(),
       proSubscriptionProductId: proSubscriptionProductId.trim(),
-      proSubscriptionMonthlyProductId: proSubscriptionMonthlyProductId.trim(),
-      proSubscriptionAnnualProductId: proSubscriptionAnnualProductId.trim(),
+      proSubscriptionMonthlyBasePlanId: proSubscriptionMonthlyBasePlanId.trim(),
+      proSubscriptionAnnualBasePlanId: proSubscriptionAnnualBasePlanId.trim(),
       pinnedSigningRootPublicKey: _normalizeOptional(
         pinnedSigningRootPublicKey,
       ),

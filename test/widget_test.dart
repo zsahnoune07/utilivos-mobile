@@ -377,6 +377,9 @@ class _FakeBillingGateway implements BillingGateway {
   Future<void> buyProduct(String productId) async {}
 
   @override
+  Future<void> buySubscriptionPlan(ProSubscriptionPlan plan) async {}
+
+  @override
   void dispose() {
     _updates.close();
   }

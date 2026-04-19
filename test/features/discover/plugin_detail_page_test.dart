@@ -178,11 +178,11 @@ class _PluginDetailHarness {
   static const _config = AppConfig(
     appName: 'Utilivos',
     apiBaseUrl: 'https://api.example.test',
-    androidPackageName: 'com.utilivos.utilivos_mobile',
+    androidPackageName: 'com.utilivos.app',
     proOneTimeProductId: 'utilivos_pro_one_time',
     proSubscriptionProductId: 'utilivos_pro_subscription',
-    proSubscriptionMonthlyProductId: '',
-    proSubscriptionAnnualProductId: '',
+    proSubscriptionMonthlyBasePlanId: 'monthly',
+    proSubscriptionAnnualBasePlanId: 'annual',
   );
 
   static Future<_PluginDetailHarness> create({
@@ -487,6 +487,9 @@ class _FakeBillingGateway implements BillingGateway {
 
   @override
   Future<void> buyProduct(String productId) async {}
+
+  @override
+  Future<void> buySubscriptionPlan(ProSubscriptionPlan plan) async {}
 
   @override
   void dispose() {

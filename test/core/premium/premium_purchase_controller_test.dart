@@ -18,7 +18,7 @@ void main() {
           id: 'utilivos_pro_one_time',
           title: 'Utilivos Pro',
           description: 'Unlock Pro tools',
-          price: '\$9.99',
+          price: r'$9.99',
         ),
       ],
     );
@@ -49,7 +49,7 @@ void main() {
           id: 'utilivos_pro_one_time',
           title: 'Utilivos Pro',
           description: 'Unlock Pro tools',
-          price: '\$9.99',
+          price: r'$9.99',
         ),
       ],
     );
@@ -80,10 +80,7 @@ void main() {
       entitlementController.entitlement.productId,
       'utilivos_pro_one_time',
     );
-    expect(
-      controller.statusMessage,
-      'Pro unlocked and verified successfully.',
-    );
+    expect(controller.statusMessage, 'Pro unlocked and verified successfully.');
   });
 
   test('restore update unlocks entitlement for subscription product', () async {
@@ -92,9 +89,17 @@ void main() {
       products: const <BillingProduct>[
         BillingProduct(
           id: 'utilivos_pro_subscription',
+          title: 'Utilivos Pro (annual)',
+          description: 'Annual Pro access',
+          price: r'$29.99',
+          plan: ProSubscriptionPlan.annual,
+        ),
+        BillingProduct(
+          id: 'utilivos_pro_subscription',
           title: 'Utilivos Pro (monthly)',
           description: 'Monthly Pro access',
-          price: '\$4.99',
+          price: r'$4.99',
+          plan: ProSubscriptionPlan.monthly,
         ),
       ],
     );
@@ -122,10 +127,45 @@ void main() {
 
     expect(entitlementController.hasProAccess, true);
     expect(entitlementController.entitlement.entitlementType, 'subscription');
-    expect(
-      controller.statusMessage,
-      'Pro restored and verified successfully.',
+    expect(controller.statusMessage, 'Pro restored and verified successfully.');
+  });
+
+  test('purchaseSubscriptionPlan delegates to billing gateway', () async {
+    final gateway = _FakeBillingGateway(
+      available: true,
+      products: const <BillingProduct>[
+        BillingProduct(
+          id: 'utilivos_pro_subscription',
+          title: 'Annual',
+          description: '',
+          price: r'$29.99',
+          plan: ProSubscriptionPlan.annual,
+        ),
+        BillingProduct(
+          id: 'utilivos_pro_subscription',
+          title: 'Monthly',
+          description: '',
+          price: r'$4.99',
+          plan: ProSubscriptionPlan.monthly,
+        ),
+      ],
     );
+    final entitlementController = EntitlementController(
+      store: _InMemoryEntitlementStore(),
+    );
+    await entitlementController.bootstrap();
+
+    final controller = ProPurchaseController(
+      config: _config(),
+      billingGateway: gateway,
+      entitlementController: entitlementController,
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    await controller.purchaseSubscriptionPlan(ProSubscriptionPlan.monthly);
+
+    expect(gateway.lastSubscriptionPlan, ProSubscriptionPlan.monthly);
   });
 }
 
@@ -133,11 +173,11 @@ AppConfig _config() {
   return const AppConfig(
     appName: 'Utilivos',
     apiBaseUrl: 'https://api.example.test',
-    androidPackageName: 'com.utilivos.utilivos_mobile',
+    androidPackageName: 'com.utilivos.app',
     proOneTimeProductId: 'utilivos_pro_one_time',
     proSubscriptionProductId: 'utilivos_pro_subscription',
-    proSubscriptionMonthlyProductId: '',
-    proSubscriptionAnnualProductId: '',
+    proSubscriptionMonthlyBasePlanId: 'monthly',
+    proSubscriptionAnnualBasePlanId: 'annual',
   );
 }
 
@@ -168,6 +208,8 @@ class _FakeBillingGateway implements BillingGateway {
   final StreamController<BillingPurchaseUpdate> _updates =
       StreamController<BillingPurchaseUpdate>.broadcast();
 
+  ProSubscriptionPlan? lastSubscriptionPlan;
+
   @override
   Stream<BillingPurchaseUpdate> get purchaseUpdates => _updates.stream;
 
@@ -176,6 +218,11 @@ class _FakeBillingGateway implements BillingGateway {
 
   @override
   Future<void> buyProduct(String productId) async {}
+
+  @override
+  Future<void> buySubscriptionPlan(ProSubscriptionPlan plan) async {
+    lastSubscriptionPlan = plan;
+  }
 
   @override
   void dispose() {
@@ -194,7 +241,7 @@ class _FakeBillingGateway implements BillingGateway {
   @override
   Future<List<BillingProduct>> queryProducts(Set<String> productIds) async {
     return products
-        .where((product) => productIds.contains(product.id))
+        .where((BillingProduct product) => productIds.contains(product.id))
         .toList();
   }
 

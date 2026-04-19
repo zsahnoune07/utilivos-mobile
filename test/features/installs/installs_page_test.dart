@@ -165,92 +165,96 @@ void main() {
     expect(find.text("Couldn't load installed tools"), findsNothing);
   });
 
-  testWidgets('home shows unified load error when offline with no cached tools', (
-    WidgetTester tester,
-  ) async {
-    final store = _InMemoryInstalledToolsStore(
-      initial: const <DeviceInstallRecord>[],
-    );
+  testWidgets(
+    'home shows unified load error when offline with no cached tools',
+    (WidgetTester tester) async {
+      final store = _InMemoryInstalledToolsStore(
+        initial: const <DeviceInstallRecord>[],
+      );
 
-    final dio = Dio(BaseOptions(baseUrl: 'https://api.example.test'));
-    dio.httpClientAdapter = _FakeHttpClientAdapter((
-      RequestOptions options,
-    ) async {
-      if (options.path == '/v1/installs') {
-        throw DioException(
-          requestOptions: options,
-          type: DioExceptionType.connectionError,
-          message: 'offline',
-        );
-      }
-      return _jsonResponse(<String, dynamic>{
-        'error': <String, dynamic>{'code': 'not_found', 'message': 'not found'},
-      }, 404);
-    });
-    addTearDown(() => dio.close(force: true));
+      final dio = Dio(BaseOptions(baseUrl: 'https://api.example.test'));
+      dio.httpClientAdapter = _FakeHttpClientAdapter((
+        RequestOptions options,
+      ) async {
+        if (options.path == '/v1/installs') {
+          throw DioException(
+            requestOptions: options,
+            type: DioExceptionType.connectionError,
+            message: 'offline',
+          );
+        }
+        return _jsonResponse(<String, dynamic>{
+          'error': <String, dynamic>{
+            'code': 'not_found',
+            'message': 'not found',
+          },
+        }, 404);
+      });
+      addTearDown(() => dio.close(force: true));
 
-    final apiClient = ApiClient(dio);
-    final controller = InstalledToolsController(
-      installsApi: InstallsApi(apiClient),
-      catalogApi: CatalogApi(apiClient),
-      store: store,
-      organizationStore: _InMemoryInstallsOrganizationStore(),
-    );
-    addTearDown(() async {
-      await Future<void>.delayed(const Duration(milliseconds: 80));
-      controller.dispose();
-    });
+      final apiClient = ApiClient(dio);
+      final controller = InstalledToolsController(
+        installsApi: InstallsApi(apiClient),
+        catalogApi: CatalogApi(apiClient),
+        store: store,
+        organizationStore: _InMemoryInstallsOrganizationStore(),
+      );
+      addTearDown(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        controller.dispose();
+      });
 
-    await tester.runAsync(() async {
-      await controller.bootstrap();
-      await Future<void>.delayed(const Duration(milliseconds: 40));
-    });
+      await tester.runAsync(() async {
+        await controller.bootstrap();
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+      });
 
-    final l10n = lookupAppLocalizations(const Locale('en'));
+      final l10n = lookupAppLocalizations(const Locale('en'));
 
-    final downloadApi = DownloadApi(apiClient);
-    final bundleStore = _InMemoryDownloadedToolBundleStore();
-    final toolBundleDownloadService = ToolBundleDownloadService(
-      dio: dio,
-      store: bundleStore,
-      metaApi: MetaApi(apiClient),
-    );
-    final installsApi = InstallsApi(apiClient);
-    final entitlementStore = _InMemoryEntitlementStore();
-    final entitlementVerificationApi = EntitlementVerificationApi(apiClient);
-    final entitlementController = EntitlementController(
-      store: entitlementStore,
-      verificationApi: entitlementVerificationApi,
-      packageName: 'com.test.app',
-    );
-    await entitlementController.bootstrap();
-    SharedPreferences.setMockInitialValues(<String, Object>{});
-    final pro = await _ProSidecar.create(entitlementController);
-    addTearDown(pro.dispose);
+      final downloadApi = DownloadApi(apiClient);
+      final bundleStore = _InMemoryDownloadedToolBundleStore();
+      final toolBundleDownloadService = ToolBundleDownloadService(
+        dio: dio,
+        store: bundleStore,
+        metaApi: MetaApi(apiClient),
+      );
+      final installsApi = InstallsApi(apiClient);
+      final entitlementStore = _InMemoryEntitlementStore();
+      final entitlementVerificationApi = EntitlementVerificationApi(apiClient);
+      final entitlementController = EntitlementController(
+        store: entitlementStore,
+        verificationApi: entitlementVerificationApi,
+        packageName: 'com.test.app',
+      );
+      await entitlementController.bootstrap();
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final pro = await _ProSidecar.create(entitlementController);
+      addTearDown(pro.dispose);
 
-    await tester.pumpWidget(
-      _testMaterialApp(
-        home: InstallsPage(
-          appName: 'Utilivos',
-          apiBaseUrl: 'https://api.example.test',
-          installedToolsController: controller,
-          downloadApi: downloadApi,
-          toolBundleDownloadService: toolBundleDownloadService,
-          installsApi: installsApi,
-          entitlementController: entitlementController,
-          proCapabilityService: pro.capability,
-          paywallCoordinator: pro.paywall,
-          proAnalytics: pro.analytics,
+      await tester.pumpWidget(
+        _testMaterialApp(
+          home: InstallsPage(
+            appName: 'Utilivos',
+            apiBaseUrl: 'https://api.example.test',
+            installedToolsController: controller,
+            downloadApi: downloadApi,
+            toolBundleDownloadService: toolBundleDownloadService,
+            installsApi: installsApi,
+            entitlementController: entitlementController,
+            proCapabilityService: pro.capability,
+            paywallCoordinator: pro.paywall,
+            proAnalytics: pro.analytics,
+          ),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text(l10n.homeInstallsLoadFailedTitle), findsOneWidget);
-    expect(find.text(l10n.homeInstallsOfflineDetail), findsOneWidget);
-    expect(find.text(l10n.noInstalledTools), findsNothing);
-  });
+      expect(find.text(l10n.homeInstallsLoadFailedTitle), findsOneWidget);
+      expect(find.text(l10n.homeInstallsOfflineDetail), findsOneWidget);
+      expect(find.text(l10n.noInstalledTools), findsNothing);
+    },
+  );
 
   testWidgets(
     'home search resets after returning from successful install flow',
@@ -341,10 +345,7 @@ void main() {
       final searchField = find.byKey(const Key('home_tool_search_field'));
       await tester.tap(searchField);
       await pumpToolThumbnailUiSettled(tester);
-      expect(
-        tester.widget<TextField>(searchField).focusNode?.hasFocus,
-        isTrue,
-      );
+      expect(tester.widget<TextField>(searchField).focusNode?.hasFocus, isTrue);
 
       await tester.enterText(searchField, 'Tool');
       await pumpToolThumbnailUiSettled(tester);
@@ -1343,8 +1344,8 @@ class _ProSidecar {
       androidPackageName: 'com.test.app',
       proOneTimeProductId: 'utilivos_pro_one_time',
       proSubscriptionProductId: '',
-      proSubscriptionMonthlyProductId: '',
-      proSubscriptionAnnualProductId: '',
+      proSubscriptionMonthlyBasePlanId: '',
+      proSubscriptionAnnualBasePlanId: '',
     );
     final billing = _InstallsTestBillingGateway();
     final purchaseController = ProPurchaseController(
@@ -1389,6 +1390,9 @@ class _InstallsTestBillingGateway implements BillingGateway {
 
   @override
   Future<void> buyProduct(String productId) async {}
+
+  @override
+  Future<void> buySubscriptionPlan(ProSubscriptionPlan plan) async {}
 
   @override
   void dispose() {

@@ -32,14 +32,16 @@ class PaywallOfferView extends StatefulWidget {
 }
 
 class _PaywallOfferViewState extends State<PaywallOfferView> {
-  String? _selectedProductId;
+  ProSubscriptionPlan? _selectedSubscriptionPlan;
+  bool _selectedOneTime = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedProductId = widget.purchaseController.defaultSelectedProductId;
+    _selectedSubscriptionPlan = ProSubscriptionPlan.annual;
     widget.entitlementController.addListener(_onEntitlementChanged);
     widget.purchaseController.addListener(_onPurchaseChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _coerceSelection());
   }
 
   @override
@@ -53,7 +55,7 @@ class _PaywallOfferViewState extends State<PaywallOfferView> {
     if (widget.entitlementController.hasProAccess && mounted) {
       widget.analytics.conversionSuccess(
         widget.request,
-        productId: _selectedProductId ?? 'unknown',
+        productId: _analyticsProductLabel(),
       );
       widget.onClose(PaywallResult.purchased);
     }
@@ -61,20 +63,73 @@ class _PaywallOfferViewState extends State<PaywallOfferView> {
 
   void _onPurchaseChanged() {
     if (mounted) {
-      setState(() {});
+      _coerceSelection();
     }
   }
 
-  BillingProduct? _productFor(String? id) {
-    if (id == null || id.isEmpty) {
+  String _analyticsProductLabel() {
+    if (_selectedOneTime) {
+      return widget.purchaseController.configuredOneTimeProductId ?? 'one_time';
+    }
+    if (_selectedSubscriptionPlan != null) {
+      return '${widget.purchaseController.configuredSubscriptionProductId}:${_selectedSubscriptionPlan!.name}';
+    }
+    return 'unknown';
+  }
+
+  BillingProduct? _productForPlan(ProSubscriptionPlan plan) {
+    return widget.purchaseController.billingProductForPlan(plan);
+  }
+
+  BillingProduct? _oneTimeProduct() {
+    final id = widget.purchaseController.configuredOneTimeProductId;
+    if (id == null) {
       return null;
     }
-    for (final p in widget.purchaseController.availableProducts) {
-      if (p.id == id) {
+    for (final BillingProduct p
+        in widget.purchaseController.availableProducts) {
+      if (p.plan == null && p.id == id) {
         return p;
       }
     }
     return null;
+  }
+
+  bool _hasValidSelection() {
+    if (_selectedOneTime) {
+      return widget.purchaseController.configuredOneTimeProductId != null;
+    }
+    return _selectedSubscriptionPlan != null;
+  }
+
+  void _coerceSelection() {
+    if (!mounted) {
+      return;
+    }
+    final BillingProduct? annual = _productForPlan(ProSubscriptionPlan.annual);
+    final BillingProduct? monthly = _productForPlan(
+      ProSubscriptionPlan.monthly,
+    );
+    final BillingProduct? oneTime = _oneTimeProduct();
+
+    setState(() {
+      if (_selectedOneTime && oneTime == null) {
+        _selectedOneTime = false;
+      }
+      if (_selectedSubscriptionPlan != null &&
+          _productForPlan(_selectedSubscriptionPlan!) == null) {
+        _selectedSubscriptionPlan = null;
+      }
+      if (!_selectedOneTime && _selectedSubscriptionPlan == null) {
+        if (annual != null) {
+          _selectedSubscriptionPlan = ProSubscriptionPlan.annual;
+        } else if (monthly != null) {
+          _selectedSubscriptionPlan = ProSubscriptionPlan.monthly;
+        } else if (oneTime != null) {
+          _selectedOneTime = true;
+        }
+      }
+    });
   }
 
   @override
@@ -82,18 +137,11 @@ class _PaywallOfferViewState extends State<PaywallOfferView> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
-    final annualId = widget.purchaseController.resolvedAnnualProductId;
-    final monthlyId = widget.purchaseController.resolvedMonthlyProductId;
-    final annual = _productFor(annualId);
-    final monthly = _productFor(monthlyId);
-    final oneTime = _productFor(
-      widget.purchaseController.configuredOneTimeProductId,
+    final BillingProduct? annual = _productForPlan(ProSubscriptionPlan.annual);
+    final BillingProduct? monthly = _productForPlan(
+      ProSubscriptionPlan.monthly,
     );
-
-    if (_selectedProductId == null || _productFor(_selectedProductId) == null) {
-      _selectedProductId =
-          annual?.id ?? monthly?.id ?? oneTime?.id ?? _selectedProductId;
-    }
+    final BillingProduct? oneTime = _oneTimeProduct();
 
     final pad = widget.compact
         ? const EdgeInsets.fromLTRB(16, 58, 16, 20)
@@ -208,11 +256,16 @@ class _PaywallOfferViewState extends State<PaywallOfferView> {
                               title: 'Yearly',
                               price: annual.price,
                               badgeLabel: 'BEST VALUE',
-                              selected: _selectedProductId == annual.id,
+                              selected:
+                                  !_selectedOneTime &&
+                                  _selectedSubscriptionPlan ==
+                                      ProSubscriptionPlan.annual,
                               highlighted: true,
-                              onTap: () => setState(
-                                () => _selectedProductId = annual.id,
-                              ),
+                              onTap: () => setState(() {
+                                _selectedOneTime = false;
+                                _selectedSubscriptionPlan =
+                                    ProSubscriptionPlan.annual;
+                              }),
                             ),
                           ),
                         if (annual != null && monthly != null)
@@ -222,11 +275,16 @@ class _PaywallOfferViewState extends State<PaywallOfferView> {
                             child: _PlanOptionButton(
                               title: 'Monthly',
                               price: monthly.price,
-                              selected: _selectedProductId == monthly.id,
+                              selected:
+                                  !_selectedOneTime &&
+                                  _selectedSubscriptionPlan ==
+                                      ProSubscriptionPlan.monthly,
                               highlighted: false,
-                              onTap: () => setState(
-                                () => _selectedProductId = monthly.id,
-                              ),
+                              onTap: () => setState(() {
+                                _selectedOneTime = false;
+                                _selectedSubscriptionPlan =
+                                    ProSubscriptionPlan.monthly;
+                              }),
                             ),
                           ),
                       ],
@@ -237,10 +295,12 @@ class _PaywallOfferViewState extends State<PaywallOfferView> {
                       title: 'Lifetime',
                       price: oneTime.price,
                       badgeLabel: 'ONE-TIME',
-                      selected: _selectedProductId == oneTime.id,
+                      selected: _selectedOneTime,
                       highlighted: true,
-                      onTap: () =>
-                          setState(() => _selectedProductId = oneTime.id),
+                      onTap: () => setState(() {
+                        _selectedOneTime = true;
+                        _selectedSubscriptionPlan = null;
+                      }),
                     ),
                     const SizedBox(height: 14),
                   ],
@@ -253,17 +313,29 @@ class _PaywallOfferViewState extends State<PaywallOfferView> {
                     ),
                     onPressed:
                         widget.purchaseController.isPurchaseInProgress ||
-                            !widget.purchaseController.canPurchase
-                        ? null
-                        : _selectedProductId == null
+                            !widget.purchaseController.canPurchase ||
+                            !_hasValidSelection()
                         ? null
                         : () async {
-                            final id = _selectedProductId!;
                             widget.analytics.conversionStarted(
                               widget.request,
-                              productId: id,
+                              productId: _analyticsProductLabel(),
                             );
-                            await widget.purchaseController.purchaseProduct(id);
+                            if (_selectedOneTime) {
+                              final id = widget
+                                  .purchaseController
+                                  .configuredOneTimeProductId;
+                              if (id != null) {
+                                await widget.purchaseController.purchaseProduct(
+                                  id,
+                                );
+                              }
+                            } else if (_selectedSubscriptionPlan != null) {
+                              await widget.purchaseController
+                                  .purchaseSubscriptionPlan(
+                                    _selectedSubscriptionPlan!,
+                                  );
+                            }
                           },
                     child: widget.purchaseController.isPurchaseInProgress
                         ? const SizedBox(

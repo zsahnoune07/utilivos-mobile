@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Load build-time variables from a dotenv-style file and run `flutter` with
-# matching --dart-define flags. Optional *_FILE keys inject secret file contents.
+# matching --dart-define flags. Optional *_FILE keys inject secret file contents
+# (MOBILE_CLIENT_*_FILE, PINNED_SIGNING_ROOT_PUBLIC_KEY_FILE).
+#
+# UTILIVOS_BUILD_ENV_FILE is a **shell** variable for this script only. It is
+# not read by the Flutter app. Do not pass it as `--dart-define=...`; use either
+# this script or `flutter run --dart-define-from-file=.env.dev` (see README).
 #
 # Usage (from utilivos-mobile repo root):
 #   UTILIVOS_BUILD_ENV_FILE=.env.build tool/flutter_build_from_env.sh build apk --release
@@ -73,14 +78,22 @@ if [[ -n "${MOBILE_CLIENT_SIGNATURE_SECRET_FILE:-}" ]]; then
   fi
 fi
 
+# PEM public key (SPKI, BEGIN PUBLIC KEY) collapsed to one line for --dart-define.
+if [[ -n "${PINNED_SIGNING_ROOT_PUBLIC_KEY_FILE:-}" ]]; then
+  _pem="$(read_secret_file "$PINNED_SIGNING_ROOT_PUBLIC_KEY_FILE")"
+  if [[ -n "$_pem" ]]; then
+    export PINNED_SIGNING_ROOT_PUBLIC_KEY="$_pem"
+  fi
+fi
+
 _dart_define_keys=(
   APP_NAME
   API_BASE_URL
   ANDROID_PACKAGE_NAME
   PREMIUM_ONE_TIME_PRODUCT_ID
   PREMIUM_SUBSCRIPTION_PRODUCT_ID
-  PREMIUM_SUBSCRIPTION_MONTHLY_PRODUCT_ID
-  PREMIUM_SUBSCRIPTION_ANNUAL_PRODUCT_ID
+  PREMIUM_SUBSCRIPTION_MONTHLY_BASE_PLAN_ID
+  PREMIUM_SUBSCRIPTION_ANNUAL_BASE_PLAN_ID
   PINNED_SIGNING_ROOT_PUBLIC_KEY
   LOCAL_TOOL_BUNDLE_PATH
   LOCAL_TOOL_BUNDLE_SLUG
@@ -89,6 +102,7 @@ _dart_define_keys=(
   IOS_APP_STORE_ID
   MOBILE_CLIENT_SHARED_SECRET
   MOBILE_CLIENT_SIGNATURE_SECRET
+  SENTRY_DSN
 )
 
 dart_defines=()

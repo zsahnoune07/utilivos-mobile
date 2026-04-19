@@ -40,33 +40,33 @@ class ProPurchaseController extends ChangeNotifier {
   List<BillingProduct> get availableProducts => _availableProducts;
   bool get canPurchase =>
       _storeAvailable && !_isLoadingProducts && _availableProducts.isNotEmpty;
-  String get configuredOneTimeProductId => _config.proOneTimeProductId;
-  String get configuredSubscriptionProductId =>
-      _config.proSubscriptionProductId;
 
-  /// Falls back to legacy [AppConfig.proSubscriptionProductId] when annual id unset.
-  String get resolvedAnnualProductId {
-    final explicit = _config.proSubscriptionAnnualProductId.trim();
-    if (explicit.isNotEmpty) {
-      return explicit;
-    }
-    return _config.proSubscriptionProductId.trim();
+  /// Null when one-time SKU is disabled (empty env).
+  String? get configuredOneTimeProductId {
+    final t = _config.proOneTimeProductId.trim();
+    return t.isEmpty ? null : t;
   }
 
-  String get resolvedMonthlyProductId =>
-      _config.proSubscriptionMonthlyProductId.trim();
+  String get configuredSubscriptionProductId =>
+      _config.proSubscriptionProductId.trim();
 
-  /// Prefer annual → monthly → one-time for default selection in paywall.
-  String? get defaultSelectedProductId {
-    final annual = resolvedAnnualProductId;
-    if (annual.isNotEmpty) {
-      return annual;
+  String get configuredMonthlyBasePlanId =>
+      _config.proSubscriptionMonthlyBasePlanId.trim();
+
+  String get configuredAnnualBasePlanId =>
+      _config.proSubscriptionAnnualBasePlanId.trim();
+
+  /// Prefer annual when both plans load.
+  ProSubscriptionPlan get defaultSelectedSubscriptionPlan =>
+      ProSubscriptionPlan.annual;
+
+  BillingProduct? billingProductForPlan(ProSubscriptionPlan plan) {
+    for (final BillingProduct p in _availableProducts) {
+      if (p.plan == plan) {
+        return p;
+      }
     }
-    final monthly = resolvedMonthlyProductId;
-    if (monthly.isNotEmpty) {
-      return monthly;
-    }
-    return _config.proOneTimeProductId;
+    return null;
   }
 
   Future<void> initialize() async {
@@ -91,14 +91,20 @@ class ProPurchaseController extends ChangeNotifier {
         return;
       }
 
+      final subId = _config.proSubscriptionProductId.trim();
+      final monthlyPlan = _config.proSubscriptionMonthlyBasePlanId.trim();
+      final annualPlan = _config.proSubscriptionAnnualBasePlanId.trim();
+      if (subId.isEmpty || monthlyPlan.isEmpty || annualPlan.isEmpty) {
+        _statusMessage =
+            'Set PREMIUM_SUBSCRIPTION_PRODUCT_ID and monthly/annual '
+            'PREMIUM_SUBSCRIPTION_*_BASE_PLAN_ID values for Play Billing.';
+        return;
+      }
+
       final productIds = <String>{
-        _config.proOneTimeProductId,
-        if (_config.proSubscriptionProductId.trim().isNotEmpty)
-          _config.proSubscriptionProductId.trim(),
-        if (_config.proSubscriptionMonthlyProductId.trim().isNotEmpty)
-          _config.proSubscriptionMonthlyProductId.trim(),
-        if (_config.proSubscriptionAnnualProductId.trim().isNotEmpty)
-          _config.proSubscriptionAnnualProductId.trim(),
+        subId,
+        if (_config.proOneTimeProductId.trim().isNotEmpty)
+          _config.proOneTimeProductId.trim(),
       };
 
       final products = await _billingGateway.queryProducts(productIds);
@@ -118,13 +124,51 @@ class ProPurchaseController extends ChangeNotifier {
   }
 
   Future<void> purchasePro() async {
-    final id = defaultSelectedProductId;
-    if (id == null || id.isEmpty) {
-      _errorMessage = 'No Pro product IDs are configured.';
+    if (billingProductForPlan(ProSubscriptionPlan.annual) != null) {
+      await purchaseSubscriptionPlan(ProSubscriptionPlan.annual);
+      return;
+    }
+    if (billingProductForPlan(ProSubscriptionPlan.monthly) != null) {
+      await purchaseSubscriptionPlan(ProSubscriptionPlan.monthly);
+      return;
+    }
+    final oneId = configuredOneTimeProductId;
+    if (oneId != null && oneId.isNotEmpty) {
+      await purchaseProduct(oneId);
+      return;
+    }
+    _errorMessage = 'No Pro products are configured.';
+    notifyListeners();
+  }
+
+  Future<void> purchaseSubscriptionPlan(ProSubscriptionPlan plan) async {
+    _errorMessage = null;
+    _statusMessage = null;
+    notifyListeners();
+
+    if (!_storeAvailable) {
+      _errorMessage = 'Google Play Billing is not available.';
       notifyListeners();
       return;
     }
-    await purchaseProduct(id);
+
+    if (billingProductForPlan(plan) == null) {
+      _errorMessage = 'Selected subscription plan is not available.';
+      notifyListeners();
+      return;
+    }
+
+    _isPurchaseInProgress = true;
+    _statusMessage = 'Opening purchase flow...';
+    notifyListeners();
+
+    try {
+      await _billingGateway.buySubscriptionPlan(plan);
+    } catch (error) {
+      _isPurchaseInProgress = false;
+      _errorMessage = 'Could not start purchase flow: $error';
+      notifyListeners();
+    }
   }
 
   Future<void> purchaseProduct(String productId) async {
@@ -183,23 +227,18 @@ class ProPurchaseController extends ChangeNotifier {
   }
 
   bool _isProProductId(String productId) {
-    if (productId == _config.proOneTimeProductId) {
+    final t = productId.trim();
+    final one = _config.proOneTimeProductId.trim();
+    if (one.isNotEmpty && t == one) {
       return true;
     }
-    final monthly = resolvedMonthlyProductId;
-    if (monthly.isNotEmpty && productId == monthly) {
-      return true;
-    }
-    final annual = resolvedAnnualProductId;
-    if (annual.isNotEmpty && productId == annual) {
-      return true;
-    }
-    final legacy = _config.proSubscriptionProductId.trim();
-    return legacy.isNotEmpty && productId == legacy;
+    final sub = _config.proSubscriptionProductId.trim();
+    return sub.isNotEmpty && t == sub;
   }
 
   String _entitlementTypeForProduct(String productId) {
-    if (productId == _config.proOneTimeProductId) {
+    if (productId.trim() == _config.proOneTimeProductId.trim() &&
+        _config.proOneTimeProductId.trim().isNotEmpty) {
       return 'one_time';
     }
     return 'subscription';

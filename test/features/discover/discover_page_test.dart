@@ -337,11 +337,11 @@ class _DiscoverHarness {
     const billingConfig = AppConfig(
       appName: 'Utilivos',
       apiBaseUrl: 'https://api.example.test',
-      androidPackageName: 'com.utilivos.utilivos_mobile',
+      androidPackageName: 'com.utilivos.app',
       proOneTimeProductId: 'utilivos_pro_one_time',
       proSubscriptionProductId: '',
-      proSubscriptionMonthlyProductId: '',
-      proSubscriptionAnnualProductId: '',
+      proSubscriptionMonthlyBasePlanId: '',
+      proSubscriptionAnnualBasePlanId: '',
     );
     final discoverBilling = _DiscoverTestBillingGateway();
     final proPurchaseController = ProPurchaseController(
@@ -361,11 +361,11 @@ class _DiscoverHarness {
               config: const AppConfig(
                 appName: 'Utilivos',
                 apiBaseUrl: 'https://api.example.test',
-                androidPackageName: 'com.utilivos.utilivos_mobile',
+                androidPackageName: 'com.utilivos.app',
                 proOneTimeProductId: 'utilivos_pro_one_time',
                 proSubscriptionProductId: 'utilivos_pro_subscription',
-                proSubscriptionMonthlyProductId: '',
-                proSubscriptionAnnualProductId: '',
+                proSubscriptionMonthlyBasePlanId: 'monthly',
+                proSubscriptionAnnualBasePlanId: 'annual',
               ),
               catalogApi: CatalogApi(apiClient),
               entitlementController: entitlementController,
@@ -425,6 +425,9 @@ class _DiscoverTestBillingGateway implements BillingGateway {
 
   @override
   Future<void> buyProduct(String productId) async {}
+
+  @override
+  Future<void> buySubscriptionPlan(ProSubscriptionPlan plan) async {}
 
   @override
   void dispose() {

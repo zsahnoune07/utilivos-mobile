@@ -90,7 +90,22 @@ UTILIVOS_BUILD_ENV_FILE=.env.build tool/flutter_build_from_env.sh run
 UTILIVOS_BUILD_ENV_FILE=.env.build tool/flutter_build_from_env.sh build apk --release
 ```
 
-See comments in `.env.example` and [`tool/flutter_build_from_env.sh`](tool/flutter_build_from_env.sh). The app does **not** read `.env` at runtime; the script turns it into `--dart-define` at **compile** time.
+See comments in `.env.example` and [`tool/flutter_build_from_env.sh`](tool/flutter_build_from_env.sh). The app does **not** read `.env` at runtime; values must reach the compiler as `--dart-define` (or `--dart-define-from-file`).
+
+**Wrong:** `flutter run --dart-define=UTILIVOS_BUILD_ENV_FILE=.env.dev` — that name is only a **shell** variable for `flutter_build_from_env.sh`, not a Dart `fromEnvironment` key, so the API URL (and other keys) are never applied.
+
+**Right — native Flutter (no script):** from `utilivos-mobile/`, after copying `.env.example` to e.g. `.env.dev`:
+
+```bash
+flutter pub get
+flutter run --dart-define-from-file=.env.dev
+```
+
+**Right — script** (also expands `MOBILE_CLIENT_*_FILE` / `PINNED_SIGNING_ROOT_PUBLIC_KEY_FILE` into defines; `--dart-define-from-file` does not):
+
+```bash
+UTILIVOS_BUILD_ENV_FILE=.env.dev tool/flutter_build_from_env.sh run
+```
 
 ```bash
 flutter pub get
@@ -117,15 +132,29 @@ Optional local-bundle overrides (defaults are read from `manifest.json`):
 --dart-define=LOCAL_TOOL_BUNDLE_VERSION=1.0.0
 ```
 
-Billing-related defines:
+Billing-related defines (Android: one Play subscription, two base plans):
 
 ```bash
 flutter run \
-  --dart-define=PREMIUM_ONE_TIME_PRODUCT_ID=utilivo_pro_one_time \
-  --dart-define=PREMIUM_SUBSCRIPTION_PRODUCT_ID=utilivo_pro_subscription \
-  --dart-define=ANDROID_PACKAGE_NAME=com.utilivos.utilivo_mobile \
+  --dart-define=PREMIUM_SUBSCRIPTION_PRODUCT_ID=utilivos_pro_subscription \
+  --dart-define=PREMIUM_SUBSCRIPTION_MONTHLY_BASE_PLAN_ID=monthly \
+  --dart-define=PREMIUM_SUBSCRIPTION_ANNUAL_BASE_PLAN_ID=annual \
+  --dart-define=ANDROID_PACKAGE_NAME=com.utilivos.app \
   --dart-define=PINNED_SIGNING_ROOT_PUBLIC_KEY="$(cat signing-root-public.pem)"
 ```
+
+Optional lifetime SKU: `PREMIUM_ONE_TIME_PRODUCT_ID=...` (omit or empty for subscriptions-only).
+
+## Production / VPS
+
+- **Env template:** copy [`.env.vps.example`](.env.vps.example) to a gitignored file (e.g. `.env.build`), set `API_BASE_URL` to your **HTTPS** API origin, billing SKUs, and optional `MOBILE_CLIENT_*` / `PINNED_SIGNING_ROOT_PUBLIC_KEY` to match [utilivos-api](../utilivos-api).
+- **Sentry:** set `SENTRY_DSN` in that same file (see [`.env.example`](.env.example)). When non-empty, [lib/main.dart](lib/main.dart) initializes Sentry and [lib/core/di/app_dependencies.dart](lib/core/di/app_dependencies.dart) uses [SentryProAnalytics](lib/core/pro/pro_analytics.dart) for Pro funnel breadcrumbs.
+- **Device QA:** follow [docs/DEVICE_SMOKE_CHECKLIST.md](docs/DEVICE_SMOKE_CHECKLIST.md).
+- **Store billing:** follow [docs/STORE_SANDBOX_VALIDATION.md](docs/STORE_SANDBOX_VALIDATION.md).
+- **Ship artifacts:** see [docs/RELEASE_BUILD.md](docs/RELEASE_BUILD.md).
+- **Bundle signing pin:** `PINNED_SIGNING_ROOT_PUBLIC_KEY` must be the **root public** PEM (`BEGIN PUBLIC KEY`), not anything from `bundle-signing-*-private.pem`. Derive it with `openssl pkey -in bundle-signing-root-private.pem -pubout`, then set `PINNED_SIGNING_ROOT_PUBLIC_KEY_FILE` in `.env.build` to that `.pem` path (see [`.env.example`](.env.example)); the build script inlines it into `--dart-define`.
+
+**Integration test harness:** with an Android emulator or iOS simulator available, run `flutter test integration_test/app_binding_test.dart` (this project is mobile-only; the command fails on unsupported hosts such as Linux desktop alone).
 
 ## Quality Checks
 

@@ -150,7 +150,7 @@ class AppDependencies {
       packageName: resolvedConfig.androidPackageName,
     );
     final resolvedBillingGateway =
-        billingGateway ?? InAppPurchaseBillingGateway();
+        billingGateway ?? InAppPurchaseBillingGateway(appConfig: resolvedConfig);
     final proPurchaseController = ProPurchaseController(
       config: resolvedConfig,
       billingGateway: resolvedBillingGateway,

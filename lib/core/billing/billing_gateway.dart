@@ -7,8 +7,11 @@ abstract interface class BillingGateway {
   Future<List<BillingProduct>> queryProducts(Set<String> productIds);
   Future<void> buyNonConsumable(String productId);
 
-  /// Same store flow as [buyNonConsumable]; used for subscriptions and alternate SKUs.
+  /// Same store flow as [buyNonConsumable]; used for one-time (non-subscription) SKUs.
   Future<void> buyProduct(String productId);
+
+  /// Google Play subscription base plan, or future iOS StoreKit subscription SKU.
+  Future<void> buySubscriptionPlan(ProSubscriptionPlan plan);
 
   Future<void> restorePurchases();
   void dispose();
