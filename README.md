@@ -81,6 +81,17 @@ Implemented product behavior:
 
 ## Development
 
+Copy [`.env.example`](.env.example) to `.env.build` (gitignored), fill in values, then build or run with all `String.fromEnvironment` keys applied:
+
+```bash
+cp .env.example .env.build
+# edit .env.build — optional MOBILE_CLIENT_*_FILE paths for secrets on disk
+UTILIVOS_BUILD_ENV_FILE=.env.build tool/flutter_build_from_env.sh run
+UTILIVOS_BUILD_ENV_FILE=.env.build tool/flutter_build_from_env.sh build apk --release
+```
+
+See comments in `.env.example` and [`tool/flutter_build_from_env.sh`](tool/flutter_build_from_env.sh). The app does **not** read `.env` at runtime; the script turns it into `--dart-define` at **compile** time.
+
 ```bash
 flutter pub get
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080

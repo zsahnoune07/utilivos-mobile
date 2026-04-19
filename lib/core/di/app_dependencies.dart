@@ -13,6 +13,7 @@ import '../config/app_config.dart';
 import '../persistence/app_database.dart';
 import '../networking/api_client.dart';
 import '../networking/interceptors/device_id_interceptor.dart';
+import '../networking/interceptors/mobile_client_gate_interceptor.dart';
 import '../networking/interceptors/request_id_interceptor.dart';
 import '../pro/folder_creation_policy.dart';
 import '../pro/free_tier_usage_store.dart';
@@ -172,6 +173,13 @@ class AppDependencies {
     resolvedDio.interceptors.add(
       DeviceIdInterceptor(
         getDeviceId: () => deviceIdentityManager.currentDeviceId,
+      ),
+    );
+    resolvedDio.interceptors.add(
+      MobileClientGateInterceptor(
+        dio: resolvedDio,
+        sharedSecret: resolvedConfig.mobileClientSharedSecret,
+        signatureSecret: resolvedConfig.mobileClientSignatureSecret,
       ),
     );
 

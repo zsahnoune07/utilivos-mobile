@@ -13,6 +13,8 @@ class AppConfig {
     this.localToolBundleVersion,
     this.toolReportSubmitUrl,
     this.iosAppStoreId,
+    this.mobileClientSharedSecret,
+    this.mobileClientSignatureSecret,
   });
 
   final String appName;
@@ -34,6 +36,12 @@ class AppConfig {
 
   /// Numeric App Store id for "Update app" links (e.g. `123456789`). Optional.
   final String? iosAppStoreId;
+
+  /// When set with [mobileClientSignatureSecret], enables API mobile client gate headers.
+  final String? mobileClientSharedSecret;
+
+  /// HMAC key for [mobileClientSharedSecret] gate; must be set together with it.
+  final String? mobileClientSignatureSecret;
 
   factory AppConfig.fromEnvironment() {
     const appName = String.fromEnvironment(
@@ -80,6 +88,12 @@ class AppConfig {
       'TOOL_REPORT_SUBMIT_URL',
     );
     const iosAppStoreId = String.fromEnvironment('IOS_APP_STORE_ID');
+    const mobileClientSharedSecret = String.fromEnvironment(
+      'MOBILE_CLIENT_SHARED_SECRET',
+    );
+    const mobileClientSignatureSecret = String.fromEnvironment(
+      'MOBILE_CLIENT_SIGNATURE_SECRET',
+    );
 
     return AppConfig(
       appName: appName.trim().isEmpty ? 'Utilivos' : appName.trim(),
@@ -103,6 +117,10 @@ class AppConfig {
       localToolBundleVersion: _normalizeOptional(localToolBundleVersion),
       toolReportSubmitUrl: _normalizeOptional(toolReportSubmitUrl),
       iosAppStoreId: _normalizeOptional(iosAppStoreId),
+      mobileClientSharedSecret: _normalizeOptional(mobileClientSharedSecret),
+      mobileClientSignatureSecret: _normalizeOptional(
+        mobileClientSignatureSecret,
+      ),
     );
   }
 
