@@ -12,7 +12,7 @@ final appDatabaseProvider = Provider<AppDatabase?>((ref) => null);
 final appDependenciesProvider = Provider<AppDependencies>((ref) {
   throw StateError(
     'appDependenciesProvider is not overridden. '
-    'UtilivosApp wraps the router with a nested ProviderScope.',
+    'Override it from main() (or tests) via ProviderScope.',
   );
 });
 

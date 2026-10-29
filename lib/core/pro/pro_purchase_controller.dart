@@ -121,6 +121,10 @@ class ProPurchaseController extends ChangeNotifier {
       _isLoadingProducts = false;
       notifyListeners();
     }
+
+    if (_storeAvailable) {
+      unawaited(_billingGateway.reconcilePendingPurchaseAcknowledgements());
+    }
   }
 
   Future<void> purchasePro() async {
@@ -245,9 +249,13 @@ class ProPurchaseController extends ChangeNotifier {
   }
 
   Future<void> _onPurchaseUpdate(BillingPurchaseUpdate update) async {
+    final bool silentStatus =
+        update.source != BillingPurchaseEventSource.userFlow;
     switch (update.status) {
       case BillingPurchaseStatus.pending:
-        _statusMessage = 'Purchase pending confirmation...';
+        if (!silentStatus) {
+          _statusMessage = 'Purchase pending confirmation...';
+        }
         break;
       case BillingPurchaseStatus.purchased:
       case BillingPurchaseStatus.restored:
@@ -261,14 +269,18 @@ class ProPurchaseController extends ChangeNotifier {
 
           switch (outcome) {
             case BillingVerificationOutcome.activated:
-              _statusMessage = update.status == BillingPurchaseStatus.restored
-                  ? 'Pro restored and verified successfully.'
-                  : 'Pro unlocked and verified successfully.';
+              if (!silentStatus) {
+                _statusMessage = update.status == BillingPurchaseStatus.restored
+                    ? 'Pro restored and verified successfully.'
+                    : 'Pro unlocked and verified successfully.';
+              }
               _errorMessage = null;
               break;
             case BillingVerificationOutcome.pending:
-              _statusMessage =
-                  'Purchase recorded. Waiting for online entitlement verification.';
+              if (!silentStatus) {
+                _statusMessage =
+                    'Purchase recorded. Waiting for online entitlement verification.';
+              }
               _errorMessage = null;
               break;
             case BillingVerificationOutcome.rejected:
@@ -278,7 +290,9 @@ class ProPurchaseController extends ChangeNotifier {
               break;
           }
         } else {
-          _statusMessage = 'Purchase received for ${update.productId}.';
+          if (!silentStatus) {
+            _statusMessage = 'Purchase received for ${update.productId}.';
+          }
         }
         _isPurchaseInProgress = false;
         _isRestoreInProgress = false;

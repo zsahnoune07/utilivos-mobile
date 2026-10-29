@@ -82,6 +82,7 @@ class CatalogApi {
   Future<CursorPage<CatalogPlugin>> listPlugins({
     String? category,
     String? search,
+    String? tag,
     String? cursor,
     int limit = 20,
     bool forceRefresh = false,
@@ -89,6 +90,7 @@ class CatalogApi {
     final cacheKey = _pluginPageCacheKey(
       category: category,
       search: search,
+      tag: tag,
       cursor: cursor,
       limit: limit,
     );
@@ -112,6 +114,7 @@ class CatalogApi {
           if (category != null && category.trim().isNotEmpty)
             'category': category,
           if (search != null && search.trim().isNotEmpty) 'search': search,
+          if (tag != null && tag.trim().isNotEmpty) 'tag': tag,
           if (cursor != null && cursor.trim().isNotEmpty) 'cursor': cursor,
         },
         skipAuth: true,
@@ -404,12 +407,14 @@ class CatalogApi {
   String _pluginPageCacheKey({
     String? category,
     String? search,
+    String? tag,
     String? cursor,
     required int limit,
   }) {
     return <String>[
       'category=${_normalizeCacheKeyPart(category)}',
       'search=${_normalizeCacheKeyPart(search)}',
+      'tag=${_normalizeCacheKeyPart(tag)}',
       'cursor=${_normalizeCacheKeyPart(cursor)}',
       'limit=$limit',
     ].join('|');

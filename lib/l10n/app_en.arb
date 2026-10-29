@@ -122,5 +122,8 @@
   "runtimePermissionDefaultRationale": "This tool needs additional access to your device to run correctly.",
   "runtimePermissionDeniedBody": "This tool cannot run without the permissions it needs.",
   "runtimePermissionRetryCta": "Try again",
-  "runtimePermissionOpenSettingsCta": "Open settings"
+  "runtimePermissionOpenSettingsCta": "Open settings",
+  "runtimeHostBridgeError": "Something went wrong while this tool talked to the app. You can keep using the tool, but a few actions may not work until you reopen it.",
+  "runtimeHostBridgeDismiss": "Dismiss",
+  "runtimeWebViewLoadTimeout": "This tool is taking too long to open. Check the tool files or try again."
 }

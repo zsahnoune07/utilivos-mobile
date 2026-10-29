@@ -1,9 +1,12 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/notifications/app_notification_service.dart';
+import '../../../core/notifications/notification_preferences.dart';
+import '../../../core/notifications/update_notification_evaluator.dart';
+import '../../../core/logging/app_log.dart';
 import '../../../core/networking/network_exception.dart';
 import '../../../core/pro/folder_creation_policy.dart';
 import '../../../core/pro/freemium_limits.dart';
@@ -56,6 +59,8 @@ class InstalledToolsController extends ChangeNotifier {
     PinningPolicy pinningPolicy = const UnlimitedPinningPolicy(),
     FolderCreationPolicy folderCreationPolicy =
         const UnlimitedFolderCreationPolicy(),
+    AppNotificationService? appNotificationService,
+    NotificationPreferences? notificationPreferences,
   }) : _installsApi = installsApi,
        _catalogApi = catalogApi,
        _store = store,
@@ -67,7 +72,9 @@ class InstalledToolsController extends ChangeNotifier {
        _toolSessionService = toolSessionService,
        _toolSessionStore = toolSessionStore,
        _pinningPolicy = pinningPolicy,
-       _folderCreationPolicy = folderCreationPolicy;
+       _folderCreationPolicy = folderCreationPolicy,
+       _appNotificationService = appNotificationService,
+       _notificationPreferences = notificationPreferences;
 
   /// Free-tier pin cap (Pro bypasses via [PinningPolicy]).
   static int get maxPinnedTools => FreemiumLimits.maxPinnedTools;
@@ -85,6 +92,8 @@ class InstalledToolsController extends ChangeNotifier {
   final ToolSessionStore? _toolSessionStore;
   final PinningPolicy _pinningPolicy;
   final FolderCreationPolicy _folderCreationPolicy;
+  final AppNotificationService? _appNotificationService;
+  final NotificationPreferences? _notificationPreferences;
 
   bool _disposed = false;
 
@@ -255,9 +264,8 @@ class InstalledToolsController extends ChangeNotifier {
           ? 'No installed tools found yet.'
           : 'Loaded installed tools from device cache.';
     } catch (error) {
-      developer.log(
+      appLog('InstalledToolsController', 
         'Failed to bootstrap installed tools cache.',
-        name: 'InstalledToolsController',
         error: error,
       );
       _installedTools = const <DeviceInstallRecord>[];
@@ -302,9 +310,8 @@ class InstalledToolsController extends ChangeNotifier {
       return;
     }
 
-    developer.log(
+    appLog('InstalledToolsController', 
       'Starting installed-tools sync.',
-      name: 'InstalledToolsController',
       error: 'trigger=$trigger localCount=${_installedTools.length}',
     );
     _isSyncing = true;
@@ -334,9 +341,8 @@ class InstalledToolsController extends ChangeNotifier {
       _statusMessage = remoteInstalls.isEmpty
           ? 'No installed tools found for this device yet.'
           : 'Installed tools synced from online repository.';
-      developer.log(
+      appLog('InstalledToolsController', 
         'Installed-tools sync succeeded.',
-        name: 'InstalledToolsController',
         error:
             'trigger=$trigger remoteCount=${remoteInstalls.length} localCount=${_installedTools.length}',
       );
@@ -349,9 +355,8 @@ class InstalledToolsController extends ChangeNotifier {
         _isFirstRunOffline = true;
         _errorMessage =
             'Could not reach online repository to load installed tools.';
-        developer.log(
+        appLog('InstalledToolsController', 
           'Installed-tools sync failed with offline first-run state.',
-          name: 'InstalledToolsController',
           error: 'trigger=$trigger',
         );
       } else {
@@ -359,16 +364,14 @@ class InstalledToolsController extends ChangeNotifier {
         _isFirstRunOffline = false;
         _statusMessage =
             'Offline mode: showing installed tools from local cache.';
-        developer.log(
+        appLog('InstalledToolsController', 
           'Installed-tools sync offline fallback used.',
-          name: 'InstalledToolsController',
           error: 'trigger=$trigger localCount=${_installedTools.length}',
         );
       }
     } catch (error) {
-      developer.log(
+      appLog('InstalledToolsController', 
         'Unexpected installed-tools sync error.',
-        name: 'InstalledToolsController',
         error: error,
       );
       if (_installedTools.isEmpty) {
@@ -396,6 +399,7 @@ class InstalledToolsController extends ChangeNotifier {
 
     _isCheckingUpdates = true;
     _notify();
+    final before = List<DeviceInstallRecord>.from(_installedTools);
 
     try {
       final now = DateTime.now().toUtc();
@@ -411,10 +415,55 @@ class InstalledToolsController extends ChangeNotifier {
         _statusMessage = 'Updates available for some tools.';
       }
       await _store.write(_installedTools);
+      unawaited(_notifyNewUpdatesIfNeeded(before, updatedTools));
     } finally {
       _isCheckingUpdates = false;
       _notify();
     }
+  }
+
+  Future<void> _notifyNewUpdatesIfNeeded(
+    List<DeviceInstallRecord> before,
+    List<DeviceInstallRecord> after,
+  ) async {
+    final svc = _appNotificationService;
+    final pref = _notificationPreferences;
+    if (svc == null || pref == null) {
+      return;
+    }
+    if (!pref.isCategoryEnabled(UtilivosNotificationCategory.updates)) {
+      return;
+    }
+    final dedupe = pref.readUpdateNotificationDedupeKeys();
+    var widgetSlugs = <String>{};
+    if (pref.notifyUpdatesForWidgetToolsOnly) {
+      final tw = _toolWidgetService;
+      if (tw == null) {
+        return;
+      }
+      widgetSlugs = await tw.distinctWidgetToolSlugsLowercase();
+    }
+    final fresh = findNewlyNoteworthyUpdates(
+      before: before,
+      after: after,
+      dedupeKeys: dedupe,
+      restrictToWidgetSlugs: pref.notifyUpdatesForWidgetToolsOnly,
+      widgetSlugs: widgetSlugs,
+    );
+    if (fresh.isEmpty) {
+      return;
+    }
+    final names = fresh.map((t) => t.displayName).toList(growable: false);
+    await svc.showBatchedUpdateNotification(toolNames: names);
+    final keys = fresh
+        .map(
+          (t) => updateDedupeKey(
+            t.pluginSlug,
+            t.latestAvailableVersion,
+          ),
+        )
+        .toList(growable: false);
+    await pref.addUpdateNotificationDedupeKeys(keys);
   }
 
   Future<void> removeInstall(DeviceInstallRecord install) async {
@@ -667,9 +716,8 @@ class InstalledToolsController extends ChangeNotifier {
       } on NetworkException {
         updatedInstalls.add(install);
       } catch (_) {
-        developer.log(
+        appLog('InstalledToolsController', 
           'Failed to hydrate catalog metadata for install.',
-          name: 'InstalledToolsController',
           error: 'slug=${install.pluginSlug}',
         );
         updatedInstalls.add(install);

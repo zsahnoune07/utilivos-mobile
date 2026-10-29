@@ -20,12 +20,16 @@ class EntitlementController extends ChangeNotifier {
     String packageName = 'com.utilivos.utilivos_mobile',
     Duration offlineGracePeriod = const Duration(days: 3),
     Duration backgroundReverifyInterval = const Duration(minutes: 10),
+    String? Function()? getDeviceId,
+    Future<String?> Function(String productId)? storeTokenRefresher,
   }) : _store = store,
        _verificationApi = verificationApi,
        _platform = platform.trim().isEmpty ? 'android' : platform.trim(),
        _packageName = packageName.trim(),
        _offlineGracePeriod = offlineGracePeriod,
-       _backgroundReverifyInterval = backgroundReverifyInterval;
+       _backgroundReverifyInterval = backgroundReverifyInterval,
+       _getDeviceId = getDeviceId,
+       _storeTokenRefresher = storeTokenRefresher;
 
   final EntitlementStore _store;
   final EntitlementVerificationApi? _verificationApi;
@@ -33,6 +37,8 @@ class EntitlementController extends ChangeNotifier {
   final String _packageName;
   final Duration _offlineGracePeriod;
   final Duration _backgroundReverifyInterval;
+  final String? Function()? _getDeviceId;
+  final Future<String?> Function(String productId)? _storeTokenRefresher;
 
   bool _bootstrapStarted = false;
   bool _verificationInFlight = false;
@@ -89,12 +95,19 @@ class EntitlementController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final storedEntitlement = await _store.read();
+      final storedEntitlement = await _store.read().timeout(
+        const Duration(seconds: 12),
+        onTimeout: () => null,
+      );
       _entitlement = _normalizeStoredEntitlement(
         storedEntitlement ?? ProEntitlement.inactive(),
       );
       _state = EntitlementState.ready;
-      await _store.write(_entitlement);
+      try {
+        await _store.write(_entitlement).timeout(const Duration(seconds: 12));
+      } on TimeoutException {
+        // Proceed with normalized in-memory state if secure storage write hangs.
+      }
     } catch (error) {
       _entitlement = ProEntitlement.inactive();
       _state = EntitlementState.failed;
@@ -156,6 +169,7 @@ class EntitlementController extends ChangeNotifier {
         productId: trimmedProductId,
         storeToken: trimmedToken,
         packageName: _packageName,
+        deviceId: _getDeviceId?.call(),
       );
       final persisted = _entitlementFromVerification(
         verification: verification,
@@ -194,12 +208,20 @@ class EntitlementController extends ChangeNotifier {
       return;
     }
     final productId = _entitlement.productId?.trim();
-    final purchaseToken = _entitlement.purchaseToken?.trim();
-    if (productId == null ||
-        productId.isEmpty ||
-        purchaseToken == null ||
-        purchaseToken.isEmpty) {
+    if (productId == null || productId.isEmpty) {
       return;
+    }
+
+    var purchaseToken = _entitlement.purchaseToken?.trim();
+    if (purchaseToken == null || purchaseToken.isEmpty) {
+      final refresher = _storeTokenRefresher;
+      if (refresher == null) {
+        return;
+      }
+      purchaseToken = (await refresher(productId))?.trim();
+      if (purchaseToken == null || purchaseToken.isEmpty) {
+        return;
+      }
     }
 
     _verificationInFlight = true;
@@ -209,6 +231,7 @@ class EntitlementController extends ChangeNotifier {
         productId: productId,
         storeToken: purchaseToken,
         packageName: _packageName,
+        deviceId: _getDeviceId?.call(),
       );
       await _persist(
         _entitlementFromVerification(
@@ -234,6 +257,7 @@ class EntitlementController extends ChangeNotifier {
       _entitlement.copyWith(
         proActive: false,
         updatedAt: now,
+        purchaseToken: null,
         assertionToken: null,
         assertionExpiresAt: null,
         verificationSource: 'manual_clear',
@@ -242,6 +266,12 @@ class EntitlementController extends ChangeNotifier {
   }
 
   void onAppResumed() {
+    final now = DateTime.now().toUtc();
+    final last = _entitlement.lastVerificationAt;
+    if (last != null &&
+        now.difference(last) < const Duration(minutes: 2)) {
+      return;
+    }
     unawaited(backgroundReverify(reason: 'app_resumed'));
   }
 
@@ -264,6 +294,15 @@ class EntitlementController extends ChangeNotifier {
         assertionExpiresAt: null,
         verificationSource: 'grace_or_store_expired_on_bootstrap',
       );
+    }
+
+    final assertion = normalized.assertionToken?.trim();
+    final storedToken = normalized.purchaseToken?.trim();
+    if (assertion != null &&
+        assertion.isNotEmpty &&
+        storedToken != null &&
+        storedToken.isNotEmpty) {
+      normalized = normalized.copyWith(purchaseToken: null);
     }
 
     return normalized;
@@ -292,12 +331,16 @@ class EntitlementController extends ChangeNotifier {
     required String verificationSource,
   }) {
     final now = DateTime.now().toUtc();
+    final assertion = verification.assertionToken?.trim();
+    final shouldClearPersistedStoreToken = verification.proActive &&
+        assertion != null &&
+        assertion.isNotEmpty;
     return ProEntitlement(
       proActive: verification.proActive,
       updatedAt: now,
       entitlementType: verification.entitlementType ?? fallbackEntitlementType,
       productId: productId,
-      purchaseToken: purchaseToken,
+      purchaseToken: shouldClearPersistedStoreToken ? null : purchaseToken,
       storeExpiresAt: verification.expiresAt,
       assertionToken: verification.assertionToken,
       assertionExpiresAt: verification.assertionExpiresAt,
@@ -403,10 +446,13 @@ class EntitlementController extends ChangeNotifier {
 
   void _scheduleBackgroundReverify() {
     _backgroundReverifyTimer?.cancel();
+    final hasProductId = _entitlement.productId?.trim().isNotEmpty ?? false;
+    final hasStoredToken = _entitlement.purchaseToken?.trim().isNotEmpty ?? false;
+    final canRefreshToken = _storeTokenRefresher != null && hasProductId;
     final canReverify =
         _verificationApi != null &&
-        (_entitlement.productId?.trim().isNotEmpty ?? false) &&
-        (_entitlement.purchaseToken?.trim().isNotEmpty ?? false);
+        hasProductId &&
+        (hasStoredToken || canRefreshToken);
     if (!canReverify) {
       return;
     }

@@ -89,8 +89,32 @@ class _UtilivosAppState extends State<UtilivosApp> {
     unawaited(_seedLocalToolBundleIfConfigured());
     _listenAppLinks();
     _listenHomeWidgetLaunches();
+    _dependencies.appNotificationService?.onNavigate = (String location) {
+      if (!mounted) {
+        return;
+      }
+      _router.go(location);
+    };
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_consumeInitialHomeWidgetLaunch());
+      unawaited(_consumeNotificationLaunch());
+    });
+  }
+
+  Future<void> _consumeNotificationLaunch() async {
+    final svc = _dependencies.appNotificationService;
+    if (svc == null) {
+      return;
+    }
+    final path = await svc.consumePendingLaunchRoute();
+    if (path == null || !mounted) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _router.go(path);
     });
   }
 
@@ -225,6 +249,10 @@ class _UtilivosAppState extends State<UtilivosApp> {
         trigger: 'resume',
       ),
     );
+    unawaited(
+      _dependencies.promotionNotificationCoordinator?.maybeNotifyAfterResume() ??
+          Future<void>.value(),
+    );
   }
 
   Future<void> _seedLocalToolBundleIfConfigured() async {
@@ -301,8 +329,13 @@ class _UtilivosAppState extends State<UtilivosApp> {
       ],
       supportedLocales: const <Locale>[Locale('en')],
     );
+    if (widget.dependencies != null) {
+      return app;
+    }
+    final AppDatabase? db = widget.appDatabase;
     return ProviderScope(
       overrides: <Override>[
+        if (db != null) appDatabaseProvider.overrideWithValue(db),
         appDependenciesProvider.overrideWithValue(_dependencies),
       ],
       child: app,

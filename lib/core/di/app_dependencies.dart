@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../billing/billing_gateway.dart';
 import '../billing/in_app_purchase_billing_gateway.dart';
@@ -15,11 +16,13 @@ import '../networking/api_client.dart';
 import '../networking/interceptors/device_id_interceptor.dart';
 import '../networking/interceptors/mobile_client_gate_interceptor.dart';
 import '../networking/interceptors/request_id_interceptor.dart';
+import '../networking/interceptors/safe_get_retry_interceptor.dart';
 import '../pro/folder_creation_policy.dart';
 import '../pro/free_tier_usage_store.dart';
 import '../pro/paywall_coordinator.dart';
 import '../pro/pinning_policy.dart';
 import '../pro/pro_analytics.dart';
+import '../pro/sentry_pro_analytics.dart';
 import '../pro/pro_capability_service.dart';
 import '../pro/pro_purchase_controller.dart';
 import '../pro/tool_session_store.dart';
@@ -27,6 +30,9 @@ import '../sessions/drift_ephemeral_runtime_state_repository.dart';
 import '../sessions/drift_tool_session_repository.dart';
 import '../sessions/drift_tool_widget_repository.dart';
 import '../sessions/runtime_state_scope_service.dart';
+import '../notifications/app_notification_service.dart';
+import '../notifications/notification_preferences.dart';
+import '../notifications/promotion_notification_coordinator.dart';
 import '../sessions/tool_session_service.dart';
 import '../sessions/tool_widget_service.dart';
 import '../../features/discover/data/catalog_api.dart';
@@ -72,6 +78,9 @@ class AppDependencies {
     required this.toolSessionService,
     required this.runtimeStateScopeService,
     required this.toolWidgetService,
+    this.appNotificationService,
+    this.notificationPreferences,
+    this.promotionNotificationCoordinator,
   });
 
   final AppConfig config;
@@ -105,6 +114,10 @@ class AppDependencies {
   /// Home widget metadata (platform integration in Phase 4).
   final ToolWidgetService toolWidgetService;
 
+  final AppNotificationService? appNotificationService;
+  final NotificationPreferences? notificationPreferences;
+  final PromotionNotificationCoordinator? promotionNotificationCoordinator;
+
   factory AppDependencies.create({
     AppConfig? config,
     DeviceIdStore? deviceIdStore,
@@ -119,6 +132,8 @@ class AppDependencies {
     Dio? dio,
     required FreeTierUsageStore freeTierUsageStore,
     ProAnalytics? proAnalytics,
+    NotificationPreferences? notificationPreferences,
+    AppNotificationService? appNotificationService,
   }) {
     final resolvedConfig = config ?? AppConfig.fromEnvironment();
     final resolvedDio =
@@ -144,20 +159,24 @@ class AppDependencies {
     final resolvedEntitlementStore =
         entitlementStore ?? SecureEntitlementStore();
     final entitlementVerificationApi = EntitlementVerificationApi(apiClient);
+    final resolvedBillingGateway = billingGateway ??
+        InAppPurchaseBillingGateway(appConfig: resolvedConfig);
     final entitlementController = EntitlementController(
       store: resolvedEntitlementStore,
       verificationApi: entitlementVerificationApi,
       packageName: resolvedConfig.androidPackageName,
+      getDeviceId: () => deviceIdentityManager.currentDeviceId,
+      storeTokenRefresher:
+          resolvedBillingGateway.fetchStoreVerificationDataForProduct,
     );
-    final resolvedBillingGateway =
-        billingGateway ?? InAppPurchaseBillingGateway(appConfig: resolvedConfig);
     final proPurchaseController = ProPurchaseController(
       config: resolvedConfig,
       billingGateway: resolvedBillingGateway,
       entitlementController: entitlementController,
     );
 
-    final resolvedAnalytics = proAnalytics ?? DebugProAnalytics();
+    final resolvedAnalytics = proAnalytics ??
+        (kReleaseMode ? const SentryProAnalytics() : DebugProAnalytics());
     final proCapabilityService = ProCapabilityService(
       entitlementController: entitlementController,
       usageStore: freeTierUsageStore,
@@ -182,6 +201,7 @@ class AppDependencies {
         signatureSecret: resolvedConfig.mobileClientSignatureSecret,
       ),
     );
+    resolvedDio.interceptors.add(SafeGetRetryInterceptor(dio: resolvedDio));
 
     final healthApi = HealthApi(apiClient);
     final AppDatabase resolvedDb = appDatabase ?? AppDatabase.memory();
@@ -217,6 +237,16 @@ class AppDependencies {
     final toolWidgetService = ToolWidgetService(
       DriftToolWidgetRepository(resolvedDb),
     );
+    final np = notificationPreferences;
+    final an = appNotificationService;
+    final PromotionNotificationCoordinator? resolvedPromotionCoordinator =
+        np != null && an != null
+        ? PromotionNotificationCoordinator(
+            catalogApi: catalogApi,
+            notificationPreferences: np,
+            appNotificationService: an,
+          )
+        : null;
     final installedToolsController = InstalledToolsController(
       installsApi: installsApi,
       catalogApi: catalogApi,
@@ -230,6 +260,8 @@ class AppDependencies {
       toolSessionStore: toolSessionStore,
       pinningPolicy: FreemiumPinningPolicy(entitlementController),
       folderCreationPolicy: FreemiumFolderCreationPolicy(entitlementController),
+      appNotificationService: appNotificationService,
+      notificationPreferences: notificationPreferences,
     );
 
     final runtimeStateScopeService = RuntimeStateScopeService(
@@ -259,6 +291,9 @@ class AppDependencies {
       toolSessionService: toolSessionService,
       runtimeStateScopeService: runtimeStateScopeService,
       toolWidgetService: toolWidgetService,
+      appNotificationService: appNotificationService,
+      notificationPreferences: notificationPreferences,
+      promotionNotificationCoordinator: resolvedPromotionCoordinator,
     );
   }
 

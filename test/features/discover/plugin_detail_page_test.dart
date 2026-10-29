@@ -492,6 +492,13 @@ class _FakeBillingGateway implements BillingGateway {
   Future<void> buySubscriptionPlan(ProSubscriptionPlan plan) async {}
 
   @override
+  Future<void> reconcilePendingPurchaseAcknowledgements() async {}
+
+  @override
+  Future<String?> fetchStoreVerificationDataForProduct(String productId) async =>
+      null;
+
+  @override
   void dispose() {
     _updates.close();
   }

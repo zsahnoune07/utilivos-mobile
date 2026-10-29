@@ -17,6 +17,15 @@ class ToolWidgetService {
     return _repository.listAll();
   }
 
+  /// Slugs (lowercase) for tools bound to a home-screen widget; used for update notifications.
+  Future<Set<String>> distinctWidgetToolSlugsLowercase() async {
+    final all = await _repository.listAll();
+    return all
+        .map((w) => w.toolSlug.trim().toLowerCase())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+  }
+
   Future<ToolHomeWidgetRecord?> getWidget(String id) {
     return _repository.getById(id);
   }

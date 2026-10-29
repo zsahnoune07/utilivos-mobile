@@ -130,6 +130,59 @@ void main() {
     expect(controller.statusMessage, 'Pro restored and verified successfully.');
   });
 
+  test(
+    'reconciliation-sourced restore activates Pro without restored status line',
+    () async {
+      final gateway = _FakeBillingGateway(
+        available: true,
+        products: const <BillingProduct>[
+          BillingProduct(
+            id: 'utilivos_pro_subscription',
+            title: 'Utilivos Pro (annual)',
+            description: 'Annual Pro access',
+            price: r'$29.99',
+            plan: ProSubscriptionPlan.annual,
+          ),
+          BillingProduct(
+            id: 'utilivos_pro_subscription',
+            title: 'Utilivos Pro (monthly)',
+            description: 'Monthly Pro access',
+            price: r'$4.99',
+            plan: ProSubscriptionPlan.monthly,
+          ),
+        ],
+      );
+      final entitlementController = EntitlementController(
+        store: _InMemoryEntitlementStore(),
+      );
+      await entitlementController.bootstrap();
+
+      final controller = ProPurchaseController(
+        config: _config(),
+        billingGateway: gateway,
+        entitlementController: entitlementController,
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize();
+
+      gateway.emit(
+        const BillingPurchaseUpdate(
+          status: BillingPurchaseStatus.restored,
+          productId: 'utilivos_pro_subscription',
+          purchaseToken: 'reconcile-token',
+          source: BillingPurchaseEventSource.ackReconciliation,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+
+      expect(entitlementController.hasProAccess, true);
+      expect(
+        controller.statusMessage,
+        isNot(equals('Pro restored and verified successfully.')),
+      );
+    },
+  );
+
   test('purchaseSubscriptionPlan delegates to billing gateway', () async {
     final gateway = _FakeBillingGateway(
       available: true,
@@ -223,6 +276,13 @@ class _FakeBillingGateway implements BillingGateway {
   Future<void> buySubscriptionPlan(ProSubscriptionPlan plan) async {
     lastSubscriptionPlan = plan;
   }
+
+  @override
+  Future<void> reconcilePendingPurchaseAcknowledgements() async {}
+
+  @override
+  Future<String?> fetchStoreVerificationDataForProduct(String productId) async =>
+      null;
 
   @override
   void dispose() {

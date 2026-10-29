@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/bootstrap/app_bootstrap_controller.dart';
 import '../../../core/entitlement/entitlement_controller.dart';
@@ -12,6 +13,8 @@ import '../../../core/pro/paywall_coordinator.dart';
 import '../../../core/pro/paywall_models.dart';
 import '../../../core/pro/pro_capability_service.dart';
 import '../../../core/pro/pro_purchase_controller.dart';
+import '../../../core/notifications/notification_category.dart';
+import '../../../core/notifications/notification_preferences.dart';
 import '../../../shared/widgets/app_buttons.dart';
 import '../../../shared/widgets/app_info_tile.dart';
 import '../../../shared/widgets/app_surface_card.dart';
@@ -24,6 +27,7 @@ class SettingsPage extends StatefulWidget {
     required this.paywallCoordinator,
     required this.freeTierUsageStore,
     required this.proCapabilityService,
+    this.notificationPreferences,
     super.key,
   });
 
@@ -33,6 +37,7 @@ class SettingsPage extends StatefulWidget {
   final PaywallCoordinator paywallCoordinator;
   final FreeTierUsageStore freeTierUsageStore;
   final ProCapabilityService proCapabilityService;
+  final NotificationPreferences? notificationPreferences;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -134,6 +139,75 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               const SizedBox(height: 12),
+              if (widget.notificationPreferences != null) ...<Widget>[
+                AppSurfaceCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const AppInfoTile(
+                        leading: Icons.notifications_outlined,
+                        title: 'Notifications',
+                        subtitle:
+                            'Choose which local alerts Utilivos can show. '
+                            'Timer-style alerts are reserved for a future release.',
+                      ),
+                      const SizedBox(height: 8),
+                      _NotificationSwitch(
+                        prefs: widget.notificationPreferences!,
+                        category: UtilivosNotificationCategory.toolRuntime,
+                        title: 'Tool alerts',
+                        subtitle: 'When a running tool asks to show a message.',
+                      ),
+                      _NotificationSwitch(
+                        prefs: widget.notificationPreferences!,
+                        category: UtilivosNotificationCategory.updates,
+                        title: 'Tool updates',
+                        subtitle: 'When installed tools have a newer version.',
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Only tools on home screen widgets'),
+                        subtitle: const Text(
+                          'Limit update alerts to tools pinned as a home widget.',
+                        ),
+                        value: widget.notificationPreferences!
+                            .notifyUpdatesForWidgetToolsOnly,
+                        onChanged: (bool v) async {
+                          await widget.notificationPreferences!
+                              .setNotifyUpdatesForWidgetToolsOnly(v);
+                          if (context.mounted) {
+                            setState(() {});
+                          }
+                        },
+                      ),
+                      _NotificationSwitch(
+                        prefs: widget.notificationPreferences!,
+                        category: UtilivosNotificationCategory.discover,
+                        title: 'Tool Library highlights',
+                        subtitle:
+                            'New catalog entries tagged “promoted” (at most once per day).',
+                      ),
+                      const SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('Focus and timers'),
+                        subtitle: Text(
+                          'Reserved; off until a host timer exists.',
+                        ),
+                        value: false,
+                        onChanged: null,
+                      ),
+                      const SizedBox(height: 4),
+                      TextButton(
+                        onPressed: () {
+                          unawaited(openAppSettings());
+                        },
+                        child: const Text('Open system notification settings'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               AppSurfaceCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -319,5 +393,40 @@ class _SettingsPageState extends State<SettingsPage> {
   String _formatTime(DateTime value) {
     final local = value.toLocal();
     return '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _NotificationSwitch extends StatefulWidget {
+  const _NotificationSwitch({
+    required this.prefs,
+    required this.category,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final NotificationPreferences prefs;
+  final UtilivosNotificationCategory category;
+  final String title;
+  final String subtitle;
+
+  @override
+  State<_NotificationSwitch> createState() => _NotificationSwitchState();
+}
+
+class _NotificationSwitchState extends State<_NotificationSwitch> {
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(widget.title),
+      subtitle: Text(widget.subtitle),
+      value: widget.prefs.isCategoryEnabled(widget.category),
+      onChanged: (bool v) async {
+        await widget.prefs.setCategoryEnabled(widget.category, v);
+        if (mounted) {
+          setState(() {});
+        }
+      },
+    );
   }
 }

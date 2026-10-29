@@ -7,6 +7,9 @@
 # not read by the Flutter app. Do not pass it as `--dart-define=...`; use either
 # this script or `flutter run --dart-define-from-file=.env.dev` (see README).
 #
+# Optional: UTILIVOS_REQUIRE_SENTRY_DSN=1 fails the script when building with
+# --release if SENTRY_DSN is empty (after loading the env file).
+#
 # Usage (from utilivos-mobile repo root):
 #   UTILIVOS_BUILD_ENV_FILE=.env.build tool/flutter_build_from_env.sh build apk --release
 #   tool/flutter_build_from_env.sh .env.staging build ios --release
@@ -114,6 +117,26 @@ for _k in "${_dart_define_keys[@]}"; do
     fi
   fi
 done
+
+# Store / CI: set UTILIVOS_REQUIRE_SENTRY_DSN=1 to fail fast when SENTRY_DSN is
+# missing for release builds (avoids shipping silent no-op crash reporting).
+if [[ "${UTILIVOS_REQUIRE_SENTRY_DSN:-}" == "1" ]]; then
+  _release=0
+  for _a in "$@"; do
+    if [[ "$_a" == "--release" ]]; then
+      _release=1
+      break
+    fi
+  done
+  if [[ "$_release" -eq 1 ]]; then
+    _dsn="${SENTRY_DSN:-}"
+    if [[ -z "${_dsn//[[:space:]]/}" ]]; then
+      echo "error: UTILIVOS_REQUIRE_SENTRY_DSN=1 but SENTRY_DSN is empty in $ENV_FILE" >&2
+      echo "Set SENTRY_DSN for release builds or unset UTILIVOS_REQUIRE_SENTRY_DSN." >&2
+      exit 1
+    fi
+  fi
+fi
 
 if [[ $# -eq 0 ]]; then
   echo "error: pass flutter arguments, e.g. build apk --release" >&2

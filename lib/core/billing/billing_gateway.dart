@@ -14,5 +14,12 @@ abstract interface class BillingGateway {
   Future<void> buySubscriptionPlan(ProSubscriptionPlan plan);
 
   Future<void> restorePurchases();
+
+  /// Replays unconsumed purchases so [purchaseUpdates] can run [completePurchase] again.
+  Future<void> reconcilePendingPurchaseAcknowledgements();
+
+  /// Obtains the latest Play [serverVerificationData] for [productId] (e.g. after local token was cleared).
+  Future<String?> fetchStoreVerificationDataForProduct(String productId);
+
   void dispose();
 }

@@ -344,4 +344,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get runtimePermissionOpenSettingsCta => 'Open settings';
+
+  @override
+  String get runtimeHostBridgeError =>
+      'Something went wrong while this tool talked to the app. You can keep using the tool, but a few actions may not work until you reopen it.';
+
+  @override
+  String get runtimeHostBridgeDismiss => 'Dismiss';
+
+  @override
+  String get runtimeWebViewLoadTimeout =>
+      'This tool is taking too long to open. Check the tool files or try again.';
 }

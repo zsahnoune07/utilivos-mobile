@@ -1,5 +1,17 @@
 enum BillingPurchaseStatus { pending, purchased, restored, canceled, error }
 
+/// Where a billing stream update originated (controls user-visible status text).
+enum BillingPurchaseEventSource {
+  /// User purchase flow or explicit "Restore purchases" tap.
+  userFlow,
+
+  /// Cold-start pending-ack reconciliation ([restorePurchases] for Play).
+  ackReconciliation,
+
+  /// Internal restore while resolving store verification payload.
+  storeVerification,
+}
+
 /// Google Play: base plans under one subscription product. iOS (later): map to SKUs.
 enum ProSubscriptionPlan { monthly, annual }
 
@@ -28,10 +40,12 @@ class BillingPurchaseUpdate {
     required this.productId,
     this.purchaseToken,
     this.errorMessage,
+    this.source = BillingPurchaseEventSource.userFlow,
   });
 
   final BillingPurchaseStatus status;
   final String productId;
   final String? purchaseToken;
   final String? errorMessage;
+  final BillingPurchaseEventSource source;
 }

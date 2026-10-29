@@ -53,7 +53,7 @@ void main() {
       expect(outcome, BillingVerificationOutcome.activated);
       expect(controller.hasProAccess, true);
       expect(controller.activeAssertionToken, 'assertion-token');
-      expect(controller.entitlement.purchaseToken, 'purchase-token-abc');
+      expect(controller.entitlement.purchaseToken, isNull);
       expect((await store.read())?.proActive, true);
     },
   );

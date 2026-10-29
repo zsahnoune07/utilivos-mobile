@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:utilivos_mobile/core/networking/api_client.dart';
 import 'package:utilivos_mobile/features/downloads/application/tool_bundle_download_service.dart';
 import 'package:utilivos_mobile/features/downloads/data/downloaded_tool_bundle_store.dart';
@@ -61,6 +62,7 @@ void main() {
       expect(result.entryFilePath, isNotNull);
       expect(await File(result.entryFilePath!).exists(), true);
       expect(result.pluginSlug, 'tool-alpha');
+      expect(result.localPath, endsWith('.ubb'));
       expect(await File(result.localPath).exists(), true);
       expect((await store.read()), hasLength(1));
     },
@@ -494,6 +496,45 @@ void main() {
       expect(result.isRunnable, true);
       expect(await File(result.entryFilePath!).exists(), true);
       expect((await store.read()), hasLength(1));
+    },
+  );
+
+  test(
+    'importBundleFromFile persists as .ubb when source was saved as .zip (MIME)',
+    () async {
+      final tmpDir = await Directory.systemTemp.createTemp(
+        'utilivos-import-zip-',
+      );
+      addTearDown(() async {
+        if (await tmpDir.exists()) {
+          await tmpDir.delete(recursive: true);
+        }
+      });
+
+      // Simulates "Save as" from a browser that renames to .zip for application/zip.
+      final sourceArchivePath = '${tmpDir.path}/bundle-from-cdn.zip';
+      final bundleBytes = _buildBundleArchiveBytes(
+        pluginSlug: 'zip-slug',
+        pluginName: 'Zip Slug',
+        version: '2.0.0',
+      );
+      await File(sourceArchivePath).writeAsBytes(bundleBytes, flush: true);
+
+      final store = _InMemoryDownloadedToolBundleStore();
+      final service = ToolBundleDownloadService(
+        dio: Dio(),
+        store: store,
+        metaApi: MetaApi(ApiClient(Dio())),
+        baseDirectoryProvider: () async => tmpDir,
+      );
+
+      final result = await service.importBundleFromFile(
+        localArchivePath: sourceArchivePath,
+      );
+
+      expect(result.localPath, endsWith('.ubb'));
+      expect(result.localPath, isNot(endsWith('.zip')));
+      expect(p.basename(result.localPath), 'zip-slug-2.0.0.ubb');
     },
   );
 

@@ -1,7 +1,3 @@
-import 'package:flutter/foundation.dart';
-
-const bool _enableCatalogIconDebugLogs = true;
-
 class CatalogCategory {
   const CatalogCategory({
     required this.id,
@@ -165,15 +161,6 @@ class CatalogPlugin {
       'icon_url',
       'IconUrl',
     ]);
-
-    if (kDebugMode && _enableCatalogIconDebugLogs) {
-      debugPrint(
-        '[CatalogPlugin.fromJson] '
-        'slug=${json['slug']} thumbnail_url=${json['thumbnail_url']} '
-        'icon_url=${json['icon_url']} parsedThumbnail=$parsedThumbnail '
-        'parsedIconUrl=$parsedIconUrl',
-      );
-    }
 
     return CatalogPlugin(
       id: _readRequiredString(json, const <String>['id', 'ID']),

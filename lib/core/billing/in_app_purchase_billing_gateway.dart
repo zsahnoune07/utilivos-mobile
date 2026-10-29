@@ -4,18 +4,22 @@ import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/billing_client_wrappers.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../config/app_config.dart';
 import 'billing_gateway.dart';
 import 'models/billing_models.dart';
+import 'pending_purchase_ack_store.dart';
 
 /// Play Billing subscription expansion + offer tokens; one-time SKUs by id.
 class InAppPurchaseBillingGateway implements BillingGateway {
   InAppPurchaseBillingGateway({
     required AppConfig appConfig,
     InAppPurchase? inAppPurchase,
+    PendingPurchaseAckStore? pendingAckStore,
   }) : _appConfig = appConfig,
-       _inAppPurchase = inAppPurchase ?? InAppPurchase.instance {
+       _inAppPurchase = inAppPurchase ?? InAppPurchase.instance,
+       _pendingAckStore = pendingAckStore ?? SecurePendingPurchaseAckStore() {
     _purchaseSubscription = _inAppPurchase.purchaseStream.listen(
       _onPurchaseDetailsList,
       onError: (Object error) {
@@ -24,6 +28,7 @@ class InAppPurchaseBillingGateway implements BillingGateway {
             status: BillingPurchaseStatus.error,
             productId: 'unknown',
             errorMessage: error.toString(),
+            source: BillingPurchaseEventSource.userFlow,
           ),
         );
       },
@@ -32,8 +37,12 @@ class InAppPurchaseBillingGateway implements BillingGateway {
 
   final AppConfig _appConfig;
   final InAppPurchase _inAppPurchase;
+  final PendingPurchaseAckStore _pendingAckStore;
   final StreamController<BillingPurchaseUpdate> _purchaseUpdatesController =
       StreamController<BillingPurchaseUpdate>.broadcast();
+
+  final Map<String, Future<void>> _completePurchaseInflight =
+      <String, Future<void>>{};
 
   /// One-time / non-subscription products keyed by Play product id.
   final Map<String, ProductDetails> _oneTimeProductsById =
@@ -45,6 +54,9 @@ class InAppPurchaseBillingGateway implements BillingGateway {
       <ProSubscriptionPlan, GooglePlayProductDetails>{};
 
   late final StreamSubscription<List<PurchaseDetails>> _purchaseSubscription;
+
+  BillingPurchaseEventSource _purchaseEventSource =
+      BillingPurchaseEventSource.userFlow;
 
   static bool get _isAndroid =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
@@ -221,6 +233,8 @@ class InAppPurchaseBillingGateway implements BillingGateway {
       throw StateError('Subscription plan $plan is not loaded.');
     }
 
+    // Google Play subscriptions use buyNonConsumable in in_app_purchase 3.2.x
+    // (pinned in pubspec): offer token lives on [GooglePlayProductDetails].
     final success = await _inAppPurchase.buyNonConsumable(
       purchaseParam: PurchaseParam(productDetails: details),
     );
@@ -234,6 +248,83 @@ class InAppPurchaseBillingGateway implements BillingGateway {
     return _inAppPurchase.restorePurchases();
   }
 
+  @override
+  Future<void> reconcilePendingPurchaseAcknowledgements() async {
+    if (!_isAndroid) {
+      return;
+    }
+    try {
+      _purchaseEventSource = BillingPurchaseEventSource.ackReconciliation;
+      await _inAppPurchase.restorePurchases();
+    } catch (error, stackTrace) {
+      await Sentry.captureException(error, stackTrace: stackTrace);
+    } finally {
+      _purchaseEventSource = BillingPurchaseEventSource.userFlow;
+    }
+  }
+
+  @override
+  Future<String?> fetchStoreVerificationDataForProduct(String productId) async {
+    if (!_isAndroid) {
+      return null;
+    }
+    final trimmed = productId.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final completer = Completer<String?>();
+    var settled = false;
+
+    late final StreamSubscription<List<PurchaseDetails>> sub;
+    sub = _inAppPurchase.purchaseStream.listen((List<PurchaseDetails> purchases) {
+      for (final PurchaseDetails p in purchases) {
+        if (p.productID != trimmed) {
+          continue;
+        }
+        final t = p.verificationData.serverVerificationData.trim();
+        if (t.isEmpty) {
+          continue;
+        }
+        if (!settled) {
+          settled = true;
+          completer.complete(t);
+        }
+      }
+    });
+    try {
+      _purchaseEventSource = BillingPurchaseEventSource.storeVerification;
+      await _inAppPurchase.restorePurchases();
+      await Future<void>.delayed(const Duration(seconds: 4));
+      if (!completer.isCompleted) {
+        completer.complete(null);
+      }
+    } catch (error, stackTrace) {
+      if (!completer.isCompleted) {
+        completer.completeError(error, stackTrace);
+      }
+    } finally {
+      _purchaseEventSource = BillingPurchaseEventSource.userFlow;
+      await sub.cancel();
+    }
+    try {
+      return await completer.future;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _completionKey(PurchaseDetails purchase) {
+    final purchaseId = purchase.purchaseID?.trim();
+    if (purchaseId != null && purchaseId.isNotEmpty) {
+      return '${purchase.productID}|$purchaseId';
+    }
+    final token = purchase.verificationData.serverVerificationData.trim();
+    if (token.isNotEmpty) {
+      return '${purchase.productID}|${token.hashCode}';
+    }
+    return purchase.productID;
+  }
+
   void _onPurchaseDetailsList(List<PurchaseDetails> purchases) {
     for (final purchase in purchases) {
       switch (purchase.status) {
@@ -242,6 +333,7 @@ class InAppPurchaseBillingGateway implements BillingGateway {
             BillingPurchaseUpdate(
               status: BillingPurchaseStatus.pending,
               productId: purchase.productID,
+              source: _purchaseEventSource,
             ),
           );
           break;
@@ -251,6 +343,7 @@ class InAppPurchaseBillingGateway implements BillingGateway {
               status: BillingPurchaseStatus.purchased,
               productId: purchase.productID,
               purchaseToken: purchase.verificationData.serverVerificationData,
+              source: _purchaseEventSource,
             ),
           );
           break;
@@ -260,6 +353,7 @@ class InAppPurchaseBillingGateway implements BillingGateway {
               status: BillingPurchaseStatus.restored,
               productId: purchase.productID,
               purchaseToken: purchase.verificationData.serverVerificationData,
+              source: _purchaseEventSource,
             ),
           );
           break;
@@ -270,6 +364,7 @@ class InAppPurchaseBillingGateway implements BillingGateway {
               productId: purchase.productID,
               errorMessage:
                   purchase.error?.message ?? 'Unknown purchase error.',
+              source: _purchaseEventSource,
             ),
           );
           break;
@@ -278,14 +373,52 @@ class InAppPurchaseBillingGateway implements BillingGateway {
             BillingPurchaseUpdate(
               status: BillingPurchaseStatus.canceled,
               productId: purchase.productID,
+              source: _purchaseEventSource,
             ),
           );
           break;
       }
 
       if (purchase.pendingCompletePurchase) {
-        unawaited(_inAppPurchase.completePurchase(purchase));
+        final key = _completionKey(purchase);
+        _completePurchaseInflight[key] ??= _completePurchaseTracked(
+          purchase,
+          key,
+        );
+        unawaited(
+          _completePurchaseInflight[key]!.whenComplete(() {
+            _completePurchaseInflight.remove(key);
+          }),
+        );
       }
+    }
+  }
+
+  Future<void> _completePurchaseTracked(
+    PurchaseDetails purchase,
+    String completionKey,
+  ) async {
+    try {
+      await _inAppPurchase.completePurchase(purchase);
+      await _pendingAckStore.clearPending(purchase.productID);
+    } catch (error, stackTrace) {
+      await _pendingAckStore.markPending(purchase.productID);
+      await Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          scope.setTag('billing.completion_key', completionKey);
+          scope.setTag('billing.product_id', purchase.productID);
+          scope.setTag(
+            'billing.purchase_status',
+            purchase.status.toString(),
+          );
+          scope.setTag(
+            'billing.pending_complete',
+            '${purchase.pendingCompletePurchase}',
+          );
+        },
+      );
     }
   }
 

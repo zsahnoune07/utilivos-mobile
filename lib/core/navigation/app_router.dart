@@ -163,6 +163,7 @@ GoRouter createAppRouter({
             toolWidgetService: dependencies.toolWidgetService,
             proAnalytics: dependencies.proAnalytics,
             installedToolsController: dependencies.installedToolsController,
+            appNotificationService: dependencies.appNotificationService,
           );
         },
       ),
@@ -281,6 +282,7 @@ GoRouter createAppRouter({
                 paywallCoordinator: dependencies.paywallCoordinator,
                 freeTierUsageStore: dependencies.freeTierUsageStore,
                 proCapabilityService: dependencies.proCapabilityService,
+                notificationPreferences: dependencies.notificationPreferences,
               );
             },
           ),

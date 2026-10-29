@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/logging/app_log.dart';
+import '../../../core/dev/bundle_verification_dev.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/navigation/app_routes.dart';
@@ -142,9 +143,8 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
         _viewState = AppViewState.content;
       });
     } on NetworkException catch (error) {
-      developer.log(
+      appLog('PluginDetailPage', 
         'Plugin detail load failed.',
-        name: 'PluginDetailPage',
         error:
             'slug=${widget.slug} status=${error.statusCode} code=${error.code} kind=${error.kind}',
       );
@@ -156,9 +156,8 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
         _errorMessage = error.message;
       });
     } catch (_) {
-      developer.log(
+      appLog('PluginDetailPage', 
         'Unexpected plugin detail load error.',
-        name: 'PluginDetailPage',
         error: 'slug=${widget.slug}',
       );
       if (!mounted) {
@@ -229,10 +228,62 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
         context,
       ).showSnackBar(SnackBar(content: Text('Installed ${plugin.name}.')));
       await _loadLocalIcon();
+    } on ToolBundleFormatException catch (e) {
+      appLog(
+        'PluginDetailPage',
+        'Tool bundle format error from details install.',
+        error: 'slug=${plugin.slug} message=${e.message}',
+      );
+      if (!mounted) {
+        return;
+      }
+      if (kUtilivosBundleDevDiagnosticsEnabled &&
+          e.devOnlyDetails != null &&
+          e.devOnlyDetails!.isNotEmpty) {
+        showUtilivosBundleErrorDevDialogIfEnabled(
+          context,
+          title: 'ToolBundleFormatException [$kUtilivosDevBundleErrorTag]',
+          source: 'plugin_detail._trackInstall',
+          summaryMessage: e.message,
+          devOnlyDetails: e.devOnlyDetails,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Install failed: ${e.message}')),
+        );
+      }
+    } on ToolBundleIntegrityException catch (e) {
+      appLog(
+        'PluginDetailPage',
+        'Tool bundle integrity failed from details install.',
+        error: 'slug=${plugin.slug} e=$e',
+      );
+      if (!mounted) {
+        return;
+      }
+      if (kUtilivosBundleDevDiagnosticsEnabled &&
+          e.devOnlyDetails != null &&
+          e.devOnlyDetails!.isNotEmpty) {
+        showUtilivosBundleErrorDevDialogIfEnabled(
+          context,
+          title: 'ToolBundleIntegrityException [$kUtilivosDevBundleErrorTag]',
+          source: 'plugin_detail._trackInstall',
+          summaryMessage:
+              'expected=${e.expectedSha256} actual=${e.actualSha256}',
+          devOnlyDetails: e.devOnlyDetails,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Install failed: download did not match the expected file. Try again when online.',
+            ),
+          ),
+        );
+      }
     } on NetworkException catch (error) {
-      developer.log(
+      appLog('PluginDetailPage', 
         'Plugin install failed from details.',
-        name: 'PluginDetailPage',
         error:
             'slug=${plugin.slug} status=${error.statusCode} code=${error.code} kind=${error.kind}',
       );
@@ -243,9 +294,8 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
         SnackBar(content: Text('Install failed: ${error.message}')),
       );
     } catch (_) {
-      developer.log(
+      appLog('PluginDetailPage', 
         'Unexpected plugin install error from details.',
-        name: 'PluginDetailPage',
         error: 'slug=${plugin.slug}',
       );
       if (!mounted) {
@@ -365,6 +415,23 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
         _downloadErrorMessage =
             'Bundle integrity failed (expected ${error.expectedSha256}, got ${error.actualSha256}).';
       });
+      if (kUtilivosBundleDevDiagnosticsEnabled &&
+          error.devOnlyDetails != null &&
+          error.devOnlyDetails!.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) {
+            return;
+          }
+          showUtilivosBundleErrorDevDialogIfEnabled(
+            context,
+            title: 'ToolBundleIntegrityException [$kUtilivosDevBundleErrorTag]',
+            source: 'plugin_detail._downloadAndPrepareBundle',
+            summaryMessage:
+                'expected=${error.expectedSha256} actual=${error.actualSha256}',
+            devOnlyDetails: error.devOnlyDetails,
+          );
+        });
+      }
       return false;
     } on ToolBundleFormatException catch (error) {
       if (!mounted) {
@@ -373,6 +440,22 @@ class _PluginDetailPageState extends State<PluginDetailPage> {
       setState(() {
         _downloadErrorMessage = 'Bundle format is invalid: ${error.message}';
       });
+      if (kUtilivosBundleDevDiagnosticsEnabled &&
+          error.devOnlyDetails != null &&
+          error.devOnlyDetails!.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) {
+            return;
+          }
+          showUtilivosBundleErrorDevDialogIfEnabled(
+            context,
+            title: 'ToolBundleFormatException [$kUtilivosDevBundleErrorTag]',
+            source: 'plugin_detail._downloadAndPrepareBundle',
+            summaryMessage: error.message,
+            devOnlyDetails: error.devOnlyDetails,
+          );
+        });
+      }
       return false;
     } on NetworkException catch (error) {
       if (!mounted) {

@@ -40,7 +40,7 @@ class ProEntitlement {
       'updated_at': updatedAt.toUtc().toIso8601String(),
       'entitlement_type': entitlementType,
       'product_id': productId,
-      'purchase_token': purchaseToken,
+      if (purchaseToken != null) 'purchase_token': purchaseToken,
       'store_expires_at': storeExpiresAt?.toUtc().toIso8601String(),
       'assertion_token': assertionToken,
       'assertion_expires_at': assertionExpiresAt?.toUtc().toIso8601String(),

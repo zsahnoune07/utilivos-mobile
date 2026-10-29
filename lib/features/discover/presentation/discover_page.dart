@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/logging/app_log.dart';
+import '../../../core/debug/debug_session_ingest.dart';
+import '../../../core/dev/bundle_verification_dev.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/search/recent_search_store.dart';
@@ -104,6 +106,8 @@ class _DiscoverPageState extends State<DiscoverPage>
   /// All search API pages merged for the active query (used with client-side ranking).
   List<CatalogPlugin> _searchApiAccumulated = const <CatalogPlugin>[];
   String? _selectedCategory;
+  /// When set (e.g. `?tag=promoted` from a notification), browse uses server-side tag filter.
+  String? _catalogListTag;
   final Set<String> _selectedFilterTags = <String>{};
   String? _browseNextCursor;
   String? _searchNextCursor;
@@ -211,6 +215,8 @@ class _DiscoverPageState extends State<DiscoverPage>
     try {
       final uri = GoRouterState.of(context).uri;
       _searchController.text = uri.queryParameters['search'] ?? '';
+      final t = uri.queryParameters['tag']?.trim();
+      _catalogListTag = t != null && t.isNotEmpty ? t : null;
     } catch (_) {
       // No GoRouter in tree (e.g. in tests).
     }
@@ -399,10 +405,32 @@ class _DiscoverPageState extends State<DiscoverPage>
         }
       }
 
+      // #region agent log
+      debugSessionIngest(
+        location: 'discover_page.dart:_installPlugin',
+        message: 'before_requestDownload',
+        hypothesisId: 'H4',
+        data: {
+          'slug': plugin.slug,
+          'isPro': '${plugin.isPro}',
+        },
+      );
+      // #endregion
       final grant = await widget.downloadApi.requestDownload(
         pluginSlug: plugin.slug,
         entitlementAssertionToken: assertionToken,
       );
+      // #region agent log
+      debugSessionIngest(
+        location: 'discover_page.dart:_installPlugin',
+        message: 'after_requestDownload',
+        hypothesisId: 'H4',
+        data: {
+          'slug': plugin.slug,
+          'version': grant.version,
+        },
+      );
+      // #endregion
 
       final bundle = await widget.toolBundleDownloadService.downloadBundle(
         pluginSlug: plugin.slug,
@@ -412,6 +440,17 @@ class _DiscoverPageState extends State<DiscoverPage>
           entitlementAssertionToken: assertionToken,
         ),
       );
+      // #region agent log
+      debugSessionIngest(
+        location: 'discover_page.dart:_installPlugin',
+        message: 'after_downloadBundle',
+        hypothesisId: 'H1',
+        data: {
+          'slug': plugin.slug,
+          'isRunnable': '${bundle.isRunnable}',
+        },
+      );
+      // #endregion
 
       if (!bundle.isRunnable) {
         if (!mounted) return;
@@ -430,6 +469,25 @@ class _DiscoverPageState extends State<DiscoverPage>
         pluginSlug: plugin.slug,
         version: grant.version,
       );
+      // #region agent log
+      debugSessionIngest(
+        location: 'discover_page.dart:_installPlugin',
+        message: 'after_trackInstall',
+        hypothesisId: 'H2',
+        data: {
+          'slug': plugin.slug,
+          'installId': install.id,
+        },
+      );
+      // #endregion
+      // #region agent log
+      debugSessionIngest(
+        location: 'discover_page.dart:_installPlugin',
+        message: 'before_recordInstall',
+        hypothesisId: 'H3',
+        data: {'slug': plugin.slug},
+      );
+      // #endregion
       await widget.installedToolsController.recordInstall(
         install.copyWith(
           pluginName: plugin.name,
@@ -451,10 +509,87 @@ class _DiscoverPageState extends State<DiscoverPage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${plugin.name} installed successfully.')),
       );
+    } on ToolBundleFormatException catch (e) {
+      // #region agent log
+      debugSessionIngest(
+        location: 'discover_page.dart:_installPlugin',
+        message: 'catch_toolBundleFormat',
+        hypothesisId: 'H1',
+        data: {
+          'slug': plugin.slug,
+          'message': e.message,
+        },
+      );
+      // #endregion
+      appLog(
+        'DiscoverPage',
+        'Tool bundle format error during install.',
+        error: 'slug=${plugin.slug} message=${e.message}',
+      );
+      if (!mounted) return;
+      setState(() {
+        _installStates[plugin.slug] = _PluginInstallState.idle;
+      });
+      if (kUtilivosBundleDevDiagnosticsEnabled &&
+          e.devOnlyDetails != null &&
+          e.devOnlyDetails!.isNotEmpty) {
+        showUtilivosBundleErrorDevDialogIfEnabled(
+          context,
+          title: 'ToolBundleFormatException [$kUtilivosDevBundleErrorTag]',
+          source: 'discover._installPlugin',
+          summaryMessage: e.message,
+          devOnlyDetails: e.devOnlyDetails,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Install failed: ${e.message}')),
+        );
+      }
+    } on ToolBundleIntegrityException catch (e) {
+      // #region agent log
+      debugSessionIngest(
+        location: 'discover_page.dart:_installPlugin',
+        message: 'catch_toolBundleIntegrity',
+        hypothesisId: 'H1',
+        data: {
+          'slug': plugin.slug,
+          'expected': e.expectedSha256,
+          'actual': e.actualSha256,
+        },
+      );
+      // #endregion
+      appLog(
+        'DiscoverPage',
+        'Tool bundle integrity check failed during install.',
+        error: 'slug=${plugin.slug} e=$e',
+      );
+      if (!mounted) return;
+      setState(() {
+        _installStates[plugin.slug] = _PluginInstallState.idle;
+      });
+      if (kUtilivosBundleDevDiagnosticsEnabled &&
+          e.devOnlyDetails != null &&
+          e.devOnlyDetails!.isNotEmpty) {
+        showUtilivosBundleErrorDevDialogIfEnabled(
+          context,
+          title: 'ToolBundleIntegrityException [$kUtilivosDevBundleErrorTag]',
+          source: 'discover._installPlugin',
+          summaryMessage:
+              'expected=${e.expectedSha256} actual=${e.actualSha256}',
+          devOnlyDetails: e.devOnlyDetails,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Install failed: download did not match the expected file. Try again when online.',
+            ),
+          ),
+        );
+      }
     } on NetworkException catch (error) {
-      developer.log(
+      appLog('DiscoverPage', 
         'Install request failed.',
-        name: 'DiscoverPage',
         error:
             'slug=${plugin.slug} status=${error.statusCode} code=${error.code} kind=${error.kind}',
       );
@@ -465,11 +600,23 @@ class _DiscoverPageState extends State<DiscoverPage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_installErrorUserMessage(error, plugin))),
       );
-    } catch (_) {
-      developer.log(
+    } catch (e, st) {
+      // #region agent log
+      debugSessionIngest(
+        location: 'discover_page.dart:_installPlugin',
+        message: 'catch_unexpected',
+        hypothesisId: 'H1-H5',
+        data: {
+          'slug': plugin.slug,
+          'type': e.runtimeType.toString(),
+          'error': e.toString(),
+        },
+      );
+      // #endregion
+      appLog('DiscoverPage', 
         'Unexpected install error.',
-        name: 'DiscoverPage',
-        error: 'slug=${plugin.slug}',
+        error: 'slug=${plugin.slug} e=$e',
+        stackTrace: st,
       );
       if (!mounted) return;
       setState(() {
@@ -498,6 +645,7 @@ class _DiscoverPageState extends State<DiscoverPage>
       final pluginsFuture = widget.catalogApi.listPlugins(
         category: _selectedCategory,
         search: null,
+        tag: _catalogListTag,
         forceRefresh: forceRefresh,
       );
 
@@ -533,9 +681,8 @@ class _DiscoverPageState extends State<DiscoverPage>
         });
       }
     } on NetworkException catch (error) {
-      developer.log(
+      appLog('DiscoverPage', 
         'Catalog initial load failed.',
-        name: 'DiscoverPage',
         error:
             'status=${error.statusCode} code=${error.code} kind=${error.kind}',
       );
@@ -547,9 +694,8 @@ class _DiscoverPageState extends State<DiscoverPage>
         _errorMessage = error.message;
       });
     } catch (_) {
-      developer.log(
+      appLog('DiscoverPage', 
         'Unexpected catalog initial load error.',
-        name: 'DiscoverPage',
       );
       if (!mounted || _disposed || requestToken != _queryGeneration) {
         return;
@@ -585,6 +731,7 @@ class _DiscoverPageState extends State<DiscoverPage>
       final page = await widget.catalogApi.listPlugins(
         category: _selectedCategory,
         search: null,
+        tag: _catalogListTag,
         forceRefresh: forceRefresh,
       );
       if (!mounted || _disposed || requestToken != _queryGeneration) {
@@ -599,9 +746,8 @@ class _DiscoverPageState extends State<DiscoverPage>
             : AppViewState.content;
       });
     } on NetworkException catch (error) {
-      developer.log(
+      appLog('DiscoverPage', 
         'Catalog reload failed.',
-        name: 'DiscoverPage',
         error:
             'status=${error.statusCode} code=${error.code} kind=${error.kind}',
       );
@@ -619,7 +765,7 @@ class _DiscoverPageState extends State<DiscoverPage>
         _errorMessage = error.message;
       });
     } catch (_) {
-      developer.log('Unexpected catalog reload error.', name: 'DiscoverPage');
+      appLog('DiscoverPage', 'Unexpected catalog reload error.');
       if (!mounted || _disposed || requestToken != _queryGeneration) {
         return;
       }
@@ -728,6 +874,7 @@ class _DiscoverPageState extends State<DiscoverPage>
       final page = await widget.catalogApi.listPlugins(
         category: _selectedCategory,
         search: isSearch ? _searchController.text.trim() : null,
+        tag: isSearch ? null : _catalogListTag,
         cursor: nextCursor,
       );
       if (!mounted || _disposed) {
@@ -763,9 +910,8 @@ class _DiscoverPageState extends State<DiscoverPage>
         });
       }
     } on NetworkException catch (error) {
-      developer.log(
+      appLog('DiscoverPage', 
         'Catalog load more failed.',
-        name: 'DiscoverPage',
         error:
             'status=${error.statusCode} code=${error.code} kind=${error.kind}',
       );

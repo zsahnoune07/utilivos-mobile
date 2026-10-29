@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' show Random;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -17,6 +17,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/logging/app_log.dart';
 import '../../../core/navigation/app_routes.dart';
 import '../../../core/entitlement/entitlement_controller.dart';
 import '../../../core/networking/network_exception.dart';
@@ -32,6 +33,7 @@ import '../../../core/sessions/session_snapshot_normalizer.dart';
 import '../../../core/sessions/tool_launch_context.dart';
 import '../../../core/sessions/tool_session_service.dart';
 import '../../../core/sessions/tool_widget_service.dart';
+import '../../../core/notifications/app_notification_service.dart';
 import '../../../core/permissions/tool_permission_coordinator.dart';
 import '../../../core/theme/app_design_tokens.dart';
 import '../../../core/tool_manifest/tool_manifest_reader.dart';
@@ -46,6 +48,7 @@ import '../../discover/data/models/catalog_models.dart';
 import '../../downloads/application/tool_bundle_download_service.dart';
 import '../../downloads/data/download_api.dart';
 import '../../downloads/data/models/downloaded_tool_bundle.dart';
+import '../application/runtime_webview_load_guard.dart';
 
 class PluginRuntimePage extends StatefulWidget {
   const PluginRuntimePage({
@@ -65,6 +68,7 @@ class PluginRuntimePage extends StatefulWidget {
     required this.toolWidgetService,
     required this.proAnalytics,
     required this.installedToolsController,
+    this.appNotificationService,
     super.key,
   });
 
@@ -84,6 +88,7 @@ class PluginRuntimePage extends StatefulWidget {
   final ToolWidgetService toolWidgetService;
   final ProAnalytics proAnalytics;
   final InstalledToolsController installedToolsController;
+  final AppNotificationService? appNotificationService;
 
   @override
   State<PluginRuntimePage> createState() => _PluginRuntimePageState();
@@ -109,6 +114,8 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
   bool _permissionLaunchBlocked = false;
   bool _permissionLaunchPermanent = false;
   bool _clearedSessionStorageForThisLaunch = false;
+  RuntimeWebViewLoadGuard? _toolDocumentLoadGuard;
+  String? _hostBridgeErrorMessage;
   String? _namedSessionBarTitle;
   String? _namedSessionBaselineJson;
   bool _namedSessionDirty = false;
@@ -151,6 +158,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
 
   @override
   void dispose() {
+    _toolDocumentLoadGuard?.dispose();
     for (final Timer t in _pendingRestoreTimers.values) {
       t.cancel();
     }
@@ -195,9 +203,9 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
   }
 
   void _sessionRestoreLog(String message, [String? detail]) {
-    developer.log(
+    appLog(
+      _sessionLogName,
       detail != null && detail.isNotEmpty ? '$message $detail' : message,
-      name: _sessionLogName,
     );
   }
 
@@ -244,9 +252,9 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
       );
     } catch (error, stackTrace) {
       _sessionRestoreLog('restore_dispatch_failed', '$error');
-      developer.log(
+      appLog(
+        'PluginRuntimePage',
         'Session restore JS dispatch failed',
-        name: 'PluginRuntimePage',
         error: error,
         stackTrace: stackTrace,
       );
@@ -528,9 +536,29 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         );
       await _configureAndroidToolWebViewFileSelector(webViewController);
       await _configureAndroidToolWebViewMediaPermissions(webViewController);
+      _toolDocumentLoadGuard?.dispose();
+      _toolDocumentLoadGuard = RuntimeWebViewLoadGuard(
+        onTimeout: () {
+          if (!mounted) {
+            return;
+          }
+          final l10n =
+              AppLocalizations.of(context) ??
+              lookupAppLocalizations(const Locale('en'));
+          setState(() {
+            _viewState = AppViewState.error;
+            _errorMessage = l10n.runtimeWebViewLoadTimeout;
+            _isPreparing = false;
+          });
+        },
+      );
       webViewController.setNavigationDelegate(
         NavigationDelegate(
+          onPageStarted: (_) {
+            _toolDocumentLoadGuard?.arm();
+          },
           onPageFinished: (_) {
+            _toolDocumentLoadGuard?.clear();
             unawaited(
               _onToolDocumentPageFinished(
                 webViewController,
@@ -553,6 +581,7 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
       await _disableToolWebViewZoom(webViewController);
       await _clearEphemeralWebKitLocalStorageIfNeeded(webViewController);
       await _configureLocalBundleAccess(webViewController);
+      _toolDocumentLoadGuard?.arm();
       await _loadRuntimeDocument(
         webViewController: webViewController,
         entryFile: entryFile,
@@ -838,9 +867,9 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     PlatformWebViewPermissionRequest request,
   ) async {
     if (kDebugMode) {
-      developer.log(
+      appLog(
+        'utilivos.tool_webview.permission',
         'types=${request.types}',
-        name: 'utilivos.tool_webview.permission',
       );
     }
     final wantsCamera =
@@ -861,17 +890,17 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     }
     var status = await Permission.camera.status;
     if (kDebugMode) {
-      developer.log(
+      appLog(
+        'utilivos.tool_webview.permission',
         'camera status=$status',
-        name: 'utilivos.tool_webview.permission',
       );
     }
     if (!status.isGranted) {
       status = await Permission.camera.request();
       if (kDebugMode) {
-        developer.log(
+        appLog(
+          'utilivos.tool_webview.permission',
           'camera after request=$status',
-          name: 'utilivos.tool_webview.permission',
         );
       }
     }
@@ -945,7 +974,8 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
     final type = data['type']?.toString();
     final id = data['id']?.toString() ?? '';
 
-    switch (type) {
+    try {
+      switch (type) {
       case 'gate':
         final action = data['action']?.toString() ?? '';
         if (widget.proCapabilityService.hasProAccess) {
@@ -1039,14 +1069,24 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
                 : (widget.initialToolName ?? widget.pluginSlug);
         final body = data['body']?.toString() ?? '';
         try {
-          final ok = await _runtimeChannel.invokeMethod<bool>(
-            'showRuntimeNotification',
-            <String, Object>{
-              'title': title,
-              'body': body,
-            },
-          );
-          _emitHostReply(<String, Object?>{'id': id, 'ok': ok ?? false});
+          final svc = widget.appNotificationService;
+          if (svc != null) {
+            final ok = await svc.showToolRuntimeAlert(
+              title: title,
+              body: body,
+              toolSlug: widget.pluginSlug,
+            );
+            _emitHostReply(<String, Object?>{'id': id, 'ok': ok});
+          } else {
+            final ok = await _runtimeChannel.invokeMethod<bool>(
+              'showRuntimeNotification',
+              <String, Object>{
+                'title': title,
+                'body': body,
+              },
+            );
+            _emitHostReply(<String, Object?>{'id': id, 'ok': ok ?? false});
+          }
         } catch (_) {
           _emitHostReply(<String, Object?>{'id': id, 'ok': false});
         }
@@ -1095,6 +1135,24 @@ class _PluginRuntimePageState extends State<PluginRuntimePage> {
         return;
       default:
         return;
+    }
+    } catch (error, stackTrace) {
+      await Sentry.captureException(error, stackTrace: stackTrace);
+      if (mounted) {
+        final l10n =
+            AppLocalizations.of(context) ??
+            lookupAppLocalizations(const Locale('en'));
+        setState(() {
+          _hostBridgeErrorMessage = l10n.runtimeHostBridgeError;
+        });
+      }
+      if (id.isNotEmpty) {
+        _emitHostReply(<String, Object?>{
+          'id': id,
+          'ok': false,
+          'error': 'internal',
+        });
+      }
     }
   }
 
@@ -1434,9 +1492,9 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
         _catalogDetail = plugin;
       });
     } catch (error, stackTrace) {
-      developer.log(
+      appLog(
+        'PluginRuntimePage',
         'Catalog detail prefetch failed.',
-        name: 'PluginRuntimePage',
         error: error,
         stackTrace: stackTrace,
       );
@@ -1984,6 +2042,20 @@ ${_javaScriptApplyWebThemeUsingPayloadConst()}
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            if (_hostBridgeErrorMessage != null)
+              MaterialBanner(
+                content: Text(_hostBridgeErrorMessage!),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _hostBridgeErrorMessage = null;
+                      });
+                    },
+                    child: Text(l10n.runtimeHostBridgeDismiss),
+                  ),
+                ],
+              ),
             if (_viewState == AppViewState.content &&
                 _shouldShowNamedSessionSubBar)
               _buildNamedSessionSubBar(context, l10n),
@@ -2602,10 +2674,10 @@ class _ReportToolDialogState extends State<_ReportToolDialog> {
       return;
     }
     final endpoint = widget.config.toolReportSubmitUrl?.trim() ?? '';
-    developer.log(
+    appLog(
+      'PluginRuntimePage',
       'Tool report (stub): slug=${widget.pluginSlug} reason=$_reasonKey '
       'details=${_detailsController.text.trim()} endpoint=${endpoint.isEmpty ? '(none)' : endpoint}',
-      name: 'PluginRuntimePage',
     );
     Navigator.of(context).pop();
     widget.scaffoldMessenger.showSnackBar(

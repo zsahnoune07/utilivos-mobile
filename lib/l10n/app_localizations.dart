@@ -708,6 +708,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open settings'**
   String get runtimePermissionOpenSettingsCta;
+
+  /// No description provided for @runtimeHostBridgeError.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong while this tool talked to the app. You can keep using the tool, but a few actions may not work until you reopen it.'**
+  String get runtimeHostBridgeError;
+
+  /// No description provided for @runtimeHostBridgeDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get runtimeHostBridgeDismiss;
+
+  /// No description provided for @runtimeWebViewLoadTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'This tool is taking too long to open. Check the tool files or try again.'**
+  String get runtimeWebViewLoadTimeout;
 }
 
 class _AppLocalizationsDelegate

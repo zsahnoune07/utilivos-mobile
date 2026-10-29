@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,6 +13,7 @@ import 'package:utilivos_mobile/core/billing/billing_gateway.dart';
 import 'package:utilivos_mobile/core/billing/models/billing_models.dart';
 import 'package:utilivos_mobile/core/device/device_id_store.dart';
 import 'package:utilivos_mobile/core/di/app_dependencies.dart';
+import 'package:utilivos_mobile/core/riverpod/app_providers.dart';
 import 'package:utilivos_mobile/core/entitlement/entitlement_store.dart';
 import 'package:utilivos_mobile/core/pro/free_tier_usage_store.dart';
 import 'package:utilivos_mobile/core/entitlement/models/pro_entitlement.dart';
@@ -21,6 +23,19 @@ import 'package:utilivos_mobile/features/discover/data/models/catalog_cache_snap
 import 'package:utilivos_mobile/features/installs/data/installed_tools_read_result.dart';
 import 'package:utilivos_mobile/features/installs/data/installed_tools_store.dart';
 import 'package:utilivos_mobile/features/installs/data/models/install_models.dart';
+
+Widget _wrapWithRiverpod({
+  required AppDependencies dependencies,
+  required Widget child,
+}) {
+  return ProviderScope(
+    overrides: <Override>[
+      appDatabaseProvider.overrideWithValue(dependencies.appDatabase),
+      appDependenciesProvider.overrideWithValue(dependencies),
+    ],
+    child: child,
+  );
+}
 
 void main() {
   setUp(() {
@@ -33,7 +48,12 @@ void main() {
     final dependencies = await _createDependencies();
     addTearDown(dependencies.dispose);
 
-    await tester.pumpWidget(UtilivosApp(dependencies: dependencies));
+    await tester.pumpWidget(
+      _wrapWithRiverpod(
+        dependencies: dependencies,
+        child: UtilivosApp(dependencies: dependencies),
+      ),
+    );
 
     expect(find.text('Preparing Utilivos...'), findsOneWidget);
     await _pumpUtilivosReady(tester);
@@ -50,7 +70,12 @@ void main() {
     final dependencies = await _createDependencies();
     addTearDown(dependencies.dispose);
 
-    await tester.pumpWidget(UtilivosApp(dependencies: dependencies));
+    await tester.pumpWidget(
+      _wrapWithRiverpod(
+        dependencies: dependencies,
+        child: UtilivosApp(dependencies: dependencies),
+      ),
+    );
     await _pumpUtilivosReady(tester);
 
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
@@ -68,9 +93,12 @@ void main() {
     addTearDown(dependencies.dispose);
 
     await tester.pumpWidget(
-      UtilivosApp(
+      _wrapWithRiverpod(
         dependencies: dependencies,
-        initialLocation: AppRoutes.settings,
+        child: UtilivosApp(
+          dependencies: dependencies,
+          initialLocation: AppRoutes.settings,
+        ),
       ),
     );
 
@@ -87,9 +115,12 @@ void main() {
     addTearDown(dependencies.dispose);
 
     await tester.pumpWidget(
-      UtilivosApp(
+      _wrapWithRiverpod(
         dependencies: dependencies,
-        initialLocation: AppRoutes.settings,
+        child: UtilivosApp(
+          dependencies: dependencies,
+          initialLocation: AppRoutes.settings,
+        ),
       ),
     );
     await _pumpUtilivosReady(tester);
@@ -108,7 +139,12 @@ void main() {
     final dependencies = await _createDependencies();
     addTearDown(dependencies.dispose);
 
-    await tester.pumpWidget(UtilivosApp(dependencies: dependencies));
+    await tester.pumpWidget(
+      _wrapWithRiverpod(
+        dependencies: dependencies,
+        child: UtilivosApp(dependencies: dependencies),
+      ),
+    );
     await _pumpUtilivosReady(tester);
 
     await tester.tap(find.byIcon(Icons.settings_outlined));
@@ -131,9 +167,12 @@ void main() {
     addTearDown(dependencies.dispose);
 
     await tester.pumpWidget(
-      UtilivosApp(
+      _wrapWithRiverpod(
         dependencies: dependencies,
-        initialLocation: AppRoutes.discover,
+        child: UtilivosApp(
+          dependencies: dependencies,
+          initialLocation: AppRoutes.discover,
+        ),
       ),
     );
     await _pumpUtilivosReady(tester);
@@ -154,9 +193,12 @@ void main() {
     addTearDown(dependencies.dispose);
 
     await tester.pumpWidget(
-      UtilivosApp(
+      _wrapWithRiverpod(
         dependencies: dependencies,
-        initialLocation: AppRoutes.discoverDebug,
+        child: UtilivosApp(
+          dependencies: dependencies,
+          initialLocation: AppRoutes.discoverDebug,
+        ),
       ),
     );
 
@@ -176,9 +218,12 @@ void main() {
     addTearDown(dependencies.dispose);
 
     await tester.pumpWidget(
-      UtilivosApp(
+      _wrapWithRiverpod(
         dependencies: dependencies,
-        initialLocation: AppRoutes.discover,
+        child: UtilivosApp(
+          dependencies: dependencies,
+          initialLocation: AppRoutes.discover,
+        ),
       ),
     );
     await _pumpUtilivosReady(tester);
@@ -378,6 +423,13 @@ class _FakeBillingGateway implements BillingGateway {
 
   @override
   Future<void> buySubscriptionPlan(ProSubscriptionPlan plan) async {}
+
+  @override
+  Future<void> reconcilePendingPurchaseAcknowledgements() async {}
+
+  @override
+  Future<String?> fetchStoreVerificationDataForProduct(String productId) async =>
+      null;
 
   @override
   void dispose() {

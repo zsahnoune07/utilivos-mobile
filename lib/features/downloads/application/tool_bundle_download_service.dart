@@ -17,6 +17,7 @@ import '../data/downloaded_tool_bundle_store.dart';
 import '../data/models/downloaded_tool_bundle.dart';
 import '../data/models/plugin_download_grant.dart';
 import '../data/models/signing_metadata.dart';
+import '../../../core/dev/bundle_verification_dev.dart';
 
 typedef BundleDownloadProgress = void Function(double progress);
 typedef BundleFileDownloader =
@@ -28,13 +29,18 @@ typedef BundleFileDownloader =
 typedef BundleBaseDirectoryProvider = Future<Directory> Function();
 
 class ToolBundleIntegrityException implements Exception {
-  const ToolBundleIntegrityException({
+  ToolBundleIntegrityException({
     required this.expectedSha256,
     required this.actualSha256,
-  });
+    Map<String, String>? devOnlyDetails,
+  }) : devOnlyDetails = (kUtilivosBundleDevDiagnosticsEnabled &&
+            devOnlyDetails != null)
+        ? Map<String, String>.unmodifiable(devOnlyDetails)
+        : null;
 
   final String expectedSha256;
   final String actualSha256;
+  final Map<String, String>? devOnlyDetails;
 
   @override
   String toString() {
@@ -43,9 +49,16 @@ class ToolBundleIntegrityException implements Exception {
 }
 
 class ToolBundleFormatException implements Exception {
-  const ToolBundleFormatException(this.message);
+  ToolBundleFormatException(
+    this.message, {
+    Map<String, String>? devOnlyDetails,
+  }) : devOnlyDetails = (kUtilivosBundleDevDiagnosticsEnabled &&
+            devOnlyDetails != null)
+        ? Map<String, String>.unmodifiable(devOnlyDetails)
+        : null;
 
   final String message;
+  final Map<String, String>? devOnlyDetails;
 
   @override
   String toString() {
@@ -76,6 +89,86 @@ class ToolBundleDownloadService {
   final BundleBaseDirectoryProvider? _baseDirectoryProvider;
   List<DownloadedToolBundle>? _cachedBundles;
 
+  static const int _maxArchiveFileEntries = 500;
+  static const int _maxExtractedUncompressedBytes = 50 * 1024 * 1024;
+
+  /// Dev-only: archive path, size, hash, and grant context for the downloaded
+  /// .ubb (Utilivos bundle, zip container). Merged into [ToolBundleFormatException.devOnlyDetails]
+  /// when [kUtilivosBundleDevDiagnosticsEnabled] is true; otherwise empty.
+  Map<String, String> _ubbFileDevMap({
+    required String archivePath,
+    required List<int> archiveBytes,
+    required String pluginSlug,
+    required String version,
+    String? calculatedSha256,
+    PluginDownloadGrant? grant,
+    String? extractionDirectoryPath,
+  }) {
+    if (!kUtilivosBundleDevDiagnosticsEnabled) {
+      return const <String, String>{};
+    }
+    int? onDisk;
+    try {
+      final f = File(archivePath);
+      if (f.existsSync()) {
+        onDisk = f.lengthSync();
+      }
+    } catch (_) {
+      // ignore: avoid_catches_without_on_clauses
+    }
+    final mem = archiveBytes.length;
+    final m = <String, String>{
+      'ubb_local_path': archivePath,
+      'ubb_file_basename': p.basename(archivePath),
+      'ubb_file_ext': p.extension(archivePath),
+      'ubb_size_bytes_in_memory': mem.toString(),
+      'ubb_size_mb_in_memory': (mem / (1024 * 1024)).toStringAsFixed(4),
+      'ubb_plugin_slug': pluginSlug,
+      'ubb_version': version,
+    };
+    if (onDisk != null) {
+      m['ubb_size_bytes_on_disk'] = onDisk.toString();
+      m['ubb_size_mb_on_disk'] =
+          (onDisk / (1024 * 1024)).toStringAsFixed(4);
+    }
+    if (calculatedSha256 != null && calculatedSha256.isNotEmpty) {
+      m['ubb_sha256_computed'] = calculatedSha256;
+    }
+    if (extractionDirectoryPath != null && extractionDirectoryPath.isNotEmpty) {
+      m['ubb_extract_directory'] = extractionDirectoryPath;
+    }
+    if (grant != null) {
+      m['ubb_grant_version'] = grant.version.trim();
+      m['ubb_grant_tier'] = grant.tier?.trim() ?? '';
+      m['ubb_grant_expected_checksum'] = grant.checksumSha256?.trim() ?? '';
+      m['ubb_signing_key_id'] = grant.signingPublicKeyId?.trim() ?? '';
+      m['ubb_publisher_id'] = grant.publisherId?.trim() ?? '';
+      m['ubb_http_method'] = grant.method?.trim() ?? '';
+      final u = grant.url.trim();
+      if (u.isNotEmpty) {
+        try {
+          final uri = Uri.parse(u);
+          m['ubb_download_scheme'] = uri.scheme;
+          m['ubb_download_host'] = uri.host;
+          m['ubb_download_path'] = uri.path;
+        } catch (_) {
+          m['ubb_download_url'] = 'parse_error';
+        }
+      }
+    }
+    return m;
+  }
+
+  Map<String, String>? _devDetailsWithUbb(
+    Map<String, String> ubb,
+    Map<String, String> specific,
+  ) {
+    if (!kUtilivosBundleDevDiagnosticsEnabled) {
+      return null;
+    }
+    return <String, String>{...ubb, ...specific};
+  }
+
   Future<DownloadedToolBundle> downloadBundle({
     required String pluginSlug,
     required PluginDownloadGrant grant,
@@ -91,7 +184,9 @@ class ToolBundleDownloadService {
       await bundlesDir.create(recursive: true);
     }
 
-    final filePath = '${bundlesDir.path}/$safeSlug-$safeVersion.utilivos.zip';
+    // Always .ubb on disk — zip-backed archives are often shown as .zip (MIME) when
+    // users save from browsers or file pickers; the app keeps the canonical name.
+    final filePath = '${bundlesDir.path}/$safeSlug-$safeVersion.ubb';
     final downloader = _downloadFile ?? _downloadWithDio;
     var activeGrant = grant;
     var retriedGrant = false;
@@ -136,13 +231,13 @@ class ToolBundleDownloadService {
     String? version,
   }) async {
     if (kReleaseMode) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Local bundle import is disabled in production builds.',
       );
     }
     final sourcePath = localArchivePath.trim();
     if (sourcePath.isEmpty) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Local bundle path must not be empty.',
       );
     }
@@ -178,9 +273,10 @@ class ToolBundleDownloadService {
 
     final safeSlug = _safeFilePart(expectedSlug);
     final safeVersion = _safeFilePart(expectedVersion);
-    final extension = _resolveArchiveExtension(sourceFile.path);
+    // Do not mirror .zip / .utilivos.zip (path's last ext is .zip for *.utilivos.zip);
+    // persist as the canonical .ubb name.
     final importedArchivePath =
-        '${bundlesDir.path}/$safeSlug-$safeVersion$extension';
+        '${bundlesDir.path}/$safeSlug-$safeVersion.ubb';
     await File(importedArchivePath).writeAsBytes(archiveBytes, flush: true);
 
     return _prepareAndPersistBundle(
@@ -319,9 +415,19 @@ class ToolBundleDownloadService {
       await extractionDirectory.create(recursive: true);
 
       final archiveBytes = await archiveFile.readAsBytes();
+      final ubb = _ubbFileDevMap(
+        archivePath: bundle.localPath,
+        archiveBytes: archiveBytes,
+        pluginSlug: bundle.pluginSlug,
+        version: bundle.version,
+        calculatedSha256: bundle.sha256,
+        grant: null,
+        extractionDirectoryPath: extractionDirectory.path,
+      );
       final manifest = await _extractAndReadManifest(
         archiveBytes: archiveBytes,
         extractionDirectory: extractionDirectory,
+        ubbFileDev: ubb,
       );
 
       return bundle.copyWith(
@@ -362,10 +468,26 @@ class ToolBundleDownloadService {
   Future<_ResolvedManifest> _extractAndReadManifest({
     required List<int> archiveBytes,
     required Directory extractionDirectory,
+    Map<String, String> ubbFileDev = const {},
   }) async {
-    final archive = _decodeArchive(archiveBytes);
+    final archive = _decodeArchive(archiveBytes, ubbFileDev: ubbFileDev);
 
+    var extractedUncompressedBytes = 0;
+    var archiveEntryCount = 0;
     for (final entry in archive.files) {
+      archiveEntryCount++;
+      if (archiveEntryCount > _maxArchiveFileEntries) {
+        throw ToolBundleFormatException(
+          'Bundle contains too many entries (max $_maxArchiveFileEntries).',
+          devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+            'tag': kUtilivosDevBundleErrorTag,
+            'stage': 'ubb_too_many_zip_entries',
+            'max_entries': '$_maxArchiveFileEntries',
+            'ubb_entry_count': '$archiveEntryCount',
+          }),
+        );
+      }
+
       final normalizedEntryPath = _normalizeArchiveEntryPath(entry.name);
       if (normalizedEntryPath == null) {
         continue;
@@ -375,9 +497,24 @@ class ToolBundleDownloadService {
         rootPath: extractionDirectory.path,
         relativePath: normalizedEntryPath,
         context: 'archive entry',
+        ubbFileDev: ubbFileDev,
       );
 
       if (entry.isFile) {
+        final uncompressed = entry.size;
+        extractedUncompressedBytes += uncompressed;
+        if (extractedUncompressedBytes > _maxExtractedUncompressedBytes) {
+          throw ToolBundleFormatException(
+            'Bundle uncompressed size exceeds '
+            '${_maxExtractedUncompressedBytes ~/ (1024 * 1024)} MB.',
+            devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+              'tag': kUtilivosDevBundleErrorTag,
+              'stage': 'ubb_uncompressed_quota',
+              'ubb_entry_uncompressed_running_total': '$extractedUncompressedBytes',
+              'ubb_uncompressed_max': '$_maxExtractedUncompressedBytes',
+            }),
+          );
+        }
         final outputFile = File(outputPath);
         await outputFile.parent.create(recursive: true);
         await outputFile.writeAsBytes(entry.content, flush: true);
@@ -391,22 +528,45 @@ class ToolBundleDownloadService {
       rootPath: extractionDirectory.path,
       relativePath: 'manifest.json',
       context: 'manifest',
+      ubbFileDev: ubbFileDev,
     );
     final manifestFile = File(manifestPath);
     if (!await manifestFile.exists()) {
-      throw const ToolBundleFormatException('Bundle manifest.json is missing.');
+      throw ToolBundleFormatException(
+        'Bundle manifest.json is missing.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'ubb_missing_manifest',
+        }),
+      );
     }
 
     final rawManifest = jsonDecode(await manifestFile.readAsString());
     if (rawManifest is! Map<String, dynamic>) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Bundle manifest must be a JSON object.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'ubb_manifest_not_object',
+        }),
       );
     }
 
-    final name = _readRequiredManifestField(rawManifest, 'name');
-    final version = _readRequiredManifestField(rawManifest, 'version');
-    final entryPath = _readRequiredManifestField(rawManifest, 'entry');
+    final name = _readRequiredManifestField(
+      rawManifest,
+      'name',
+      ubbFileDev: ubbFileDev,
+    );
+    final version = _readRequiredManifestField(
+      rawManifest,
+      'version',
+      ubbFileDev: ubbFileDev,
+    );
+    final entryPath = _readRequiredManifestField(
+      rawManifest,
+      'entry',
+      ubbFileDev: ubbFileDev,
+    );
     final runtimeMode = _readOptionalManifestField(rawManifest, 'runtime_mode');
     final runtimeContractVersion = _readOptionalManifestIntField(
       rawManifest,
@@ -425,11 +585,17 @@ class ToolBundleDownloadService {
       rootPath: extractionDirectory.path,
       relativePath: entryPath,
       context: 'manifest entry',
+      ubbFileDev: ubbFileDev,
     );
     final entryFile = File(resolvedEntryPath);
     if (!await entryFile.exists()) {
       throw ToolBundleFormatException(
         'Bundle entry file "$entryPath" was not found.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'ubb_missing_entry',
+          'manifest_entry_path': entryPath,
+        }),
       );
     }
 
@@ -440,6 +606,7 @@ class ToolBundleDownloadService {
         rootPath: extractionDirectory.path,
         relativePath: rawIcon.trim(),
         context: 'manifest icon',
+        ubbFileDev: ubbFileDev,
       );
       if (await File(candidatePath).exists()) {
         resolvedIconPath = candidatePath;
@@ -484,72 +651,12 @@ class ToolBundleDownloadService {
     if (iconPath == null || iconPath.trim().isEmpty) {
       return null;
     }
-    final iconFile = File(iconPath);
+    final trimmed = iconPath.trim();
+    final iconFile = File(trimmed);
     if (!await iconFile.exists()) {
       return null;
     }
-
-    try {
-      final bytes = await iconFile.readAsBytes();
-      final decoded = img.decodeImage(bytes);
-      if (decoded == null) {
-        return null;
-      }
-
-      final sampleStep = math
-          .sqrt((decoded.width * decoded.height) / 5000)
-          .ceil();
-      final step = sampleStep < 1 ? 1 : sampleStep;
-      final bins = <int, int>{};
-
-      for (var y = 0; y < decoded.height; y += step) {
-        for (var x = 0; x < decoded.width; x += step) {
-          final pixel = decoded.getPixel(x, y);
-          final alpha = pixel.a;
-          if (alpha < 48) {
-            continue;
-          }
-          final r = (pixel.r / 255.0 * alpha / 255.0 * 255).round();
-          final g = (pixel.g / 255.0 * alpha / 255.0 * 255).round();
-          final b = (pixel.b / 255.0 * alpha / 255.0 * 255).round();
-
-          final maxChannel = r > g ? (r > b ? r : b) : (g > b ? g : b);
-          final minChannel = r < g ? (r < b ? r : b) : (g < b ? g : b);
-          if (maxChannel - minChannel < 18) {
-            continue;
-          }
-
-          final key = ((r ~/ 16) << 8) | ((g ~/ 16) << 4) | (b ~/ 16);
-          bins[key] = (bins[key] ?? 0) + 1;
-        }
-      }
-
-      if (bins.isEmpty) {
-        return null;
-      }
-
-      var selectedKey = bins.keys.first;
-      var selectedCount = bins[selectedKey]!;
-      bins.forEach((int key, int count) {
-        if (count > selectedCount) {
-          selectedKey = key;
-          selectedCount = count;
-        }
-      });
-
-      final r = ((selectedKey >> 8) & 0xF) * 16 + 8;
-      final g = ((selectedKey >> 4) & 0xF) * 16 + 8;
-      final b = (selectedKey & 0xF) * 16 + 8;
-      return _toHexColor(r, g, b);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  String _toHexColor(int r, int g, int b) {
-    String hex(int value) =>
-        value.clamp(0, 255).toRadixString(16).padLeft(2, '0').toUpperCase();
-    return '#${hex(r)}${hex(g)}${hex(b)}';
+    return compute(_deriveIconAccentColorWorker, trimmed);
   }
 
   bool _isPlaceholderIconPath(String? path) {
@@ -572,6 +679,7 @@ class ToolBundleDownloadService {
     required String rootPath,
     required String relativePath,
     required String context,
+    Map<String, String> ubbFileDev = const {},
   }) {
     final normalizedRoot = p.normalize(rootPath);
     final resolvedPath = p.normalize(p.join(normalizedRoot, relativePath));
@@ -581,16 +689,29 @@ class ToolBundleDownloadService {
     if (!isSafe) {
       throw ToolBundleFormatException(
         '$context path escapes bundle extraction directory.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'ubb_unsafe_path',
+          'context': context,
+        }),
       );
     }
     return resolvedPath;
   }
 
-  String _readRequiredManifestField(Map<String, dynamic> manifest, String key) {
+  String _readRequiredManifestField(
+    Map<String, dynamic> manifest,
+    String key, {
+    Map<String, String> ubbFileDev = const {},
+  }) {
     final raw = manifest[key];
     if (raw is! String || raw.trim().isEmpty) {
       throw ToolBundleFormatException(
         'Bundle manifest is missing required "$key" field.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'ubb_manifest_missing_field',
+        }),
       );
     }
     return raw.trim();
@@ -620,7 +741,16 @@ class ToolBundleDownloadService {
   }
 
   _ArchiveManifestPreview _readManifestPreview(List<int> archiveBytes) {
-    final archive = _decodeArchive(archiveBytes);
+    final ubb = _ubbFileDevMap(
+      archivePath: '(import_preview)',
+      archiveBytes: archiveBytes,
+      pluginSlug: '(import_preview)',
+      version: '(import_preview)',
+      calculatedSha256: null,
+      grant: null,
+      extractionDirectoryPath: null,
+    );
+    final archive = _decodeArchive(archiveBytes, ubbFileDev: ubb);
     ArchiveFile? manifestEntry;
     for (final entry in archive.files) {
       if (_normalizeArchiveEntryPath(entry.name) == 'manifest.json') {
@@ -630,30 +760,48 @@ class ToolBundleDownloadService {
     }
 
     if (manifestEntry == null || !manifestEntry.isFile) {
-      throw const ToolBundleFormatException('Bundle manifest.json is missing.');
+      throw ToolBundleFormatException(
+        'Bundle manifest.json is missing.',
+        devOnlyDetails: _devDetailsWithUbb(ubb, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'ubb_import_preview_no_manifest',
+        }),
+      );
     }
 
     final manifestSource = utf8.decode(manifestEntry.content);
 
     final decoded = jsonDecode(manifestSource);
     if (decoded is! Map<String, dynamic>) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Bundle manifest must be a JSON object.',
+        devOnlyDetails: _devDetailsWithUbb(ubb, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'ubb_import_preview_manifest_not_object',
+        }),
       );
     }
 
     return _ArchiveManifestPreview(
-      slug: _readRequiredManifestField(decoded, 'slug'),
-      version: _readRequiredManifestField(decoded, 'version'),
+      slug: _readRequiredManifestField(decoded, 'slug', ubbFileDev: ubb),
+      version: _readRequiredManifestField(decoded, 'version', ubbFileDev: ubb),
     );
   }
 
-  Archive _decodeArchive(List<int> archiveBytes) {
+  Archive _decodeArchive(
+    List<int> archiveBytes, {
+    Map<String, String> ubbFileDev = const {},
+  }) {
     try {
       return ZipDecoder().decodeBytes(archiveBytes, verify: true);
-    } catch (_) {
-      throw const ToolBundleFormatException(
+    } catch (e) {
+      throw ToolBundleFormatException(
         'Bundle archive is not a valid zip archive.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'ubb_zip_decode',
+          'zip_decode_error': e.toString(),
+        }),
       );
     }
   }
@@ -669,33 +817,92 @@ class ToolBundleDownloadService {
     final normalizedSlug = pluginSlug.trim();
     final normalizedVersion = version.trim();
     if (normalizedSlug.isEmpty) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Bundle plugin slug must not be empty.',
+        devOnlyDetails: _devDetailsWithUbb(
+          _ubbFileDevMap(
+            archivePath: archivePath,
+            archiveBytes: archiveBytes,
+            pluginSlug: '(empty)',
+            version: normalizedVersion,
+            calculatedSha256: null,
+            grant: grant,
+            extractionDirectoryPath: null,
+          ),
+          {
+            'tag': kUtilivosDevBundleErrorTag,
+            'stage': 'ubb_empty_slug',
+          },
+        ),
       );
     }
     if (normalizedVersion.isEmpty) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Bundle version must not be empty.',
+        devOnlyDetails: _devDetailsWithUbb(
+          _ubbFileDevMap(
+            archivePath: archivePath,
+            archiveBytes: archiveBytes,
+            pluginSlug: normalizedSlug,
+            version: '(empty)',
+            calculatedSha256: null,
+            grant: grant,
+            extractionDirectoryPath: null,
+          ),
+          {
+            'tag': kUtilivosDevBundleErrorTag,
+            'stage': 'ubb_empty_version',
+          },
+        ),
       );
     }
 
     final calculatedSha256 = sha256.convert(archiveBytes).toString();
+    var ubb = _ubbFileDevMap(
+      archivePath: archivePath,
+      archiveBytes: archiveBytes,
+      pluginSlug: normalizedSlug,
+      version: normalizedVersion,
+      calculatedSha256: calculatedSha256,
+      grant: grant,
+      extractionDirectoryPath: null,
+    );
     final normalizedExpectedSha = expectedSha256?.toLowerCase();
     if (normalizedExpectedSha != null &&
         normalizedExpectedSha.isNotEmpty &&
         normalizedExpectedSha != calculatedSha256) {
       await File(archivePath).delete();
+      ubb = _ubbFileDevMap(
+        archivePath: archivePath,
+        archiveBytes: archiveBytes,
+        pluginSlug: normalizedSlug,
+        version: normalizedVersion,
+        calculatedSha256: calculatedSha256,
+        grant: grant,
+        extractionDirectoryPath: null,
+      );
       throw ToolBundleIntegrityException(
         expectedSha256: normalizedExpectedSha,
         actualSha256: calculatedSha256,
+        devOnlyDetails: _devDetailsWithUbb(
+          ubb,
+          {
+            'tag': kUtilivosDevBundleErrorTag,
+            'stage': 'zip_sha256_check',
+            'ubb_expected_sha256_from_grant': normalizedExpectedSha,
+            'ubb_computed_sha256': calculatedSha256,
+            'ubb_local_path': archivePath,
+          },
+        ),
       );
     }
-    final normalizedTier = _normalizeTier(grantTier: grant?.tier);
+    final normalizedTier = _normalizeTier(grantTier: grant?.tier, ubb: ubb);
     final signatureVerifiedAt = await _verifyDownloadGrantSignature(
       grant: grant,
       pluginSlug: normalizedSlug,
       version: normalizedVersion,
       calculatedSha256: calculatedSha256,
+      ubbFileDev: ubb,
     );
 
     final extractionDirectory = await _resolveExtractionDirectoryFor(
@@ -707,9 +914,16 @@ class ToolBundleDownloadService {
       await extractionDirectory.delete(recursive: true);
     }
     await extractionDirectory.create(recursive: true);
+    if (kUtilivosBundleDevDiagnosticsEnabled && ubb.isNotEmpty) {
+      ubb = <String, String>{
+        ...ubb,
+        'ubb_extract_directory': extractionDirectory.path,
+      };
+    }
     final manifest = await _extractAndReadManifest(
       archiveBytes: archiveBytes,
       extractionDirectory: extractionDirectory,
+      ubbFileDev: ubb,
     );
 
     final metadata = DownloadedToolBundle(
@@ -747,7 +961,7 @@ class ToolBundleDownloadService {
     return metadata;
   }
 
-  String _normalizeTier({String? grantTier}) {
+  String _normalizeTier({String? grantTier, Map<String, String> ubb = const {}}) {
     final normalized = grantTier?.trim().toLowerCase();
     if (normalized == null || normalized.isEmpty) {
       return 'free';
@@ -760,7 +974,14 @@ class ToolBundleDownloadService {
         normalized == 'paid') {
       return 'pro';
     }
-    throw ToolBundleFormatException('Unsupported pricing tier "$normalized".');
+    throw ToolBundleFormatException(
+      'Unsupported pricing tier "$normalized".',
+      devOnlyDetails: _devDetailsWithUbb(ubb, {
+        'tag': kUtilivosDevBundleErrorTag,
+        'stage': 'unsupported_tier',
+        'tier_raw': grantTier?.trim() ?? '',
+      }),
+    );
   }
 
   Future<DateTime?> _verifyDownloadGrantSignature({
@@ -768,6 +989,7 @@ class ToolBundleDownloadService {
     required String pluginSlug,
     required String version,
     required String calculatedSha256,
+    Map<String, String> ubbFileDev = const {},
   }) async {
     if (grant == null) {
       return null;
@@ -775,26 +997,50 @@ class ToolBundleDownloadService {
     final payload = grant.signaturePayload;
     final signature = grant.signature?.trim();
     if (payload == null || signature == null || signature.isEmpty) {
-      if (_normalizeTier(grantTier: grant.tier) == 'pro') {
-        throw const ToolBundleFormatException(
+      if (_normalizeTier(grantTier: grant.tier, ubb: ubbFileDev) == 'pro') {
+        throw ToolBundleFormatException(
           'Pro bundle is missing signature metadata.',
+          devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+            'tag': kUtilivosDevBundleErrorTag,
+            'stage': 'pro_missing_sig',
+          }),
         );
       }
       return null;
     }
-    final signingPublicKey = await _resolveTrustedSigningPublicKey(grant);
-    final normalizedPayloadTier = _normalizeTier(grantTier: payload.tier);
-    final normalizedGrantTier = _normalizeTier(grantTier: grant.tier);
+    final signingPublicKey = await _resolveTrustedSigningPublicKey(
+      grant,
+      ubbFileDev: ubbFileDev,
+    );
+    final normalizedPayloadTier = _normalizeTier(
+      grantTier: payload.tier,
+      ubb: ubbFileDev,
+    );
+    final normalizedGrantTier = _normalizeTier(
+      grantTier: grant.tier,
+      ubb: ubbFileDev,
+    );
     if (payload.slug != pluginSlug ||
         payload.version != version ||
         payload.bundleSha256.toLowerCase() != calculatedSha256.toLowerCase()) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Bundle signature payload does not match download metadata.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'sig_payload_mismatch',
+          'sig_payload_slug': payload.slug,
+          'sig_payload_version': payload.version,
+          'sig_payload_bundle_sha256': payload.bundleSha256,
+        }),
       );
     }
     if (normalizedPayloadTier != normalizedGrantTier) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Bundle tier metadata is inconsistent.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'sig_tier_mismatch',
+        }),
       );
     }
     final canonicalPayload = jsonEncode(<String, dynamic>{
@@ -805,7 +1051,11 @@ class ToolBundleDownloadService {
       'tier': payload.tier,
       'publisher_id': payload.publisherId,
     });
-    final keyBytes = _extractEcPublicKeyBytesFromPem(signingPublicKey);
+    final keyBytes = _extractEcPublicKeyBytesFromPem(
+      signingPublicKey,
+      keyRole: 'leaf_signing',
+      ubbFileDev: ubbFileDev,
+    );
     final publicKey = SimplePublicKey(keyBytes, type: KeyPairType.p256);
     final signatureBytes = base64Decode(signature);
     final didVerify = await Ecdsa.p256(Sha256()).verify(
@@ -813,22 +1063,37 @@ class ToolBundleDownloadService {
       signature: Signature(signatureBytes, publicKey: publicKey),
     );
     if (!didVerify) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Bundle signature verification failed.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'ecdsa_verification_leaf',
+          'canonicalPayload': canonicalPayload,
+          'signingKey_pem_preview': _pemDebugPreview(signingPublicKey),
+          'signature_b64_len': '${signature.length}',
+          'plugin_slug': pluginSlug,
+          'version': version,
+          'calculated_sha256': calculatedSha256,
+        }),
       );
     }
     return DateTime.now().toUtc();
   }
 
   Future<String> _resolveTrustedSigningPublicKey(
-    PluginDownloadGrant grant,
-  ) async {
+    PluginDownloadGrant grant, {
+    Map<String, String> ubbFileDev = const {},
+  }) async {
     final pinnedRootPublicKey = _pinnedSigningRootPublicKey?.trim();
     final grantSigningPublicKey = grant.signingPublicKey?.trim();
     if (pinnedRootPublicKey == null || pinnedRootPublicKey.isEmpty) {
       if (grantSigningPublicKey == null || grantSigningPublicKey.isEmpty) {
-        throw const ToolBundleFormatException(
+        throw ToolBundleFormatException(
           'Signing key is missing in download metadata.',
+          devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+            'tag': kUtilivosDevBundleErrorTag,
+            'stage': 'missing_pinned_and_grant_key',
+          }),
         );
       }
       return grantSigningPublicKey;
@@ -838,20 +1103,33 @@ class ToolBundleDownloadService {
     await _verifySigningMetadataAgainstPinnedRoot(
       signingMetadata: meta,
       pinnedRootPublicKey: pinnedRootPublicKey,
+      ubbFileDev: ubbFileDev,
     );
 
     if (grantSigningPublicKey != null &&
         grantSigningPublicKey.isNotEmpty &&
         grantSigningPublicKey != meta.signingPublicKey) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Download signing key does not match trusted meta key.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'grant_vs_meta_key',
+          'grant_key_preview': _pemDebugPreview(grantSigningPublicKey),
+          'meta_key_preview': _pemDebugPreview(meta.signingPublicKey),
+        }),
       );
     }
     if (grant.signingPublicKeyId != null &&
         grant.signingPublicKeyId!.trim().isNotEmpty &&
         grant.signingPublicKeyId!.trim() != meta.signingPublicKeyId) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Download signing key id does not match trusted meta key.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'grant_vs_meta_key_id',
+          'grant_key_id': grant.signingPublicKeyId!.trim(),
+          'meta_key_id': meta.signingPublicKeyId,
+        }),
       );
     }
     return meta.signingPublicKey;
@@ -860,6 +1138,7 @@ class ToolBundleDownloadService {
   Future<void> _verifySigningMetadataAgainstPinnedRoot({
     required SigningMetadata signingMetadata,
     required String pinnedRootPublicKey,
+    Map<String, String> ubbFileDev = const {},
   }) async {
     final payload = signingMetadata.publicKeySignaturePayload;
     if (payload.schemaVersion != 1 ||
@@ -869,7 +1148,23 @@ class ToolBundleDownloadService {
         payload.publicKeyPem != signingMetadata.signingPublicKey ||
         signingMetadata.signingPublicKeyAlgorithm != 'ECDSA_P256_SHA256' ||
         signingMetadata.publicKeySignatureAlgorithm != 'ECDSA_P256_SHA256') {
-      throw const ToolBundleFormatException('Signing metadata is invalid.');
+      throw ToolBundleFormatException(
+        'Signing metadata is invalid.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'metadata_field_checks',
+          'expected_schema': '1',
+          'actual_schema': '${payload.schemaVersion}',
+          'key_purpose': payload.keyPurpose,
+          'key_algorithm': payload.keyAlgorithm,
+          'payload_key_id': payload.keyId,
+          'metadata_signing_key_id': signingMetadata.signingPublicKeyId,
+          'payload_match_pem':
+              '${payload.publicKeyPem == signingMetadata.signingPublicKey}',
+          'metadata_alg': signingMetadata.signingPublicKeyAlgorithm,
+          'metadata_sig_alg': signingMetadata.publicKeySignatureAlgorithm,
+        }),
+      );
     }
 
     final canonicalPayload = jsonEncode(<String, dynamic>{
@@ -879,7 +1174,11 @@ class ToolBundleDownloadService {
       'key_id': payload.keyId,
       'public_key_pem': payload.publicKeyPem,
     });
-    final rootKeyBytes = _extractEcPublicKeyBytesFromPem(pinnedRootPublicKey);
+    final rootKeyBytes = _extractEcPublicKeyBytesFromPem(
+      pinnedRootPublicKey,
+      keyRole: 'pinned_root',
+      ubbFileDev: ubbFileDev,
+    );
     final rootPublicKey = SimplePublicKey(rootKeyBytes, type: KeyPairType.p256);
     final signatureBytes = base64Decode(signingMetadata.publicKeySignature);
     final didVerify = await Ecdsa.p256(Sha256()).verify(
@@ -887,13 +1186,61 @@ class ToolBundleDownloadService {
       signature: Signature(signatureBytes, publicKey: rootPublicKey),
     );
     if (!didVerify) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Trusted signing metadata verification failed.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'stage': 'ecdsa_root_over_metadata',
+          'canonicalPayload': canonicalPayload,
+          'pinned_root_pem_preview': _pemDebugPreview(
+            pinnedRootPublicKey,
+          ),
+          'leaf_key_pem_preview': _pemDebugPreview(
+            signingMetadata.signingPublicKey,
+          ),
+          'public_key_sig_b64_len':
+              '${signingMetadata.publicKeySignature.length}',
+        }),
       );
     }
   }
 
-  List<int> _extractEcPublicKeyBytesFromPem(String pem) {
+  String _pemDebugPreview(String pem) {
+    final t = pem.replaceAll('\r', '').trim();
+    if (t.isEmpty) {
+      return '(empty)';
+    }
+    if (t.length <= 360) {
+      return t;
+    }
+    return '${t.substring(0, 200)}…[${t.length} total chars]…'
+        '${t.substring(t.length - 120)}';
+  }
+
+  List<int> _extractEcPublicKeyBytesFromPem(
+    String pem, {
+    required String keyRole,
+    Map<String, String> ubbFileDev = const {},
+  }) {
+    Map<String, String> keyShapeDetails({
+      required int derLength,
+      required int valueByteLen,
+      int? firstByte,
+      String? extra,
+    }) {
+      return {
+        'tag': kUtilivosDevBundleErrorTag,
+        'key_role': keyRole,
+        'der_length': '$derLength',
+        'spki_value_bytes_len': '$valueByteLen',
+        'value_first_byte':
+            firstByte == null ? 'n/a' : '0x${firstByte.toRadixString(16)}',
+        'expected': 'SPKI EC P-256: uncompressed point, 65 bytes, 0x04 prefix',
+        'pem_preview': _pemDebugPreview(pem),
+        if (extra != null) 'parse_error': extra,
+      };
+    }
+
     final normalized = pem
         .replaceAll('-----BEGIN PUBLIC KEY-----', '')
         .replaceAll('-----END PUBLIC KEY-----', '')
@@ -901,21 +1248,65 @@ class ToolBundleDownloadService {
         .replaceAll('\r', '')
         .trim();
     if (normalized.isEmpty) {
-      throw const ToolBundleFormatException(
+      throw ToolBundleFormatException(
         'Signing key is missing in download metadata.',
+        devOnlyDetails: _devDetailsWithUbb(
+          ubbFileDev,
+          keyShapeDetails(
+            derLength: 0,
+            valueByteLen: 0,
+            extra: 'empty_after_pem_stripping',
+          ),
+        ),
       );
     }
-    final der = base64Decode(normalized);
-    final parser = ASN1Parser(der);
-    final topSequence = parser.nextObject() as ASN1Sequence;
-    final bitString = topSequence.elements[1] as ASN1BitString;
-    final bytes = bitString.valueBytes();
-    if (bytes.length != 65 || bytes.first != 0x04) {
-      throw const ToolBundleFormatException(
+    try {
+      final der = base64Decode(normalized);
+      final parser = ASN1Parser(der);
+      final topSequence = parser.nextObject() as ASN1Sequence;
+      final bitString = topSequence.elements[1] as ASN1BitString;
+      final bytes = bitString.valueBytes();
+      if (bytes.isEmpty) {
+        throw ToolBundleFormatException(
+          'Invalid EC public key format for bundle verification.',
+          devOnlyDetails: _devDetailsWithUbb(
+            ubbFileDev,
+            keyShapeDetails(
+              derLength: der.length,
+              valueByteLen: 0,
+              extra: 'empty_bit_string',
+            ),
+          ),
+        );
+      }
+      if (bytes.length != 65 || bytes.first != 0x04) {
+        throw ToolBundleFormatException(
+          'Invalid EC public key format for bundle verification.',
+          devOnlyDetails: _devDetailsWithUbb(
+            ubbFileDev,
+            keyShapeDetails(
+              derLength: der.length,
+              valueByteLen: bytes.length,
+              firstByte: bytes.first,
+            ),
+          ),
+        );
+      }
+      return bytes.sublist(1);
+    } catch (e) {
+      if (e is ToolBundleFormatException) {
+        rethrow;
+      }
+      throw ToolBundleFormatException(
         'Invalid EC public key format for bundle verification.',
+        devOnlyDetails: _devDetailsWithUbb(ubbFileDev, {
+          'tag': kUtilivosDevBundleErrorTag,
+          'key_role': keyRole,
+          'exception': e.toString(),
+          'pem_preview': _pemDebugPreview(pem),
+        }),
       );
     }
-    return bytes.sublist(1);
   }
 
   Future<Directory> _resolveExtractionDirectoryFor({
@@ -968,17 +1359,6 @@ class ToolBundleDownloadService {
     return normalized;
   }
 
-  String _resolveArchiveExtension(String path) {
-    final extension = p.extension(path).toLowerCase();
-    if (extension == '.ubb') {
-      return '.ubb';
-    }
-    if (extension == '.zip') {
-      return '.zip';
-    }
-    return '.utilivos.zip';
-  }
-
   String _safeFilePart(String raw) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) {
@@ -1021,4 +1401,72 @@ class _ArchiveManifestPreview {
 
   final String slug;
   final String version;
+}
+
+String? _deriveIconAccentColorWorker(String iconPath) {
+  final iconFile = File(iconPath);
+  if (!iconFile.existsSync()) {
+    return null;
+  }
+  try {
+    final bytes = iconFile.readAsBytesSync();
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) {
+      return null;
+    }
+
+    final sampleStep = math
+        .sqrt((decoded.width * decoded.height) / 5000)
+        .ceil();
+    final step = sampleStep < 1 ? 1 : sampleStep;
+    final bins = <int, int>{};
+
+    for (var y = 0; y < decoded.height; y += step) {
+      for (var x = 0; x < decoded.width; x += step) {
+        final pixel = decoded.getPixel(x, y);
+        final alpha = pixel.a;
+        if (alpha < 48) {
+          continue;
+        }
+        final r = (pixel.r / 255.0 * alpha / 255.0 * 255).round();
+        final g = (pixel.g / 255.0 * alpha / 255.0 * 255).round();
+        final b = (pixel.b / 255.0 * alpha / 255.0 * 255).round();
+
+        final maxChannel = r > g ? (r > b ? r : b) : (g > b ? g : b);
+        final minChannel = r < g ? (r < b ? r : b) : (g < b ? g : b);
+        if (maxChannel - minChannel < 18) {
+          continue;
+        }
+
+        final key = ((r ~/ 16) << 8) | ((g ~/ 16) << 4) | (b ~/ 16);
+        bins[key] = (bins[key] ?? 0) + 1;
+      }
+    }
+
+    if (bins.isEmpty) {
+      return null;
+    }
+
+    var selectedKey = bins.keys.first;
+    var selectedCount = bins[selectedKey]!;
+    bins.forEach((int key, int count) {
+      if (count > selectedCount) {
+        selectedKey = key;
+        selectedCount = count;
+      }
+    });
+
+    final r = ((selectedKey >> 8) & 0xF) * 16 + 8;
+    final g = ((selectedKey >> 4) & 0xF) * 16 + 8;
+    final b = (selectedKey & 0xF) * 16 + 8;
+    return _accentRgbToHex(r, g, b);
+  } catch (_) {
+    return null;
+  }
+}
+
+String _accentRgbToHex(int r, int g, int b) {
+  String hex(int value) =>
+      value.clamp(0, 255).toRadixString(16).padLeft(2, '0').toUpperCase();
+  return '#${hex(r)}${hex(g)}${hex(b)}';
 }
